@@ -1,0 +1,67 @@
+:root {
+  --paper: #f6f1e7;
+  --ink: #2b2620;
+  --ink-soft: #6b6156;
+  --line: #d8cfbf;
+  --accent: #b0532f;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: Georgia, 'Times New Roman', serif;
+  line-height: 1.6;
+}
+
+body {
+  margin: 0;
+}
+
+a {
+  color: var(--accent);
+}
+
+code {
+  font-family: ui-monospace, 'Cascadia Code', Menlo, monospace;
+  font-size: 0.92em;
+  background: rgba(43, 38, 32, 0.06);
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+}
+
+pre {
+  background: rgba(43, 38, 32, 0.06);
+  padding: 1em;
+  border-radius: 6px;
+  overflow-x: auto;
+}
+
+pre code {
+  background: none;
+  padding: 0;
+}
+
+.hint-button {
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  background: none;
+  border: none;
+  border-bottom: 1px dotted var(--ink-soft);
+  padding: 0;
+  cursor: help;
+}
+
+.hint-tooltip {
+  max-width: 22rem;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 0.85rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+}
+
