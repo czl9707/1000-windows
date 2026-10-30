@@ -1,0 +1,81 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import Typography from '@/components/ui/Typography.astro';
+
+const chapters = (await getCollection('chapters')).sort(
+  (a, b) => a.data.order - b.data.order
+);
+---
+
+<BaseLayout>
+  <div class="HomeHead">
+    <Typography variant="h2" as="h1">Paint 1000 windows</Typography>
+    <Typography variant="body1" color="secondary">
+      An infinite hand-drawn wall of windows, built in the open. Every window
+      is a seeded tenant — its own light, its own curtain, its own small life —
+      drawn with a boiling line that never repeats between visits. The wall is
+      endless in every direction; reload and a different wall stands there.
+    </Typography>
+    <Typography variant="body1" color="secondary">
+      This site documents the construction as it happens: chapters quote the
+      real code behind each step and record the chain of thought, and the
+      embedded demo is the engine itself, growing milestone by milestone.
+    </Typography>
+  </div>
+
+  <div class="HomeSection">
+    <Typography variant="h4" as="h2">Chapters</Typography>
+    <ol class="ChapterList">
+      {chapters.map((chapter) => (
+        <li>
+          <a href={`/chapters/${chapter.id}/`}>
+            <Typography variant="h6" as="span">{chapter.data.title}</Typography>
+            <Typography
+              variant="body2"
+              color={chapter.data.status === 'landed' ? 'accent' : 'secondary'}
+            >
+              {chapter.data.status}
+            </Typography>
+          </a>
+        </li>
+      ))}
+    </ol>
+  </div>
+
+  <div class="HomeSection">
+    <Typography variant="h4" as="h2">Decisions</Typography>
+    <Typography variant="body1">
+      Decisions made along the way live on the <a href="/decisions/">Decisions</a> page,
+      one entry per resolved question.
+    </Typography>
+  </div>
+</BaseLayout>
+
+<style>
+  .HomeHead {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-paragraph);
+    padding-bottom: var(--spacing-component);
+  }
+
+  .HomeSection {
+    padding-bottom: var(--spacing-component);
+  }
+
+  .ChapterList {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .ChapterList li > a {
+    display: flex;
+    flex-direction: row;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--spacing-paragraph);
+    padding: var(--spacing-paragraph) 0;
+    border-bottom: var(--border-secondary);
+  }
+</style>
