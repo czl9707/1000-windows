@@ -19,6 +19,8 @@ An Astro MDX site in this repo that documents the construction of an infinite ha
 
 <!-- one line per closed ticket: gist of the answer, link to the ticket that holds the detail -->
 
+- [How the reference actually builds it — chapter digest](tickets/001-reference-digest.md): deterministic via seed-hash + append-only draw order + named warp traces cached per pen; ~3 ms/frame for 9 heads means the wall must pre-render window scenes keyed by window seed, not recompute per frame.
+
 ## Not yet specified
 
 - Global day/night knob: one uniform time-of-day multiplier over the whole wall. Revisit once per-window light genes exist.
