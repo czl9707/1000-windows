@@ -8,6 +8,19 @@ export function mount(canvas: HTMLCanvasElement): DemoHandle {
 
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
+  let ground = '';
+  const readGround = () => {
+    const channels = getComputedStyle(document.body)
+      .getPropertyValue('--color-primary-background')
+      .trim();
+    ground = channels ? `rgb(${channels})` : '#000';
+  };
+
+  const paint = () => {
+    ctx.fillStyle = ground;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  };
+
   const resize = () => {
     const dpr = window.devicePixelRatio || 1;
     const rect = canvas.getBoundingClientRect();
@@ -19,8 +32,7 @@ export function mount(canvas: HTMLCanvasElement): DemoHandle {
   let running = false;
 
   const tick = () => {
-    ctx.fillStyle = 'rgb(229 222 214)';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    paint();
     frame = requestAnimationFrame(tick);
   };
 
@@ -35,13 +47,24 @@ export function mount(canvas: HTMLCanvasElement): DemoHandle {
     cancelAnimationFrame(frame);
   };
 
+  readGround();
   resize();
   const observer = new ResizeObserver(resize);
   observer.observe(canvas);
 
+  const themeObserver = new MutationObserver(() => {
+    readGround();
+    if (!running) paint();
+  });
+  themeObserver.observe(document.body, {
+    attributes: true,
+    attributeFilter: ['data-theme'],
+  });
+
   const onMotionChange = () => {
     stop();
     resize();
+    paint();
     start();
   };
   reducedMotion.addEventListener('change', onMotionChange);
@@ -52,6 +75,7 @@ export function mount(canvas: HTMLCanvasElement): DemoHandle {
     destroy() {
       stop();
       observer.disconnect();
+      themeObserver.disconnect();
       reducedMotion.removeEventListener('change', onMotionChange);
       ctx.clearRect(0, 0, canvas.width, canvas.height);
     },
