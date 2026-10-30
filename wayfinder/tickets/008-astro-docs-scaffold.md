@@ -1,7 +1,7 @@
 ---
 title: Astro docs scaffold — MDX chapters hosting the demo
 labels: [wayfinder:task]
-assignee:
+assignee: zane
 state: open
 blocked-by: []
 ---

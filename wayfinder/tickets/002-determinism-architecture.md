@@ -1,7 +1,7 @@
 ---
 title: Determinism architecture — meta-seed, window seeds, traced randomness
 labels: [wayfinder:grilling]
-assignee: zane
+assignee:
 state: open
 blocked-by: [001]
 ---
