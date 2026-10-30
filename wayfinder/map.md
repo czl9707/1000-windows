@@ -9,7 +9,7 @@ An Astro MDX site in this repo that documents the construction of an infinite ha
 
 ## Notes
 
-- Methodology source: the reference project ("all my friends are made of javascript"), full docs saved locally at `~/.claude/skills/wayfinder/en-*.txt` (index, blatt, rng, kopfform, merkmale, haar, zonen, raum, stift, druck, wolke, schichten, animation, fallen).
+- Methodology source: the reference project ("all my friends are made of javascript"), full docs saved locally at `~/temp-project/site/en-*.txt` (index, blatt, rng, kopfform, merkmale, haar, zonen, raum, stift, druck, wolke, schichten, animation, fallen). The digested form lives in this repo on branch `research/reference-digest` at `docs/reference-digest.md` — read with `git show research/reference-digest:docs/reference-digest.md`.
 - Adopted discipline: the engine has zero runtime dependencies; RNG, geometry, pen, and springs are hand-rolled; three-layer split — DNA (who lives there) / Motion (what is happening now) / Style (how it looks); the DNA random-number order is append-only, fields appended never inserted.
 - Repo layout: demo engine = vanilla TS modules under `src/demo/` mounted by Astro pages via `<script>`; docs site = Astro + MDX + CSS modules + Radix. Chapters are working documents written as milestones land.
 - Execution rides on this map (user decision): prototype/task tickets produce code merged to `main` as milestones land; each closed milestone ships its MDX chapter. Research and grilling tickets stay decision-only.
