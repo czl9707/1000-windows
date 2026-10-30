@@ -1,0 +1,23 @@
+---
+import DemoHint from './DemoHint';
+import styles from './DemoCanvas.module.css';
+
+interface Props {
+  label?: string;
+}
+
+const { label = 'Demo canvas' } = Astro.props;
+---
+
+<figure class={styles.demo}>
+  <canvas data-demo class={styles.canvas} aria-label={label} role="img"></canvas>
+  <figcaption class={styles.caption}>
+    <DemoHint client:visible />
+  </figcaption>
+</figure>
+
+<script>
+  import { mountAll } from '../demo/mount';
+
+  mountAll();
+</script>
