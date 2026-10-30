@@ -29,7 +29,7 @@ const chapters = (await getCollection('chapters')).sort(
     <ol class="ChapterList">
       {chapters.map((chapter) => (
         <li>
-          <a href={`/chapters/${chapter.id}/`}>
+          <a href={`/docs/${chapter.id}/`}>
             <Typography variant="h6" as="span">{chapter.data.title}</Typography>
             <Typography
               variant="body2"
@@ -41,14 +41,6 @@ const chapters = (await getCollection('chapters')).sort(
         </li>
       ))}
     </ol>
-  </div>
-
-  <div class="HomeSection">
-    <Typography variant="h4" as="h2">Decisions</Typography>
-    <Typography variant="body1">
-      Decisions made along the way live on the <a href="/decisions/">Decisions</a> page,
-      one entry per resolved question.
-    </Typography>
   </div>
 </BaseLayout>
 

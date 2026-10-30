@@ -11,7 +11,7 @@ An Astro MDX site in this repo that documents the construction of an infinite ha
 
 - Methodology source: the reference project ("all my friends are made of javascript"), full docs saved locally at `~/temp-project/site/en-*.txt` (index, blatt, rng, kopfform, merkmale, haar, zonen, raum, stift, druck, wolke, schichten, animation, fallen). The digested form lives in this repo on branch `research/reference-digest` at `docs/reference-digest.md` — read with `git show research/reference-digest:docs/reference-digest.md`.
 - Adopted discipline: the engine has zero runtime dependencies; RNG, geometry, pen, and springs are hand-rolled; three-layer split — DNA (who lives there) / Motion (what is happening now) / Style (how it looks); the DNA random-number order is append-only, fields appended never inserted.
-- Repo layout: demo engine = vanilla TS modules under `src/demo/` mounted by Astro pages via `<script>`; docs site = Astro + MDX + CSS modules + Radix. Chapters are working documents: a chapter exists as a stub the moment its decisions start, decisions land on the site's Decisions page as wayfinder tickets close, and each closed milestone fills its chapter in.
+- Repo layout: demo engine = vanilla TS modules under `src/demo/` mounted by Astro pages via `<script>`; docs site = Astro + MDX + CSS modules + Radix. Routes: `/` home tracking progress (full demo lives here later), `/docs/[slug]` per chapter. Chapters are working documents: a chapter exists as a stub the moment its decisions start, and each closed milestone fills its chapter in. Header stays title (logo later) + theme switch; chapter navigation moves to a left sidebar later.
 - Execution rides on this map (user decision): prototype/task tickets produce code merged to `main` as milestones land; each closed milestone ships its MDX chapter. Research and grilling tickets stay decision-only.
 - Comments and docs in English.
 
@@ -31,6 +31,7 @@ An Astro MDX site in this repo that documents the construction of an infinite ha
 - Narrative depth: names/doorbells, story vocabulary per tenant, how much written text (if any) lives in the demo.
 - "New wall" regeneration UX and shareable seed state.
 - Zoom behavior on the infinite canvas.
+- Content page structure: left sidebar navigation taking over chapter listing (per-page chapter nav, draft/landed states); header stays title + theme switch.
 
 ## Out of scope
 
