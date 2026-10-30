@@ -1,0 +1,102 @@
+---
+import { getCollection, render } from 'astro:content';
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import Typography from '@/components/ui/Typography.astro';
+
+export async function getStaticPaths() {
+  const chapters = await getCollection('chapters');
+  return chapters.map((chapter) => ({
+    params: { slug: chapter.id },
+    props: { chapter },
+  }));
+}
+
+const { chapter } = Astro.props;
+const { Content } = await render(chapter);
+---
+
+<BaseLayout title={chapter.data.title}>
+  <div class="ChapterProse">
+    <Typography variant="body2" color="secondary">
+      Chapter {chapter.data.order} — {chapter.data.status}
+    </Typography>
+    <Content />
+  </div>
+</BaseLayout>
+
+<style is:global>
+  .ChapterProse h1,
+  .ChapterProse h2 {
+    font-family: var(--typography-h4-fontFamily);
+    font-weight: var(--typography-h4-fontWeight);
+    font-size: var(--typography-h4-fontSize);
+    line-height: var(--typography-h4-lineHeight);
+    padding-top: var(--spacing-component);
+    padding-bottom: var(--spacing-paragraph);
+  }
+
+  .ChapterProse h3,
+  .ChapterProse h4,
+  .ChapterProse h5,
+  .ChapterProse h6 {
+    font-family: var(--typography-h5-fontFamily);
+    font-weight: var(--typography-h5-fontWeight);
+    font-size: var(--typography-h5-fontSize);
+    line-height: var(--typography-h5-lineHeight);
+    padding-top: var(--spacing-component);
+    padding-bottom: var(--spacing-paragraph);
+  }
+
+  .ChapterProse > * + h1,
+  .ChapterProse > * + h2,
+  .ChapterProse > * + h3 {
+    padding-top: var(--spacing-component);
+  }
+
+  .ChapterProse p,
+  .ChapterProse ul,
+  .ChapterProse ol {
+    font-family: var(--typography-body1-fontFamily);
+    font-weight: var(--typography-body1-fontWeight);
+    font-size: var(--typography-body1-fontSize);
+    line-height: var(--typography-body1-lineHeight);
+    padding-bottom: var(--spacing-paragraph);
+  }
+
+  .ChapterProse ul,
+  .ChapterProse ol {
+    padding-left: 1.5rem;
+    list-style: initial;
+  }
+
+  .ChapterProse ol {
+    list-style: decimal;
+  }
+
+  .ChapterProse code {
+    font-family: var(--typography-code-fontFamily);
+    font-weight: var(--typography-code-fontWeight);
+    font-size: var(--typography-code-fontSize);
+    line-height: var(--typography-code-lineHeight);
+  }
+
+  .ChapterProse :not(pre) > code {
+    border: var(--border-secondary);
+    border-radius: var(--size-border-radius);
+    padding: 0 0.25rem;
+  }
+
+  .ChapterProse pre {
+    border: var(--border-secondary);
+    border-radius: var(--size-border-radius);
+    padding: var(--spacing-paragraph);
+    overflow-x: auto;
+    margin-bottom: var(--spacing-paragraph);
+  }
+
+  .ChapterProse blockquote {
+    border-left: var(--border);
+    padding-left: var(--spacing-paragraph);
+    color: rgb(var(--color-secondary-foreground));
+  }
+</style>

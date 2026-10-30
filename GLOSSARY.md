@@ -1,5 +1,8 @@
 # Glossary
 
+## Chapter
+One milestone's document on the site: born as a draft when the milestone's decisions start landing, carrying those decisions as they are made, and growing into the milestone's record as its code lands. One chapter per milestone, always the single document for it.
+
 ## Meta-seed
 The master random value generated on every page load (and on "new wall"). Every window's identity derives from it. Different on each load -> a different wall every visit; stable within a session.
 
