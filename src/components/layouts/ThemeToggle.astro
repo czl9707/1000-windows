@@ -9,19 +9,14 @@ import { MoonIcon, SunIcon } from "@radix-ui/react-icons";
 </Button>
 
 <script>
-    function initTheme() {
-        const storedTheme = localStorage.getItem("theme") || "dark";
-        document.body.setAttribute("data-theme", storedTheme);
-    }
-
+    // The initial theme is applied by the inline script in BaseLayout; the
+    // toggle only flips it, so the default lives in exactly one place.
     function toggleTheme() {
         const currentTheme = document.body.getAttribute("data-theme");
         const newTheme = currentTheme === "dark" ? "light" : "dark";
         document.body.setAttribute("data-theme", newTheme);
         localStorage.setItem("theme", newTheme);
     }
-
-    initTheme();
 
     const toggleButton = document.getElementById("theme-toggle");
     toggleButton?.addEventListener("click", toggleTheme);

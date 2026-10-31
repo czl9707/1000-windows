@@ -120,25 +120,3 @@ body[data-theme='dark'] {
 @custom-media --larger-than-md (min-width:1080px);
 @custom-media --smaller-than-lg (max-width:1440px);
 @custom-media --larger-than-lg (min-width:1440px);
-
-.hint-button {
-    font: inherit;
-    font-family: var(--typography-body2-fontFamily);
-    font-size: var(--typography-body2-fontSize);
-    color: rgb(var(--color-secondary-foreground));
-    background: none;
-    border: none;
-    border-bottom: 1px dotted rgb(var(--color-secondary-foreground));
-    padding: 0;
-    cursor: help;
-}
-
-.hint-tooltip {
-    max-width: 22rem;
-    background: rgb(var(--color-primary-foreground));
-    color: rgb(var(--color-primary-background));
-    font-family: var(--typography-body2-fontFamily);
-    font-size: var(--typography-body2-fontSize);
-    padding: 0.5rem 0.75rem;
-    border-radius: 6px;
-}

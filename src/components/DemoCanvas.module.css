@@ -2,12 +2,21 @@
   margin: var(--spacing-paragraph) 0;
 }
 
+.frame {
+  border: var(--border-secondary);
+  border-radius: var(--size-border-radius);
+  overflow: hidden;
+}
+
 .canvas {
   display: block;
   width: 100%;
   height: 22rem;
-  border: var(--border-secondary);
-  border-radius: var(--size-border-radius);
+}
+
+.controls {
+  border-top: var(--border-secondary);
+  padding: 0.9rem 1rem;
 }
 
 .caption {

@@ -1,12 +1,13 @@
 ---
 import { getCollection, render } from 'astro:content';
-import BaseLayout from '@/layouts/BaseLayout.astro';
+import BaseLayout from '@/components/layouts/BaseLayout.astro';
 import Typography from '@/components/ui/Typography.astro';
+import { chapterNumber, chapterSlug } from '@/lib/chapters';
 
 export async function getStaticPaths() {
   const chapters = await getCollection('chapters');
   return chapters.map((chapter) => ({
-    params: { slug: chapter.id },
+    params: { slug: chapterSlug(chapter.id) },
     props: { chapter },
   }));
 }
@@ -18,7 +19,7 @@ const { Content } = await render(chapter);
 <BaseLayout title={chapter.data.title}>
   <div class="ChapterProse">
     <Typography variant="body2" color="secondary">
-      Chapter {chapter.data.order} — {chapter.data.status}
+      Chapter {chapterNumber(chapter.id)} — {chapter.data.status}
     </Typography>
     <Content />
   </div>
@@ -81,13 +82,15 @@ const { Content } = await render(chapter);
   }
 
   .ChapterProse :not(pre) > code {
+    background-color: rgb(var(--color-accent-foreground) / 25%);
     border: var(--border-secondary);
     border-radius: var(--size-border-radius);
-    padding: 0 0.25rem;
+    padding: 0 0.5rem;
   }
 
   .ChapterProse pre {
-    border: var(--border-secondary);
+    background-color: rgb(var(--color-accent-foreground) / 7%);
+    border: var(--border);
     border-radius: var(--size-border-radius);
     padding: var(--spacing-paragraph);
     overflow-x: auto;

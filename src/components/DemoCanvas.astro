@@ -1,23 +1,32 @@
 ---
-import DemoHint from './DemoHint';
 import styles from './DemoCanvas.module.css';
 
 interface Props {
+  /** Which demo paints this canvas; matches a kind in components/mount.ts. */
+  demo: string;
   label?: string;
 }
 
-const { label = 'Demo canvas' } = Astro.props;
+const { demo, label = 'Demo canvas' } = Astro.props;
+const hasControls = Astro.slots.has('default');
 ---
 
 <figure class={styles.demo}>
-  <canvas data-demo class={styles.canvas} aria-label={label} role="img"></canvas>
-  <figcaption class={styles.caption}>
-    <DemoHint client:visible />
-  </figcaption>
+  <div class={styles.frame} data-demo-frame>
+    <canvas data-demo={demo} class={styles.canvas} aria-label={label} role="img"></canvas>
+    {hasControls && (
+      <div class={styles.controls}>
+        <slot />
+      </div>
+    )}
+  </div>
 </figure>
 
 <script>
-  import { mountAll } from '../demo/mount';
+  import { mountAll } from './mount';
+
+  // Every chapter's demo module registers itself on import.
+  import.meta.glob('../content/chapters/*/demo.ts', { eager: true });
 
   mountAll();
 </script>

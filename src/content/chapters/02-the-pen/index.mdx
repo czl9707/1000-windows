@@ -1,0 +1,159 @@
+---
+title: The pen
+status: landed
+---
+
+import DemoCanvas from '../../../components/DemoCanvas.astro';
+import DemoCanvasControls from '../../../components/DemoCanvasControls';
+import { PARAMS } from './params';
+
+A drawing looks hand-drawn when three things hold: every stroke is a filled
+ribbon whose width can change along the line, the line's deviation from its
+intended path hangs off a name and is therefore stable across frames, and
+that deviation re-rolls a few times a second so the drawing boils like an
+animation of a hand redrawing itself. All three come from the reference
+project's pen, transplanted onto long straight window lines. The constants
+survived the transplant; the pressure curve did not — see
+[Pressure](#pressure).
+
+Where the numbers come from — the hash, the generator, the seeding of a
+window — is the [Randomness](/docs/randomness) chapter. Here we stay with
+the line itself.
+
+All measures are unit measure: the window box is `1.6 × 2.0` units, and the
+caller scales the canvas to size, so a width of `0.032` is about one and a
+half percent of the window height.
+
+<DemoCanvas demo="pen-prototype" label="Demo canvas — the pen">
+  <DemoCanvasControls client:load params={PARAMS} />
+</DemoCanvas>
+
+## Interface
+
+One class serves a whole scene:
+
+```ts
+new Pen(tuning, taktVersatz, ink)
+```
+
+`tuning` is the set of knobs below; the pen keeps the reference, so
+mutating a field changes every later stroke. `taktVersatz` is the window's beat offset; without it every
+window on a wall would boil in lockstep, which reads as a display fault.
+`ink` is the stroke colour, also exposed as `pen.ink` so scene fills (the
+glass tint) can share it.
+
+Three tools:
+
+- `pen.stroke(ctx, pts, opts)` draws a stroke through the points `pts`.
+- `pen.dot(ctx, cx, cy, r, name)` draws a hand-drawn dot.
+- `pen.setTime(time)` advances the beat: `takt = floor(time * 8 + taktVersatz)`.
+  Call it once per frame before any strokes.
+
+A stroke may set its own knobs, all optional beside the first:
+
+- `name` — the trace name, for example `w0,0:frame-outer-top`. Decides the
+  warp (see below). Required.
+- `width` — full stroke width in unit measure. Halved for the ghost
+  underlayer.
+- `spitz` — per-stroke pressure override; defaults to the tuning's `spitz`.
+- `closed` — the points form a loop; the stroke overshoots its start
+  instead of closing exactly.
+- `ruhig` — hard off-switch for boiling: the stroke hangs on the hand only,
+  never the beat.
+
+Stroke widths themselves are not tuning: they are hand-set constants in the
+scene — frame `0.032`, curtain `0.022`, and so on — because a frame rail
+and a curtain hem should not share one knob.
+
+## Tuning
+
+- `amplitude` — base size of the warp, in unit measure. Default `0.008`.
+- `scratchWeight` — share of the fine scratch wave inside the warp.
+  Default `0.35`.
+- `kochHand` — stroke length below which a stroke hangs on the hand only.
+  Default `0.4`.
+- `kochFrame` — length above which a stroke boils fully on the beat.
+  Default `1.2`.
+- `handGain` — strength of the hand stream. Default `0.62`.
+- `frameGain` — strength of the frame stream. Default `0.5`.
+- `spitz` — pressure: how far a stroke runs out toward its middle.
+  Default `0.6`.
+
+## The warp has a name
+
+The obvious implementation of a wobbly line is a random stream each stroke
+draws its deviation from. It is wrong: a skipped stroke shifts every later
+stroke's draw, and half the scene jumps to a different drawing for a frame —
+the flickering face. So the deviation hangs off the trace `name`: the same
+name always produces the same tremor, whatever was drawn before it.
+
+From the name a hash makes a seed, and from that seed one field of `52`
+support values: `12` for a coarse meander, `40` for a fine scratch weighted
+at `scratchWeight`. Both are interpolated cubically along the stroke. The
+meander alone is rubber hose, the scratch alone a short circuit. The field
+is cached on the pen — the same trace recurs every frame, and a window has
+only a few dozen traces.
+
+The hand stream reads the field directly; the frame stream reads the same
+field shifted by the beat, so it re-rolls eight times a second while
+nothing else moves. The two mix as `handGain` against
+`mix * frameGain`, where `mix` comes from the stroke's length:
+
+- below `kochHand` — hand only: curtain folds, sill details.
+- `kochHand` to `kochFrame` — mixed, sliding with length: hems, mullion.
+- from `kochFrame` — fully on the beat: frame rails, rod.
+
+Closed shapes always sit on the beat: a scene shape that holds still while
+its neighbours boil looks broken. Below `kochHand` the warp is also capped
+at half amplitude — the same deviation is a meander on a long rail but a
+jump of the whole line on a short detail. Dots never boil.
+
+## Every line is a surface
+
+No `ctx.stroke()`. A stroke is a ribbon: the centre line plus half a width
+to each side as one filled polygon. The reason is the width itself — it is
+supposed to change within a stroke, which a canvas line cannot do.
+
+Under every stroke lies the same stroke once more: half as wide, at `32%`
+opacity, with its own warp (trace `name~`, amplitude `1.7× + 0.004`).
+That is where the pencil lives — beside the ink line, not on it.
+
+Closed strokes run `3.5%` past their start. The place where the hand set
+down stays visible; a rectangle that closes exactly reads as drawn by a
+program. The window's frame goes further and draws its four edges as four
+separate strokes that run past the corners.
+
+### Pressure
+
+The reference thins a stroke at touchdown and liftoff: thin ends, full
+middle. Tried on window lines and rejected — on long straight strokes it
+read as a brush, not a pen. The curve here is inverted: thick at the ends,
+thinning through the middle, with `spitz` setting how far the middle runs
+out (`0` blunt, `1` strongest). This is a deliberate divergence from the
+reference, recorded beside the curve in the code.
+
+## From point sequence to path
+
+Before a ribbon comes about, the point sequence becomes an evenly sampled
+path: near-duplicate points dropped, then a centripetal Catmull-Rom spline
+(provably free of cusps and self-intersections), then resampling by arc
+length at a step of `0.012`. The end point always belongs: if the last
+sample lies further than half a step from it, the end point is appended;
+otherwise it replaces the last sample. Without this, short strokes tremble
+by one whole step from frame to frame.
+
+## A dot is not a circle
+
+A filled circle is the fastest way to make a drawing look like vector
+graphics: `ctx.arc` hits the curve exactly, and that is exactly what the
+eye recognises. So `dot()` draws the same way as any stroke: a slightly
+oval, tilted ring, warped with this pen's noise, over a pale ghost. Four
+details decide:
+
+- Tilt and ovality come from the trace name — without it, two dots share
+  the same bulge in the same place: twins.
+- The ring is computed open, with a gap at the end — that gap is the
+  set-down mark.
+- The warp is capped at `0.15 r`, at most `0.007` — beyond that the dot
+  becomes an amoeba.
+- No beat — a dot that trembles at every frame is a flicker, not a dot.

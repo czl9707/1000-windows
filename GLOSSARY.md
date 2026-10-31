@@ -23,3 +23,21 @@ A named drawing path (for example a window frame, a curtain edge). The line trem
 
 ## Boiling
 The hand-drawn line's slow wobble: strokes stay still within a beat and slip between beats, at a fixed tempo per second, with each window offset so the wall never twitches in lockstep.
+
+## Beat
+One tick of the boiling tempo (8 per second). From the reference study's `takt`. Every stroke's boil re-rolls on the beat; dots never do.
+
+## Beat offset
+The per-window phase shift of the beat (reference: `taktVersatz`), derived from the window seed so neighbouring windows never boil in lockstep.
+
+## Hand stream, frame stream
+The two noise streams mixed into every stroke's warp. The hand stream hangs on the trace name only — the drawing hand, identical every frame. The frame stream re-rolls on the beat and carries the boiling.
+
+## Hand-only / on-beat bands
+Stroke-length bands deciding how much frame stream enters (reference: `koch`). Below the hand-only bound a stroke holds still like real ink; above the on-beat bound it boils fully; between, the boil fades in.
+
+## Pressure
+How far a stroke's mid-line thins relative to its ends (reference: `spitz`): 0 leaves a constant-width line, 1 pinches the middle. Divergence from the reference, recorded by human verdict: window lines read best fat at the ends, so the ends never thin and the middle carries the taper.
+
+## Still
+A stroke's hard switch that disables the frame stream entirely (reference: `ruhig`) — for marks that must never move, such as hatching.

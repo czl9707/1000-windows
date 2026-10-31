@@ -1,0 +1,52 @@
+---
+title: Randomness
+status: draft
+---
+
+The hardest promise this project makes: the same seed draws the same
+window, every time, forever. No `Math.random()` anywhere in the drawing
+path. Everything a scene rolls — which curtain, whether the mullion
+exists, how a line wobbles — comes from a generator that was fully
+determined the moment the seed was chosen. The reference project built
+this machinery first and let it rule every later decision; so do we.
+
+## Two primitives
+
+A name becomes a seed through `fnv1a`, a 32-bit FNV-1a hash — the same
+string always hashes to the same number, on every machine, in every
+browser, with no library. A seed becomes a stream of draws through
+`mulberry32`, a fourteen-line generator returning numbers between 0 and 1.
+That is the whole foundation; both are direct ports from the reference.
+
+## One wrapper, one warm-up
+
+On top sits a small wrapper with three conveniences: `float(min, max)` for
+a number in a range, `chance(p)` for a yes/no roll, `weighted(items)` for
+a weighted pick. All three draw from the same stream, in call order.
+
+The wrapper throws away 8 draws before handing a generator out. The reason:
+windows on a wall come in a grid, and neighbouring grid addresses produce
+neighbouring seeds by construction — and an LCG-like source correlates
+visibly for its first values. Eight draws in, neighbours are strangers
+again.
+
+The stream order is part of the correctness. A scene's rolls happen in a
+fixed sequence; appending a roll anywhere shifts every later draw and
+changes every existing window. New rolls go at the end, or hang on their
+own hashed name — the same rule the pen's warp follows.
+
+## Naming things instead of numbering them
+
+Anything that must stay stable while its neighbours change gets a name, and
+the name is hashed into its own stream. The window's trace names embed the
+window's address (`w0,0:frame-outer-top`), so the same pane warms
+identically every frame — and two windows never share a tremor. The beat
+offset (`taktVersatz`) is rolled from the window's seed too: without it a
+whole facade would boil in lockstep, which reads as a display fault.
+
+## Seeding a window
+
+A window's seed is the hash of its identity: the meta-seed of the wall plus
+the window's grid address. Re-roll the wall — a new meta-seed — and every
+window re-addresses at once, while each window remains fully replayable
+from its own seed.

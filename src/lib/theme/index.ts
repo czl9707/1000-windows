@@ -74,7 +74,6 @@ export type {
 }
 
 
-// vars generator
 const theme: Theme = {
     color: {
         primary: { background: "", foreground: "" },

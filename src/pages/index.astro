@@ -1,10 +1,12 @@
 ---
 import { getCollection } from 'astro:content';
-import BaseLayout from '@/layouts/BaseLayout.astro';
+import BaseLayout from '@/components/layouts/BaseLayout.astro';
 import Typography from '@/components/ui/Typography.astro';
+import { chapterSlug } from '@/lib/chapters';
 
-const chapters = (await getCollection('chapters')).sort(
-  (a, b) => a.data.order - b.data.order
+// The id is the folder name `NN-<name>`; lexical order is the reading order.
+const chapters = (await getCollection('chapters')).sort((a, b) =>
+  a.id.localeCompare(b.id)
 );
 ---
 
@@ -29,7 +31,7 @@ const chapters = (await getCollection('chapters')).sort(
     <ol class="ChapterList">
       {chapters.map((chapter) => (
         <li>
-          <a href={`/docs/${chapter.id}/`}>
+          <a href={`/docs/${chapterSlug(chapter.id)}/`}>
             <Typography variant="h6" as="span">{chapter.data.title}</Typography>
             <Typography
               variant="body2"
