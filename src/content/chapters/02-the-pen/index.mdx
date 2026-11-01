@@ -33,12 +33,15 @@ half percent of the window height.
 One class serves a whole scene:
 
 ```ts
-new Pen(tuning, taktVersatz, ink)
+new Pen(tuning, seed, ink)
 ```
 
 `tuning` is the set of knobs below; the pen keeps the reference, so
-mutating a field changes every later stroke. `taktVersatz` is the window's beat offset; without it every
-window on a wall would boil in lockstep, which reads as a display fault.
+mutating a field changes every later stroke. `seed` is the window's seed:
+the pen hashes it into every trace's warp and rolls the window's beat
+offset from it, so one pen serves one window — without the per-window
+seed, every window on a wall would boil in lockstep, which reads as a
+display fault.
 `ink` is the stroke colour, also exposed as `pen.ink` so scene fills (the
 glass tint) can share it.
 
@@ -51,8 +54,8 @@ Three tools:
 
 A stroke may set its own knobs, all optional beside the first:
 
-- `name` — the trace name, for example `w0,0:frame-outer-top`. Decides the
-  warp (see below). Required.
+- `name` — the trace name, for example `frame-outer-top`. Together with
+  the window's seed it decides the warp (see below). Required.
 - `width` — full stroke width in unit measure. Halved for the ghost
   underlayer.
 - `spitz` — per-stroke pressure override; defaults to the tuning's `spitz`.
@@ -87,7 +90,8 @@ stroke's draw, and half the scene jumps to a different drawing for a frame —
 the flickering face. So the deviation hangs off the trace `name`: the same
 name always produces the same tremor, whatever was drawn before it.
 
-From the name a hash makes a seed, and from that seed one field of `52`
+From the window's seed and the trace's name a hash makes a seed, and from
+that seed one field of `52`
 support values: `12` for a coarse meander, `40` for a fine scratch weighted
 at `scratchWeight`. Both are interpolated cubically along the stroke. The
 meander alone is rubber hose, the scratch alone a short circuit. The field
@@ -150,8 +154,8 @@ eye recognises. So `dot()` draws the same way as any stroke: a slightly
 oval, tilted ring, warped with this pen's noise, over a pale ghost. Four
 details decide:
 
-- Tilt and ovality come from the trace name — without it, two dots share
-  the same bulge in the same place: twins.
+- Tilt and ovality come from the window's seed and the trace name —
+  without them, two dots share the same bulge in the same place: twins.
 - The ring is computed open, with a gap at the end — that gap is the
   set-down mark.
 - The warp is capped at `0.15 r`, at most `0.007` — beyond that the dot

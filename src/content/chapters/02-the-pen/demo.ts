@@ -4,7 +4,6 @@ import type { Tuning } from '../../../core/pen/pen';
 import { Pen } from '../../../core/pen/pen';
 import { registerDemo, type DemoHandle } from '../../../components/mount';
 import type { NumericTuningKey } from '../../../core/pen/tuning';
-import { fnv1a } from '../../../core/randomness/rng';
 import { DEFAULT_TUNING } from '../../../core/pen/tuning';
 import { drawWindow } from '../../../core/window-shell/window';
 
@@ -35,9 +34,7 @@ function mountPenPrototype(canvas: HTMLCanvasElement): PenDemoHandle {
 
   let pen = createPen();
   function createPen(): Pen {
-    const windowSeed = fnv1a(`${SEED}:w:0,0`);
-    const versatz = (fnv1a(`takt:${windowSeed}`) / 0xffffffff) * 8;
-    return new Pen(tuning, versatz, ink);
+    return new Pen(tuning, SEED, ink);
   }
 
   const paint = (time: number) => {

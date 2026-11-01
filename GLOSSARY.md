@@ -19,7 +19,7 @@ The single most readable thing in a window scene (an occupant silhouette, a cat 
 A per-window inherited trait describing the apartment's lighting: whether lights are on, their warmth (amber lamp, cool ceiling, TV-blue flicker), and curtain density. Identity, not global state.
 
 ## Trace
-A named drawing path (for example a window frame, a curtain edge). The line tremor is derived by hashing the trace's name, so the same window shows the same tremor every frame and across re-renders while panning.
+A named drawing path (for example a window frame, a curtain edge). The line tremor is derived from the window seed and the trace's name, so the same window shows the same tremor every frame and across re-renders while panning.
 
 ## Boiling
 The hand-drawn line's slow wobble: strokes stay still within a beat and slip between beats, at a fixed tempo per second, with each window offset so the wall never twitches in lockstep.

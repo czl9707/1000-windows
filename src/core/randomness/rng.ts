@@ -9,6 +9,18 @@ export function fnv1a(text: string): number {
   return h >>> 0;
 }
 
+// A window's grid address survives only inside this call: everything downstream
+// draws from the returned seed alone, so the renderer never sees coordinates.
+export function windowSeed(metaSeed: number, col: number, row: number): number {
+  return fnv1a(`${metaSeed}:w:${col},${row}`);
+}
+
+// A named independent stream off a seed — for rolls (e.g. motion) that must not
+// shift the DNA stream's append-only draw order.
+export function fork(seed: number, label: string): Rng {
+  return new Rng(fnv1a(`${seed}:${label}`));
+}
+
 export function mulberry32(seed: number): () => number {
   let a = seed >>> 0;
   return () => {

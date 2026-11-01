@@ -38,15 +38,26 @@ own hashed name — the same rule the pen's warp follows.
 ## Naming things instead of numbering them
 
 Anything that must stay stable while its neighbours change gets a name, and
-the name is hashed into its own stream. The window's trace names embed the
-window's address (`w0,0:frame-outer-top`), so the same pane warms
-identically every frame — and two windows never share a tremor. The beat
-offset (`taktVersatz`) is rolled from the window's seed too: without it a
-whole facade would boil in lockstep, which reads as a display fault.
+the name is hashed into its own stream. A stroke's warp hangs on its trace
+name hashed together with the window's seed (`seed:frame-outer-top`), so
+the same window trembles identically every frame — and two windows never
+share a tremor. The beat offset (`taktVersatz`) is rolled from the window's
+seed too: without it a whole facade would boil in lockstep, which reads as
+a display fault.
 
 ## Seeding a window
 
 A window's seed is the hash of its identity: the meta-seed of the wall plus
-the window's grid address. Re-roll the wall — a new meta-seed — and every
-window re-addresses at once, while each window remains fully replayable
-from its own seed.
+the window's grid address.
+
+```ts
+windowSeed(metaSeed, col, row)
+```
+
+The grid address survives only inside this call. Its result seeds everything
+else — the scene's stream, every trace's warp, the beat offset — so the
+renderer is a pure function of the seed and never learns where on the wall
+the window hangs. Re-roll the wall — a new meta-seed — and every window
+re-addresses at once, while each window remains fully replayable from its
+own seed. Rolls that would disturb the scene stream's order (motion, later)
+get their own named stream off the same seed via `fork(seed, label)`.

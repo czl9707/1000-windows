@@ -147,14 +147,17 @@ function resample(pts: Pt[], step: number): Pt[] {
 export class Pen {
   private fields = new Map<string, Field>();
   private takt = 0;
+  private readonly taktVersatz: number;
 
-  // The seed is not a constructor argument: the warp hangs on trace names, and
-  // scene trace names embed the window address, so the seed travels inside them.
+  // One pen serves one window: the seed rides in the warp of every trace, so
+  // trace names stay bare ids and the scene never learns its grid address.
   constructor(
     private tuning: Tuning,
-    private taktVersatz: number,
+    private seed: number,
     private inkColor: string,
-  ) {}
+  ) {
+    this.taktVersatz = (fnv1a(`takt:${seed}`) / 0xffffffff) * BEATS_PER_SECOND;
+  }
 
   get ink(): string {
     return this.inkColor;
@@ -167,7 +170,7 @@ export class Pen {
   private field(name: string): Field {
     let f = this.fields.get(name);
     if (!f) {
-      const r = mulberry32(fnv1a(name));
+      const r = mulberry32(fnv1a(`${this.seed}:${name}`));
       const all: number[] = [];
       for (let i = 0; i < FIELD; i++) all.push(r() * 2 - 1);
       f = {
@@ -293,7 +296,7 @@ export class Pen {
   }
 
   dot(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number, name: string): void {
-    const tilt = ((fnv1a(name) % 1000) / 1000) * Math.PI;
+    const tilt = ((fnv1a(`${this.seed}:${name}`) % 1000) / 1000) * Math.PI;
     const cap = Math.min(0.15 * r, 0.007);
     const scratch = this.field(name).scratch;
     const ring: Pt[] = [];
