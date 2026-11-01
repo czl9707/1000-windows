@@ -83,6 +83,8 @@ body {
 
     --size-border-radius: .25rem;
     --size-header-height: 4.5rem;
+    --size-margin-column: 14rem;
+    --size-prose-max: 46rem;
     @media(--larger-than-xs) {
         --size-header-height: 6rem;
     }

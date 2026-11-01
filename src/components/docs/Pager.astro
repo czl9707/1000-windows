@@ -1,0 +1,78 @@
+---
+import type { ChapterItem } from './types';
+
+interface Props {
+  prev?: ChapterItem;
+  next?: ChapterItem;
+}
+
+const { prev, next } = Astro.props;
+---
+
+{
+  (prev || next) && (
+    <nav class="Pager" aria-label="Chapter navigation">
+      {prev && (
+        <a class="PageLink" href={`/docs/${prev.slug}`}>
+          <span class="Direction">← Previous</span>
+          <span class="Name">
+            {prev.number}. {prev.title}
+          </span>
+        </a>
+      )}
+      {next && (
+        <a class="PageLink Next" href={`/docs/${next.slug}`}>
+          <span class="Direction">Next →</span>
+          <span class="Name">
+            {next.number}. {next.title}
+          </span>
+        </a>
+      )}
+    </nav>
+  )
+}
+
+<style>
+  .Pager {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--spacing-paragraph);
+    margin-top: var(--spacing-component);
+  }
+
+  .PageLink {
+    grid-column: 1;
+    display: flex;
+    flex-direction: column;
+    gap: calc(var(--spacing-paragraph) / 3);
+    border: var(--border);
+    border-radius: var(--size-border-radius);
+    padding: var(--spacing-paragraph);
+    color: rgb(var(--color-secondary-foreground));
+    transition: color var(--transition-short), border-color var(--transition-short);
+  }
+
+  .PageLink.Next {
+    grid-column: 2;
+    text-align: right;
+  }
+
+  .PageLink:hover {
+    color: rgb(var(--color-accent-foreground));
+    border-color: rgb(var(--color-primary-foreground) / 50%);
+  }
+
+  .Direction {
+    font-family: var(--typography-button-fontFamily);
+    font-weight: var(--typography-button-fontWeight);
+    font-size: var(--typography-button-fontSize);
+    line-height: var(--typography-button-lineHeight);
+  }
+
+  .Name {
+    font-family: var(--typography-body2-fontFamily);
+    font-weight: var(--typography-body2-fontWeight);
+    font-size: var(--typography-body2-fontSize);
+    line-height: var(--typography-body2-lineHeight);
+  }
+</style>

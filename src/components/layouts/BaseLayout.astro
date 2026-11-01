@@ -12,9 +12,11 @@ interface Props {
   frontmatter?: {
     title?: string;
   };
+  /** Full-bleed main: the page lays itself out (docs shell, sidebars). */
+  wide?: boolean;
 }
 
-const { title, description, frontmatter } = Astro.props;
+const { title, description, frontmatter, wide = false } = Astro.props;
 const pageTitle = title ?? frontmatter?.title ?? SITE_TITLE;
 const fullTitle =
   pageTitle === SITE_TITLE ? SITE_TITLE : `${pageTitle} — ${SITE_TITLE}`;
@@ -38,7 +40,7 @@ const descriptionText =
       document.body.setAttribute("data-theme", theme);
     </script>
     <Header siteTitle={SITE_TITLE} />
-    <main>
+    <main class:list={{ Wide: wide }}>
       <slot />
     </main>
   </body>
@@ -46,12 +48,18 @@ const descriptionText =
 
 <style>
   main {
-    max-width: 46rem;
+    max-width: var(--size-prose-max);
     margin: 0 auto;
     padding: calc(var(--size-header-height) + 1.5rem) 1.25rem 4rem;
     min-height: 100vh;
     box-sizing: border-box;
     isolation: isolate;
+  }
+
+  main.Wide {
+    max-width: none;
+    padding-left: 0;
+    padding-right: 0;
   }
 
   body {

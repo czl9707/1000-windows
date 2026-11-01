@@ -1,0 +1,31 @@
+---
+interface Props {
+  href: string;
+  active?: boolean;
+  depth?: number;
+}
+
+const { href, active = false, depth = 0 } = Astro.props;
+---
+
+<a href={href} class="NavRow" data-active={active} style={{ "--category-depth": depth }}>
+  <slot />
+</a>
+
+<style>
+  .NavRow {
+    padding: 0.25rem var(--spacing-paragraph) 0.25rem
+      calc(var(--category-depth) * 1.5rem + var(--spacing-paragraph));
+    background-color: transparent;
+    border-radius: var(--size-border-radius);
+    transition: background-color var(--transition-short);
+  }
+
+  .NavRow[data-active="true"] {
+    background-color: rgb(var(--color-primary-foreground) / 20%);
+  }
+
+  .NavRow[data-active="false"]:hover {
+    background-color: rgb(var(--color-primary-foreground) / 10%);
+  }
+</style>

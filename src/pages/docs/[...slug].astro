@@ -1,7 +1,8 @@
 ---
 import { getCollection, render } from 'astro:content';
 import BaseLayout from '@/components/layouts/BaseLayout.astro';
-import Typography from '@/components/ui/Typography.astro';
+import ChapterLayout from '@/components/docs/ChapterLayout.astro';
+import type { ChapterItem, ChapterLayoutProps, TocHeading } from '@/components/docs/types';
 import { chapterNumber, chapterSlug } from '@/lib/chapters';
 
 export async function getStaticPaths() {
@@ -13,16 +14,39 @@ export async function getStaticPaths() {
 }
 
 const { chapter } = Astro.props;
-const { Content } = await render(chapter);
+const { Content, headings } = await render(chapter);
+
+const all = (await getCollection('chapters')).toSorted(
+  (a, b) => chapterNumber(a.id) - chapterNumber(b.id),
+);
+const items: ChapterItem[] = all.map((c) => ({
+  slug: chapterSlug(c.id),
+  number: chapterNumber(c.id),
+  title: c.data.title,
+  status: c.data.status,
+}));
+const index = items.findIndex((i) => i.slug === chapterSlug(chapter.id));
+const current = items[index];
+if (!current) throw new Error(`docs page: chapter "${chapter.id}" not in collection`);
+
+const depths = [...new Set(headings.map((h) => h.depth))].sort((a, b) => a - b);
+const props: ChapterLayoutProps = {
+  chapters: items,
+  chapter: current,
+  headings: headings.map((h) => ({
+    slug: h.slug,
+    text: h.text,
+    depth: depths.indexOf(h.depth),
+  })),
+  prev: index > 0 ? items[index - 1] : undefined,
+  next: index < items.length - 1 ? items[index + 1] : undefined,
+};
 ---
 
-<BaseLayout title={chapter.data.title}>
-  <div class="ChapterProse">
-    <Typography variant="body2" color="secondary">
-      Chapter {chapterNumber(chapter.id)} — {chapter.data.status}
-    </Typography>
+<BaseLayout title={chapter.data.title} wide>
+  <ChapterLayout {...props}>
     <Content />
-  </div>
+  </ChapterLayout>
 </BaseLayout>
 
 <style is:global>
@@ -46,12 +70,6 @@ const { Content } = await render(chapter);
     line-height: var(--typography-h5-lineHeight);
     padding-top: var(--spacing-component);
     padding-bottom: var(--spacing-paragraph);
-  }
-
-  .ChapterProse > * + h1,
-  .ChapterProse > * + h2,
-  .ChapterProse > * + h3 {
-    padding-top: var(--spacing-component);
   }
 
   .ChapterProse p,
