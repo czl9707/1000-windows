@@ -5,6 +5,8 @@ status: landed
 
 import DemoCanvas from '../../../components/DemoCanvas.astro';
 import DemoCanvasControls from '../../../components/DemoCanvasControls';
+import DemoReseedButton from '../../../components/DemoReseedButton.astro';
+import DemoResetButton from '../../../components/DemoResetButton.astro';
 import { PARAMS } from './params';
 
 A drawing looks hand-drawn when three things hold: every stroke is a filled
@@ -20,20 +22,22 @@ Where the numbers come from — the hash, the generator, the seeding of a
 window — is the [Randomness](/docs/randomness) chapter. Here we stay with
 the line itself.
 
-All measures are unit measure: the window box is `1.6 × 2.0` units, and the
-caller scales the canvas to size, so a width of `0.032` is about one and a
-half percent of the window height.
+All measures are unit measure: the window box is `1.6 × 1.0` units, and the
+caller scales the canvas to size, so a width of `0.032` is about three
+percent of the window height.
 
 <DemoCanvas demo="pen-prototype" label="Demo canvas — the pen">
+  <DemoReseedButton />
+  <DemoResetButton />
   <DemoCanvasControls client:load params={PARAMS} />
 </DemoCanvas>
 
 ## Interface
 
-One class serves a whole scene:
+One class serves a whole window:
 
 ```ts
-new Pen(tuning, seed, ink)
+new Pen(tuning, seed)
 ```
 
 `tuning` is the set of knobs below; the pen keeps the reference, so
@@ -41,23 +45,31 @@ mutating a field changes every later stroke. `seed` is the window's seed:
 the pen hashes it into every trace's warp and rolls the window's beat
 offset from it, so one pen serves one window — without the per-window
 seed, every window on a wall would boil in lockstep, which reads as a
-display fault.
-`ink` is the stroke colour, also exposed as `pen.ink` so scene fills (the
-glass tint) can share it.
+display fault. The seed is also the one fact `drawWindow` reads off the
+pen (`pen.seed`), so the shell plan and the tremor can never disagree.
+
+The pen is colour-blind. Every call names its colour; the pen owns only
+the hand.
 
 Three tools:
 
 - `pen.stroke(ctx, pts, opts)` draws a stroke through the points `pts`.
-- `pen.dot(ctx, cx, cy, r, name)` draws a hand-drawn dot.
+- `pen.dot(ctx, cx, cy, r, name, color)` draws a hand-drawn dot.
+- `pen.fill(ctx, pts, opts)` washes the polygon flat in the given colour
+  at the given alpha — the glass tint at a whisper, or, at full strength
+  in the ground colour, an add-on that must hide the wall behind it (the
+  dressing decides; see [the layers](/docs/the-layers)). No warp, no
+  ghost, no boil.
 - `pen.setTime(time)` advances the beat: `takt = floor(time * 8 + taktVersatz)`.
   Call it once per frame before any strokes.
 
-A stroke may set its own knobs, all optional beside the first:
+A stroke's options, all required beside the last three:
 
 - `name` — the trace name, for example `frame-outer-top`. Together with
-  the window's seed it decides the warp (see below). Required.
+  the window's seed it decides the warp (see below).
 - `width` — full stroke width in unit measure. Halved for the ghost
   underlayer.
+- `color` — the colour this stroke draws in.
 - `spitz` — per-stroke pressure override; defaults to the tuning's `spitz`.
 - `closed` — the points form a loop; the stroke overshoots its start
   instead of closing exactly.
@@ -65,8 +77,8 @@ A stroke may set its own knobs, all optional beside the first:
   never the beat.
 
 Stroke widths themselves are not tuning: they are hand-set constants in the
-scene — frame `0.032`, curtain `0.022`, and so on — because a frame rail
-and a curtain hem should not share one knob.
+scene — frame `0.032`, sill `0.036`, and so on — because a frame rail
+and a sill front should not share one knob.
 
 ## Tuning
 
@@ -103,9 +115,9 @@ field shifted by the beat, so it re-rolls eight times a second while
 nothing else moves. The two mix as `handGain` against
 `mix * frameGain`, where `mix` comes from the stroke's length:
 
-- below `kochHand` — hand only: curtain folds, sill details.
-- `kochHand` to `kochFrame` — mixed, sliding with length: hems, mullion.
-- from `kochFrame` — fully on the beat: frame rails, rod.
+- below `kochHand` — hand only: sill details, pane bars.
+- `kochHand` to `kochFrame` — mixed, sliding with length: mullions.
+- from `kochFrame` — fully on the beat: frame rails, meeting rail, sill top.
 
 Closed shapes always sit on the beat: a scene shape that holds still while
 its neighbours boil looks broken. Below `kochHand` the warp is also capped

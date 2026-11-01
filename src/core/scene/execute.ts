@@ -1,0 +1,26 @@
+// The draw stage: marks in, pen strokes out. Stable-sorts by each mark's z
+// (ties keep emission order), projects the points through weak perspective,
+// scales widths by the mark's mean depth, and dresses each mark — its role
+// resolved against the frame's palette. The pen never sees depth or roles.
+import type { Pen } from '../../pen/pen';
+import { dress, type Palette } from '../../styling/roles';
+import { project, scaleAt } from '../../motion/projection';
+import type { Mark } from './mark';
+
+export function execute(marks: Mark[], pen: Pen, ctx: CanvasRenderingContext2D, palette: Palette): void {
+  // Stable sort: ties keep emission order, so the append-only draw order
+  // survives; the caller hands over a marks array it does not reuse.
+  marks.sort((a, b) => a.z - b.z);
+  for (const mark of marks) {
+    const meanZ = mark.pts.reduce((sum, p) => sum + p.z, 0) / mark.pts.length;
+    const pts = project(mark.pts);
+    const { color, alpha } = dress(mark.role, palette);
+    if (mark.kind === 'fill') {
+      pen.fill(ctx, pts, { color, alpha });
+    } else if (mark.kind === 'dot') {
+      pen.dot(ctx, pts[0].x, pts[0].y, mark.r * scaleAt(meanZ), mark.name, color);
+    } else {
+      pen.stroke(ctx, pts, { name: mark.name, width: mark.width * scaleAt(meanZ), color });
+    }
+  }
+}

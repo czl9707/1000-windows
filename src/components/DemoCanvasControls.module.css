@@ -3,6 +3,8 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.6rem 2.5rem;
   align-items: center;
+  /* Own full row in the frame's flex controls, below the buttons. */
+  flex: 1 1 100%;
 }
 
 .sliderRow {

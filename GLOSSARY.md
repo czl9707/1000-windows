@@ -39,5 +39,26 @@ Stroke-length bands deciding how much frame stream enters (reference: `koch`). B
 ## Pressure
 How far a stroke's mid-line thins relative to its ends (reference: `spitz`): 0 leaves a constant-width line, 1 pinches the middle. Divergence from the reference, recorded by human verdict: window lines read best fat at the ends, so the ends never thin and the middle carries the taper.
 
+## Pane
+One piece of glass — the unit the shell draws, washes, and opens. A pane carries a flat wash of ink; an opening is bare paper where a pane's wash is gone.
+
+## Shell
+The frame construction of a window — archetype, pane layout, open state, sill — as opposed to the tenant behind it (curtain, insider, light). The shell precedes the tenant: its geometry is decided before the DNA stream begins.
+
+## Archetype
+The frame construction a window is built as: sash, casement, or picture. One small weighted catalogue; the seed picks the archetype before anything else about the shell. Every window shares one wide-rectangle outer ratio.
+
+## Pane layout
+The named arrangement of glass inside one archetype (for example 1-over-1, a casement pair). Named kinds picked by one roll, never assembled from independent axes.
+
+## Open state
+Whether a window is closed, half-open, or open. Only operable archetypes roll it (sash, casement); picture is fixed glass. An open sash lifts and leaves bare paper below; an open casement leaf is drawn flat on the wall and carries its pane's glass wash with it.
+
 ## Still
 A stroke's hard switch that disables the frame stream entirely (reference: `ruhig`) — for marks that must never move, such as hatching.
+
+## Mark
+One emitted drawing instruction: a discriminated union — a stroke (trace name, width), a fill, or a dot (radius) — each carrying its 3D points, a dress role (`ink` draws solid; `glass` is the pane wash; `paper` occludes in the background colour), and a numeric depth sort key. Colour and strength both live in the role, resolved by styling. Geometry emits marks; motion places them; style dresses them; the pen draws them.
+
+## Depth
+The z coordinate of a point, in unit measure; 0 is the wall plane, larger stands nearer the viewer. The draw stage stable-sorts marks by their depth key and projects each point through weak perspective before the pen sees it.

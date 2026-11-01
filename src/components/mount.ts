@@ -6,8 +6,12 @@ export interface DemoHandle {
 }
 
 // The contract a demo implements so the shared controls island can drive it.
+// `reseed` is the re-roll the reseed button performs; `setParam` carries only
+// the demo's declared tuning parameters.
 export interface TuningHandle extends DemoHandle {
   setParam(key: string, value: number): void;
+  reseed(value: number): void;
+  resetParams(): void;
   snapshot(): Record<string, number>;
   subscribe(cb: () => void): () => void;
 }
@@ -37,7 +41,7 @@ export function handleRegistered(canvas: HTMLCanvasElement): Promise<DemoHandle>
 }
 
 function isTuningHandle(handle: DemoHandle): handle is TuningHandle {
-  return 'setParam' in handle && 'snapshot' in handle && 'subscribe' in handle;
+  return 'setParam' in handle && 'reseed' in handle && 'resetParams' in handle && 'snapshot' in handle && 'subscribe' in handle;
 }
 
 export function tuningHandleFor(canvas: HTMLCanvasElement): TuningHandle | undefined {

@@ -1,0 +1,156 @@
+---
+title: The window shell
+status: landed
+---
+
+import DemoCanvas from '../../../components/DemoCanvas.astro';
+import DemoReseedButton from '../../../components/DemoReseedButton.astro';
+
+A wall of a thousand windows cannot give every one a bespoke drawing — the
+variety has to come from a small catalogue of frame constructions, rolled
+per window from its seed. The shell is everything the building owns:
+archetype, pane layout, open state, sill, and the add-ons mounted
+over them. Who lives behind the glass is the tenant, and the tenant's
+chapters come later; here we decide the frame, and the code pattern that
+keeps the frame's vocabulary from trampling the tenant's.
+
+One ratio holds for every window on the wall: a wide rectangle, `1.6 × 1.0`
+in unit measure (see [The pen](/docs/the-pen)). The archetypes are frame
+constructions inside that box — no arched tops, no portholes. Glass is
+the one thing the shell tints: every pane carries a wash of ink
+(`Pen.fill`, a flat translucent shape — stroke, dot, and fill are the
+pen's three tools), at a strength where it stays under the lines. Where
+two panes overlap — a lifted sash riding over the glass behind it — the
+washes stack. Everything else is line only, openings included: an open
+window is bare paper bounded by lines, the way a pen drawing has to say
+it. The add-ons are the exception — an awning or a window box fills
+opaque in the paper colour, because their job is to hide the wall and
+the layers behind them.
+
+<DemoCanvas demo="shell-grid" label="Demo canvas — a wall of rolled windows">
+  <DemoReseedButton />
+</DemoCanvas>
+
+The grid mounts a 3 × 2 wall from one meta-seed, each window seeded as
+`windowSeed(metaSeed, col, row)` — the same call the wall will use. The
+button re-rolls the meta-seed; the same value always rebuilds the same
+six windows.
+
+The canvases below are plates, not rolls: each mounts pinned plans, one
+per variant, so what differs between neighbours is exactly what the
+caption says differs. Together they enumerate the whole catalogue.
+
+## The archetypes
+
+Three frame constructions, weighted toward the one that dominates real
+streets. The plate pins every layout: sash's on the first row, casement's
+on the second, picture alone below.
+
+<DemoCanvas demo="shell-archetypes" label="Demo canvas — the archetypes and their layouts" />
+
+**Sash**, weight 4 — a horizontal meeting rail splits the glass into an
+upper and a lower sash. First row, from left: `1-over-1` (weight 4),
+`2-over-2` (3), `6-over-6` (1).
+
+**Casement**, weight 3 — vertical mullions, no meeting rail. Second row:
+`pair` (4), `single` (3), `four-pane` (1).
+
+**Picture**, weight 2 — fixed glass, no divisions, no lattice. The wash
+says glass; the absence of divisions says picture.
+
+Layouts are **named kinds picked by one roll**, never assembled from
+independent axes: there is no "rows × columns × transom" multiplication,
+because independent axes multiply against each other and produce
+combinations nobody designed. Each name is a drawing the makers agreed
+on.
+
+## The open states
+
+Sash and casement are operable; picture is fixed glass. The operable
+archetypes roll an open state — closed (weight 4), open (2), half-open
+(1) — skewed toward closed, like everything else on the street.
+
+<DemoCanvas demo="shell-open" label="Demo canvas — the open states, sash above casement" />
+
+Top row, the sash *slides*: the lower sash lifts as a fraction of its
+height (open 55%, half-open 25%), its bottom rail rising off the frame
+and leaving bare paper below. Bottom row, the casement *swings*: the
+leaf turns toward the viewer and is drawn flat on the wall — a true
+rectangle, narrowed by the swing's cosine, hinged at the frame or the
+mullion. The opened leaf carries its glass with it; its old panes go
+bare. When a casement opens, the seed also rolls which side it hinges
+on — the plate's two open windows show both sides (open hinged left,
+half-open hinged right).
+
+## The sill
+
+<DemoCanvas demo="shell-sills" label="Demo canvas — the sills: flat, bracketed, flush" />
+
+From left: `flat` (the plain ledge, weight 5), `bracketed` (deeper, on
+two corbels, 2), `flush` (no sill at all — the frame meets the wall, 1).
+
+## The add-ons
+
+Masses mounted over frame and sill, each its own roll. From left,
+top row: the metal `slope` awning — a rigid plane whose ribs the
+projection skews — the fabric `canopy`, an arc with a scalloped valance,
+and the `louvered` shutters; bottom row: the `paneled` shutters and the
+two box counts. The none weights sit behind the plates: awning `none` 4,
+shutters `none` 4, box `none` 8 — most windows on a street are bare.
+
+<DemoCanvas demo="shell-addons" label="Demo canvas — the add-on kinds" />
+
+The shutters are two panels half the opening's width each, hung at its
+outer edges and swung half open toward the viewer: swung they cover no
+glass, draw narrowed by the swing's cosine, and fill opaque against the
+wall behind them. The window box hangs over the sill so it reads as
+passing behind them, a few tufts over each lip. The awning runs wider
+than the window box so it reads as a roof, and it fills opaque — the
+fabric hides the frame top and everything behind it. The add-ons may
+reach 0.35 beyond the box sideways and 0.4 above it — the wall's window
+pitch keeps neighbours from ever touching. The sill's depth and the
+awning's reach are constants per kind, never rolls: two same-looking
+windows that differ only in ledge depth read as identical at wall
+distance, and a seed draw spent on variety nobody can see is a draw
+wasted.
+
+## The rolls
+
+The shell rolls on its own stream, `fork(seed, 'shell')`, separate from
+the DNA stream the tenant will draw from. The fork is what lets one
+vocabulary grow without re-randomizing the other: appending a shell roll
+shifts nothing behind the glass, and appending a gene shifts nothing in
+the frames. The order is fixed — archetype, then pane layout, then open
+state, then hinge side (when a casement opens), then the measured rolls
+(thickness jitter, face width), then sill and the three add-on
+masses — and new rolls append at the end, never between.
+
+After the categorical rolls, two measured rolls: the frame thickness
+jitters ±15% around its archetype constant, and the frame face — the
+run between the outer and inner line — rolls between `0.05` and `0.09`.
+That is the whole measured budget.
+
+```ts
+function expandShell(seed: number): ShellPlan
+```
+
+`expandShell` is the only place that rolls. The drawers are pure emitters
+(`drawSash`, `drawCasement`, `drawPicture`, `drawSill`,
+`drawAwning`, `drawShutters`, `drawWindowBox`): each turns a plan into
+[marks](/docs/the-layers), and `drawWindow(ctx, pen, palette)` collects,
+sorts by depth, projects, and lets the pen draw. The pen carries the
+window's seed — the plan expands from `pen.seed`, so the shell and the
+tremor can never disagree. The trace names follow
+[the pen](/docs/the-pen): bare ids such as `rail`, `mullion-top-1`,
+`awning-rib-2`, warped off the window seed, unique within a window — a
+test holds every drawer to it.
+
+## What may change later
+
+The catalogue is data, and data gets edited: weights may change,
+archetypes, layouts, and add-on kinds may be inserted. What may never
+change is the shape of the promise: a window seed's roll sequence is a
+pure function of the seed, never of pan position or render order.
+Because the meta-seed is random per page load, a catalogue edit
+re-dresses the whole street anyway — nobody's window survives a version
+bump, so nobody's window is asked to.

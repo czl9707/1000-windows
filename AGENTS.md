@@ -14,10 +14,16 @@ src/
                              prefix is the chapter's order, the name the
                              route (/docs/<name>). Inside: index.mdx plus the
                              chapter's code (params.ts, demo.ts, …).
-  core/                      The drawing engine, independent of any chapter:
+  core/                      Scene geometry, independent of any chapter:
                              randomness/ (hash, generator, seeded wrapper),
-                             pen/ (deterministic hand tremor: Pen, tuning),
-                             and window-shell/ (the window scene).
+                             scene/ (marks: emitted drawing instructions in 3D),
+                             window.ts (the per-window entry: seed → marks →
+                             pen), and window-shell/ (the window scene's
+                             catalogues and drawers).
+  pen/                       The deterministic hand tremor: Pen, tuning.
+  motion/                    Placement: weak-perspective projection; grows the
+                             pointer parallax.
+  styling/                   Ink roles, the palette, and wash constants.
   components/                Site UI. DemoCanvas.astro (demo frame +
                              mount script), DemoCanvasControls.tsx (shared
                              sliders island), mount.ts (demo dispatch),
@@ -28,12 +34,17 @@ src/
 
 ## Rules that hold the structure together
 
-- **Import direction:** `chapters → core →` (nothing); site UI
-  (`components/`) never imports from `core/`. Chapters may import the demo
-  runtime in `components/` (`mount.ts`, the controls island's types). No
-  component imports a chapter by name: `DemoCanvas.astro` discovers the
-  chapters' demo modules with a build-time glob, and each demo module
-  registers itself on import — so no central list of demos exists.
+- **Import direction:** chapters sit on top of the engine folders
+  (`core/`, `pen/`, `motion/`, `styling/`); within the engine, calls only
+  go toward leaf modules — core uses `pen/`, `motion/`, `styling/`, and
+  `pen/` and `motion/` use core's `randomness/` (motion also takes pen's
+  `Pt` type: the projection returns the 2D points the pen draws) — never a
+  cycle, never a chapter reached from below. Site UI (`components/`) never
+  imports from the engine. Chapters may import the demo runtime in
+  `components/` (`mount.ts`, the controls island's types). No component
+  imports a chapter by name: `DemoCanvas.astro` discovers the chapters'
+  demo modules with a build-time glob, and each demo module registers
+  itself on import — so no central list of demos exists.
 - **Adding a demo:** the painter lives beside its chapter and ends in
   `registerDemo('<kind>', <mount fn>)` (from `components/mount.ts`); the
   chapter's MDX places `<DemoCanvas demo="<kind>">`. Nothing else changes.

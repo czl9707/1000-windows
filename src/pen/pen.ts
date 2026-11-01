@@ -1,4 +1,4 @@
-import { fnv1a, mulberry32 } from '../randomness/rng';
+import { fnv1a, mulberry32 } from '../core/randomness/rng';
 
 export interface Pt {
   x: number;
@@ -6,7 +6,7 @@ export interface Pt {
 }
 
 export interface Tuning {
-  // Base warp amplitude in unit measure (window height = 2).
+  // Base warp amplitude in unit measure (window height = 1).
   amplitude: number;
   scratchWeight: number;
   // Below kochHand a stroke hangs on the hand only; above kochFrame fully on the beat.
@@ -21,6 +21,7 @@ export interface Tuning {
 export interface StrokeOptions {
   name: string;
   width: number;
+  color: string;
   spitz?: number;
   closed?: boolean;
   ruhig?: boolean;
@@ -151,26 +152,30 @@ export class Pen {
 
   // One pen serves one window: the seed rides in the warp of every trace, so
   // trace names stay bare ids and the scene never learns its grid address.
+  // The pen is colour-blind — every call names its colour; the pen owns only
+  // the hand.
   constructor(
     private tuning: Tuning,
-    private seed: number,
-    private inkColor: string,
+    private seedValue: number,
   ) {
-    this.taktVersatz = (fnv1a(`takt:${seed}`) / 0xffffffff) * BEATS_PER_SECOND;
-  }
-
-  get ink(): string {
-    return this.inkColor;
+    this.taktVersatz = (fnv1a(`takt:${seedValue}`) / 0xffffffff) * BEATS_PER_SECOND;
   }
 
   setTime(time: number): void {
     this.takt = Math.floor(time * BEATS_PER_SECOND + this.taktVersatz);
   }
 
+  // The seed this pen's warp fields hang on. The shell plan must expand from
+  // the same seed — drawWindow reads it here, so a caller cannot pair a pen
+  // with a foreign seed.
+  get seed(): number {
+    return this.seedValue;
+  }
+
   private field(name: string): Field {
     let f = this.fields.get(name);
     if (!f) {
-      const r = mulberry32(fnv1a(`${this.seed}:${name}`));
+      const r = mulberry32(fnv1a(`${this.seedValue}:${name}`));
       const all: number[] = [];
       for (let i = 0; i < FIELD; i++) all.push(r() * 2 - 1);
       f = {
@@ -286,17 +291,33 @@ export class Pen {
     const ghost = this.warpedPath(pts, opts.name, amp * 1.7 + 0.004, gains, true);
     ctx.save();
     ctx.globalAlpha = 0.32;
-    ctx.fillStyle = this.ink;
+    ctx.fillStyle = opts.color;
     this.ribbon(ctx, ghost, opts.width / 2, strokeSpitz);
     ctx.restore();
 
     const warped = this.warpedPath(pts, opts.name, amp, gains, false);
-    ctx.fillStyle = this.ink;
+    ctx.fillStyle = opts.color;
     this.ribbon(ctx, warped, opts.width, strokeSpitz);
   }
 
-  dot(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number, name: string): void {
-    const tilt = ((fnv1a(`${this.seed}:${name}`) % 1000) / 1000) * Math.PI;
+  // A flat translucent shape in the given colour — a wash in ink, or an
+  // opaque ground-colour fill that hides what sits behind it (an awning over
+  // the glass, a box over the sill). No warp, no ghost, no boil.
+  fill(ctx: CanvasRenderingContext2D, pts: Pt[], opts: { alpha: number; color: string }): void {
+    if (pts.length < 3) return;
+    ctx.save();
+    ctx.globalAlpha = opts.alpha;
+    ctx.fillStyle = opts.color;
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  dot(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number, name: string, color: string): void {
+    const tilt = ((fnv1a(`${this.seedValue}:${name}`) % 1000) / 1000) * Math.PI;
     const cap = Math.min(0.15 * r, 0.007);
     const scratch = this.field(name).scratch;
     const ring: Pt[] = [];
@@ -314,7 +335,7 @@ export class Pen {
     const gains: Gains = { handGain: this.tuning.handGain, frameGain: 0, mix: 0 };
     ctx.save();
     ctx.globalAlpha = 0.32;
-    ctx.fillStyle = this.ink;
+    ctx.fillStyle = color;
     this.ribbon(
       ctx,
       this.warpedPath(pts, `${name}~`, 0.004 * 1.7 + 0.004, gains, true),
@@ -322,7 +343,7 @@ export class Pen {
       this.tuning.spitz,
     );
     ctx.restore();
-    ctx.fillStyle = this.ink;
+    ctx.fillStyle = color;
     this.ribbon(ctx, this.warpedPath(pts, name, 0.004, gains, false), r * 0.5, this.tuning.spitz);
   }
 }

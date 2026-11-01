@@ -43,10 +43,6 @@ export class Rng {
     return min + (max - min) * this.r();
   }
 
-  chance(p: number): boolean {
-    return this.r() < p;
-  }
-
   weighted<T>(items: readonly { value: T; weight: number }[]): T {
     let total = 0;
     for (const item of items) total += item.weight;

@@ -15,6 +15,10 @@
 }
 
 .controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
   border-top: var(--border-secondary);
   padding: 0.9rem 1rem;
 }

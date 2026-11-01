@@ -8,6 +8,7 @@
     "build": "astro build",
     "preview": "astro preview",
     "check": "astro check",
+    "test": "vitest run",
     "astro": "astro"
   },
   "dependencies": {
@@ -31,6 +32,7 @@
     "hast-util-to-string": "^3.0.1",
     "postcss-custom-media": "^12.0.3",
     "postcss-custom-properties": "^15.0.4",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.5"
   }
 }
