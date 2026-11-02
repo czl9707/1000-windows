@@ -1,7 +1,7 @@
 // The motion chapter's demo: a wall strip whose parallax is driven by the
 // pointer standing in for the canvas's offset from the screen centre — on
 // the home wall that offset is the canvas's real position, and no pointer
-// is involved. Control UI lives in the reseed button.
+// is involved. Control UI lives in the reseed button and the focal slider.
 import { centreUnit, createDemoLoop, cssBox, type Eye, type Pointer } from '@/components/demoLoop';
 import { Pen } from '@/pen/pen';
 import { registerDemo, type TuningHandle } from '@/components/mount';
@@ -9,6 +9,7 @@ import { DEFAULT_TUNING } from '@/pen/tuning';
 import { makePalette, type ThemeColors } from '@/styling/roles';
 import { windowSeed } from '@/core/randomness/rng';
 import { drawWindow } from '@/core/entry';
+import { FOCAL } from '@/motion/projection';
 
 const COLS = 3;
 const ROWS = 2;
@@ -24,6 +25,7 @@ const SLOTS = Array.from({ length: COLS * ROWS }, (_, i) => ({
 
 function mountParallaxStrip(canvas: HTMLCanvasElement): TuningHandle {
   let baseSeed = DEFAULT_SEED;
+  let focal = FOCAL;
   // One pen per window, kept across frames: the pen caches each trace's warp
   // field, and rebuilding them per frame throws the cache away.
   let pens: { seed: number; pen: Pen }[] = [];
@@ -48,7 +50,7 @@ function mountParallaxStrip(canvas: HTMLCanvasElement): TuningHandle {
           (SLOTS[i].col - (COLS - 1) / 2) * PITCH_X,
           (SLOTS[i].row - (ROWS - 1) / 2) * PITCH_Y,
         );
-        drawWindow(ctx, pen, makePalette(colors), eye);
+        drawWindow(ctx, pen, makePalette(colors), eye, focal);
         ctx.restore();
       });
     },
@@ -62,8 +64,11 @@ function mountParallaxStrip(canvas: HTMLCanvasElement): TuningHandle {
   );
 
   const handle: TuningHandle = {
-    setParam() {
-      throw new Error('parallax strip: no tuning parameters — use reseed');
+    setParam(key, value) {
+      if (key !== 'focal') throw new Error(`parallax strip: unknown tuning parameter "${key}"`);
+      focal = value;
+      loop.repaint();
+      loop.notify();
     },
     reseed(value) {
       baseSeed = Math.round(value);
@@ -73,11 +78,12 @@ function mountParallaxStrip(canvas: HTMLCanvasElement): TuningHandle {
     },
     resetParams() {
       baseSeed = DEFAULT_SEED;
+      focal = FOCAL;
       rebuild();
       loop.repaint();
       loop.notify();
     },
-    snapshot: () => ({ seed: baseSeed }),
+    snapshot: () => ({ seed: baseSeed, focal }),
     subscribe: (cb) => loop.subscribe(cb),
     destroy: () => loop.destroy(),
   };
