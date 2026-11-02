@@ -1,7 +1,7 @@
 // Shared scaffolding for chapter demo canvases: theme colours, resize, the
-// frame loop with reduced-motion handling, and the change-notification
-// plumbing the controls island listens to. The painter draws the scene;
-// everything here is the frame around it.
+// frame loop, and the change-notification plumbing the controls island
+// listens to. The painter draws the scene; everything here is the frame
+// around it.
 
 export interface DemoLoopHandle {
   subscribe(cb: () => void): () => void;
@@ -11,29 +11,59 @@ export interface DemoLoopHandle {
   destroy(): void;
 }
 
+// The pointer's offset from the canvas centre, normalized to the CSS box
+// (−0.5..0.5 per axis). The stand-in for where this canvas sits relative to
+// the screen centre; the home wall replaces it with the real thing.
+export interface Pointer {
+  x: number;
+  y: number;
+}
+
+// The resolved eye: this canvas's offset from the screen centre, in unit
+// measure. Structurally motion's Eye; defined here because components never
+// import the engine.
+export interface Eye {
+  x: number;
+  y: number;
+}
+
+const CENTRE: Eye = { x: 0, y: 0 };
+
 export function createDemoLoop(
   canvas: HTMLCanvasElement,
-  // The palette arrives with every frame: a theme switch re-renders the same
-  // scene in the new colours — nothing downstream keeps a colour.
-  paint: (ctx: CanvasRenderingContext2D, time: number, palette: { ink: string; paper: string }) => void,
+  // The theme's two colours arrive with every frame: a theme switch
+  // re-renders the same scene in the new colours — nothing downstream keeps
+  // a palette. The eye arrives resolved; the painter draws it as given.
+  paint: (
+    ctx: CanvasRenderingContext2D,
+    time: number,
+    colors: { ink: string; paper: string },
+    eye: Eye,
+  ) => void,
+  // Where the eye sits for this scene. The default centres it: a demo maps
+  // the pointer to the eye, the home wall will map the canvas's real
+  // position.
+  resolveEye: (canvas: HTMLCanvasElement, pointer: Pointer) => Eye = () => CENTRE,
 ): DemoLoopHandle {
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('demo canvas: 2d context unavailable');
 
-  let palette = { ink: '', paper: '' };
+  let colors = { ink: '', paper: '' };
   const readColors = () => {
     const style = getComputedStyle(document.body);
     const bg = style.getPropertyValue('--color-primary-background').trim();
     const fg = style.getPropertyValue('--color-primary-foreground').trim();
     if (!bg || !fg) throw new Error('demo canvas: background/foreground tokens missing');
-    palette = { ink: `rgb(${fg})`, paper: `rgb(${bg})` };
+    colors = { ink: `rgb(${fg})`, paper: `rgb(${bg})` };
   };
+
+  let pointer: Pointer = { x: 0, y: 0 };
 
   const frame = (time: number) => {
     ctx.save();
-    ctx.fillStyle = palette.paper;
+    ctx.fillStyle = colors.paper;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    paint(ctx, time, palette);
+    paint(ctx, time, colors, resolveEye(canvas, pointer));
     ctx.restore();
   };
 
@@ -49,7 +79,6 @@ export function createDemoLoop(
     frame(0);
   };
 
-  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
   let raf = 0;
   let running = false;
   const tick = () => {
@@ -57,7 +86,7 @@ export function createDemoLoop(
     raf = requestAnimationFrame(tick);
   };
   const start = () => {
-    if (running || reducedMotion.matches) return;
+    if (running) return;
     running = true;
     raf = requestAnimationFrame(tick);
   };
@@ -82,14 +111,25 @@ export function createDemoLoop(
   });
   themeObserver.observe(document.body, { attributes: true, attributeFilter: ['data-theme'] });
 
+  // The pointer feeds the still demos immediately; a running loop picks it
+  // up on its next frame anyway. Leaving the canvas re-centres it.
+  const onPointerMove = (e: PointerEvent) => {
+    const rect = canvas.getBoundingClientRect();
+    pointer = {
+      x: (e.clientX - rect.left) / rect.width - 0.5,
+      y: (e.clientY - rect.top) / rect.height - 0.5,
+    };
+    if (!running) frame(0);
+  };
+  const onPointerLeave = () => {
+    pointer = { x: 0, y: 0 };
+    if (!running) frame(0);
+  };
+  canvas.addEventListener('pointermove', onPointerMove);
+  canvas.addEventListener('pointerleave', onPointerLeave);
+
   readColors();
   repaint();
-  const onMotionChange = () => {
-    stop();
-    repaint();
-    start();
-  };
-  reducedMotion.addEventListener('change', onMotionChange);
   start();
 
   return {
@@ -103,7 +143,8 @@ export function createDemoLoop(
       stop();
       observer.disconnect();
       themeObserver.disconnect();
-      reducedMotion.removeEventListener('change', onMotionChange);
+      canvas.removeEventListener('pointermove', onPointerMove);
+      canvas.removeEventListener('pointerleave', onPointerLeave);
       listeners.clear();
       ctx.clearRect(0, 0, canvas.width, canvas.height);
     },

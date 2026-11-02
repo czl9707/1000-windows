@@ -62,3 +62,6 @@ One emitted drawing instruction: a discriminated union — a stroke (trace name,
 
 ## Depth
 The z coordinate of a point, in unit measure; 0 is the wall plane, larger stands nearer the viewer. The draw stage stable-sorts marks by their depth key and projects each point through weak perspective before the pen sees it.
+
+## Eye
+The projection's fixed viewpoint: always the screen's centre, never the pointer, never moved by panning. Each canvas feeds the projection its own offset from the eye in unit measure, and each point lands at `p·s + eye·(s − 1)` — the parallax: the wall plane stays pinned, nearer layers drift away from the screen's centre in proportion to depth.

@@ -7,8 +7,8 @@ import { Pen } from '../../../pen/pen';
 import { registerDemo, type TuningHandle } from '../../../components/mount';
 import type { NumericTuningKey } from '../../../pen/tuning';
 import { DEFAULT_TUNING } from '../../../pen/tuning';
-import type { Palette } from '../../../styling/roles';
-import { drawWindow } from '../../../core/window';
+import { makePalette, type ThemeColors } from '../../../styling/roles';
+import { drawWindow } from '../../../core/entry';
 
 const DEFAULT_SEED = 1335613256;
 
@@ -22,10 +22,10 @@ function mountPenPrototype(canvas: HTMLCanvasElement): TuningHandle {
 
   const loop = createDemoLoop(
     canvas,
-    (ctx, time, palette: Palette) => {
+    (ctx, time, colors: ThemeColors) => {
       pen.setTime(time);
       centreUnit(ctx, cssBox(canvas), 2.4, 1.9);
-      drawWindow(ctx, pen, palette);
+      drawWindow(ctx, pen, makePalette(colors));
     },
   );
 

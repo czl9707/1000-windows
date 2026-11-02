@@ -3,18 +3,24 @@
 // scales widths by the mark's mean depth, and dresses each mark — its role
 // resolved against the frame's palette. The pen never sees depth or roles.
 import type { Pen } from '../../pen/pen';
-import { dress, type Palette } from '../../styling/roles';
-import { project, scaleAt } from '../../motion/projection';
+import type { Palette } from '../../styling/roles';
+import { CENTRE_EYE, project, scaleAt, type Eye } from '../../motion/projection';
 import type { Mark } from './mark';
 
-export function execute(marks: Mark[], pen: Pen, ctx: CanvasRenderingContext2D, palette: Palette): void {
+export function execute(
+  marks: Mark[],
+  pen: Pen,
+  ctx: CanvasRenderingContext2D,
+  palette: Palette,
+  eye: Eye = CENTRE_EYE,
+): void {
   // Stable sort: ties keep emission order, so the append-only draw order
   // survives; the caller hands over a marks array it does not reuse.
   marks.sort((a, b) => a.z - b.z);
   for (const mark of marks) {
     const meanZ = mark.pts.reduce((sum, p) => sum + p.z, 0) / mark.pts.length;
-    const pts = project(mark.pts);
-    const { color, alpha } = dress(mark.role, palette);
+    const pts = project(mark.pts, eye);
+    const { color, alpha } = palette(mark.role);
     if (mark.kind === 'fill') {
       pen.fill(ctx, pts, { color, alpha });
     } else if (mark.kind === 'dot') {

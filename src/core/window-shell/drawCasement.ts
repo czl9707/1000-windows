@@ -1,8 +1,9 @@
 // The casement: vertical mullions divide the glass into leaves; the leaf (or
-// one leaf of a pair) swings toward the viewer. Drawn flat on the wall — the
-// leaf keeps its true rectangle and narrows by the swing's cosine, the way a
-// hand drawing says "swung open" without perspective. Its original panes lose
-// their glass; the leaf carries the wash with it.
+// one leaf of a pair) swings toward the viewer. The leaf keeps its true
+// rectangle and narrows by the swing's cosine — the hand-drawn "swung open" —
+// while its points stand out of the wall at the swing's depth, so projection
+// and parallax place it in front of the wall. Its original panes lose their
+// glass; the leaf carries the wash with it.
 import { ARCHETYPES, type ShellPlan } from './archetypes';
 import type { Mark } from '../scene/mark';
 import type { Pt3 } from '../../motion/projection';
@@ -47,8 +48,11 @@ export function drawCasement(plan: ShellPlan): Mark[] {
   const hingeX = hingeSide === 'left' ? left : right;
   const far = layout === 'single' ? (hingeSide === 'left' ? right : left) : 0;
   // The free edge keeps its rectangle: x foreshortened by the swing's cosine,
-  // depth untouched — the leaf stays a non-skewed rectangle on the wall.
+  // while depth grows with distance from the hinge — the leaf's plane swings
+  // out of the wall at the swing's tangent.
   const freeX = hingeX + (far - hingeX) * Math.cos(SWING[open]);
+  const zAt = (x: number) => Math.abs(x - hingeX) * Math.tan(SWING[open]);
+  const leafDepth = zAt(freeX);
 
   // The leaf on the hinge side swings; the rest keeps its glass.
   const onHingeSide = (pane: Pt3[]) =>
@@ -57,8 +61,45 @@ export function drawCasement(plan: ShellPlan): Mark[] {
     if (!onHingeSide(pane)) glass(pane);
   }
 
-  const leaf = rectPts(Math.min(hingeX, freeX), top, Math.max(hingeX, freeX), bottom);
+  const leaf: Pt3[] = [
+    { x: hingeX, y: top, z: 0 },
+    { x: freeX, y: top, z: leafDepth },
+    { x: freeX, y: bottom, z: leafDepth },
+    { x: hingeX, y: bottom, z: 0 },
+  ];
   marks.push({ kind: 'fill', pts: leaf, role: 'glass', z: SHELL_Z.open });
-  marks.push({ kind: 'stroke', pts: line(freeX, top, freeX, bottom), name: 'casement-leaf-free', width: barW, role: 'ink', z: SHELL_Z.open });
+  marks.push({
+    kind: 'stroke',
+    pts: [
+      { x: hingeX, y: top, z: 0 },
+      { x: freeX, y: top, z: leafDepth },
+    ],
+    name: 'casement-leaf-top',
+    width: barW,
+    role: 'ink',
+    z: SHELL_Z.open,
+  });
+  marks.push({
+    kind: 'stroke',
+    pts: [
+      { x: hingeX, y: bottom, z: 0 },
+      { x: freeX, y: bottom, z: leafDepth },
+    ],
+    name: 'casement-leaf-bottom',
+    width: barW,
+    role: 'ink',
+    z: SHELL_Z.open,
+  });
+  marks.push({
+    kind: 'stroke',
+    pts: [
+      { x: freeX, y: top, z: leafDepth },
+      { x: freeX, y: bottom, z: leafDepth },
+    ],
+    name: 'casement-leaf-free',
+    width: barW,
+    role: 'ink',
+    z: SHELL_Z.open,
+  });
   return marks;
 }

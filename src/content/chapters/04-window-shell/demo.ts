@@ -7,9 +7,9 @@ import { centreUnit, createDemoLoop, cssBox } from '../../../components/demoLoop
 import { Pen } from '../../../pen/pen';
 import { registerDemo, type TuningHandle } from '../../../components/mount';
 import { DEFAULT_TUNING } from '../../../pen/tuning';
-import type { Palette } from '../../../styling/roles';
+import { makePalette, type ThemeColors } from '../../../styling/roles';
 import { windowSeed } from '../../../core/randomness/rng';
-import { drawWindow, windowMarks } from '../../../core/window';
+import { drawWindow, windowMarks } from '../../../core/entry';
 import { execute } from '../../../core/scene/execute';
 import type { ShellPlan } from '../../../core/window-shell/archetypes';
 
@@ -45,7 +45,8 @@ function mountShellStrip(canvas: HTMLCanvasElement): TuningHandle {
 
   const loop = createDemoLoop(
     canvas,
-    (ctx, time, palette: Palette) => {
+    (ctx, time, colors: ThemeColors) => {
+      const palette = makePalette(colors);
       const box = cssBox(canvas);
       centreUnit(ctx, box, COLS * PITCH_X, ROWS * PITCH_Y, -0.1);
       pens.forEach(({ seed, pen }, i) => {
@@ -125,7 +126,8 @@ function mountPlates(canvas: HTMLCanvasElement, plans: ShellPlan[], cols: number
   const rows = Math.ceil(plans.length / cols);
   const loop = createDemoLoop(
     canvas,
-    (ctx, time, palette: Palette) => {
+    (ctx, time, colors: ThemeColors) => {
+      const palette = makePalette(colors);
       const box = cssBox(canvas);
       centreUnit(ctx, box, cols * PITCH_X, rows * PLATE_PITCH_Y);
       plates.forEach(({ plan, pen }, i) => {

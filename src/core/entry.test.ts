@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { type StrokeOptions, type Tuning, Pen } from '../pen/pen';
 import { DEFAULT_TUNING } from '../pen/tuning';
-import type { FillMark } from './scene/mark';
+import { makePalette } from '../styling/roles';
+import type { FillMark, StrokeMark } from './scene/mark';
 import type { ShellPlan } from './window-shell/archetypes';
 import { drawCasement } from './window-shell/drawCasement';
 import { BOX, SHELL_Z, expandShell } from './window-shell/shell';
-import { drawWindow } from './window';
+import { drawWindow } from './entry';
 
 // A pen that records trace names and forwards to a no-op canvas, so the
 // drawing seam is observable without a real 2d context.
@@ -49,7 +50,7 @@ class RecordingPen extends Pen {
 }
 
 const NOOP_CTX = {} as CanvasRenderingContext2D;
-const PALETTE = { ink: '#000', paper: '#fff' };
+const PALETTE = makePalette({ ink: '#000', paper: '#fff' });
 
 describe('drawWindow', () => {
   it('draws without throwing across a seed sweep', () => {
@@ -142,16 +143,31 @@ describe('the swung casement leaf', () => {
     box: 'none',
   };
 
-  it('stays a flat, non-skewed rectangle: foreshortened by the swing, depth untouched', () => {
+  it('foreshortens by the swing and stands out of the wall at the swing depth', () => {
     const marks = drawCasement(plan);
     const free = marks.find((m) => m.kind === 'stroke' && m.name === 'casement-leaf-free');
     const wash = marks.find((m): m is FillMark => m.kind === 'fill' && m.z === SHELL_Z.open);
     expect(free).toBeDefined();
     expect(wash).toBeDefined();
-    // Every leaf point lies on the wall plane — no perspective skew.
-    expect(wash!.pts.every((p) => p.z === 0)).toBe(true);
-    // The free edge pulled in from the opening's far side, still inside it.
+    // The hinge edge lies on the wall plane; the free edge stands out of the
+    // wall by the swing — its drawn span times the swing's tangent.
+    const hingeX = wash!.pts[0].x;
     const freeX = free!.pts[0].x;
+    const expectedDepth = Math.abs(freeX - hingeX) * Math.tan(0.9);
+    for (const p of wash!.pts) {
+      if (p.x === hingeX) expect(p.z).toBe(0);
+      else expect(p.z).toBeCloseTo(expectedDepth, 12);
+    }
+    expect(free!.pts[0].z).toBeCloseTo(expectedDepth, 12);
+    // The rails connect the free edge back to the hinge, riding the same
+    // depth gradient.
+    for (const rail of ['casement-leaf-top', 'casement-leaf-bottom']) {
+      const stroke = marks.find((m): m is StrokeMark => m.kind === 'stroke' && m.name === rail);
+      expect(stroke).toBeDefined();
+      expect(stroke!.pts[0]).toEqual({ x: hingeX, y: stroke!.pts[0].y, z: 0 });
+      expect(stroke!.pts[1].z).toBeCloseTo(expectedDepth, 12);
+    }
+    // The free edge pulled in from the opening's far side, still inside it.
     expect(freeX).toBeGreaterThan(-0.73);
     expect(freeX).toBeLessThan(0);
     // The leaf keeps its full height.

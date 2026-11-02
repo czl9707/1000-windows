@@ -14,7 +14,7 @@ import { drawShutters } from './window-shell/drawShutters';
 import { drawSill } from './window-shell/drawSill';
 import { drawWindowBox } from './window-shell/drawWindowBox';
 import { BOX, SHELL_Z, expandShell, line } from './window-shell/shell';
-import type { Pt3 } from '../motion/projection';
+import { CENTRE_EYE, type Eye, type Pt3 } from '../motion/projection';
 
 // One archetype drawer per frame construction, picked by the plan.
 const ARCHETYPE_DRAWERS: Record<keyof typeof ARCHETYPES, (plan: ShellPlan) => Mark[]> = {
@@ -72,7 +72,13 @@ export function windowMarks(plan: ShellPlan): Mark[] {
 // The per-window entry point: context, pen, palette. The shell plan expands
 // from the pen's seed — one seed drives both the plan and the tremor, and
 // the pen is the fact's one home. Marks are collected, sorted by depth,
-// projected, dressed, and handed to the pen.
-export function drawWindow(ctx: CanvasRenderingContext2D, pen: Pen, palette: Palette): void {
-  execute(windowMarks(expandShell(pen.seed)), pen, ctx, palette);
+// projected, dressed, and handed to the pen. `eye` is the canvas's offset
+// from the screen centre (see motion/projection); the default centres it.
+export function drawWindow(
+  ctx: CanvasRenderingContext2D,
+  pen: Pen,
+  palette: Palette,
+  eye: Eye = CENTRE_EYE,
+): void {
+  execute(windowMarks(expandShell(pen.seed)), pen, ctx, palette, eye);
 }

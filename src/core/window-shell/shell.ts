@@ -5,7 +5,7 @@
 //
 // This module is the shell's vocabulary: the plan, the catalogue rolls, and
 // the unit-measure geometry helpers the drawers share. Assembly — collecting
-// the drawers' marks and drawing the window — lives in core/window.ts.
+// the drawers' marks and drawing the window — lives in core/entry.ts.
 import { fork } from '../randomness/rng';
 import type { Pt3 } from '../../motion/projection';
 import { ARCHETYPES, ADDONS, OPEN_STATES, SILLS, type HingeSide, type ShellPlan } from './archetypes';
@@ -50,9 +50,9 @@ export function expandShell(seed: number): ShellPlan {
 export const BOX = { halfW: 0.8, halfH: 0.5 };
 
 // Sort keys for the shell's marks, spaced so later layers interleave. Sort
-// keys only: a unit-measure depth is orders smaller (awning reach 0.35), and
-// one of these values fed to the projection would flip the geometry through
-// the origin.
+// keys only: a unit-measure depth stays under ~1.2 (an open casement leaf
+// swung fully out), and one of these values fed to the projection would flip
+// the geometry through the origin.
 export const SHELL_Z = { glass: 0, frame: 10, sill: 20, open: 30, addon: 40 } as const;
 
 // The glass opening: the inner frame line, inset by the rolled face width.
