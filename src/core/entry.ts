@@ -1,6 +1,3 @@
-// The per-window entry point: context, pen, palette — that is the whole
-// signature. It expands the shell plan from the pen's seed, collects every
-// drawer's marks, sorts them by depth, projects, and lets the pen draw.
 import type { Pen } from '@/pen/pen';
 import type { Palette } from '@/styling/roles';
 import { execute } from './scene/execute';
@@ -14,9 +11,8 @@ import { drawShutters } from './window-shell/drawShutters';
 import { drawSill } from './window-shell/drawSill';
 import { drawWindowBox } from './window-shell/drawWindowBox';
 import { BOX, SHELL_Z, expandShell, line } from './window-shell/shell';
-import { CENTRE_EYE, FOCAL, type Eye, type Pt3 } from '@/motion/projection';
+import { makeProjection, type Eye, type Pt3 } from '@/motion/projection';
 
-// One archetype drawer per frame construction, picked by the plan.
 const ARCHETYPE_DRAWERS: Record<keyof typeof ARCHETYPES, (plan: ShellPlan) => Mark[]> = {
   sash: drawSash,
   casement: drawCasement,
@@ -56,8 +52,7 @@ function frameMarks(plan: ShellPlan): Mark[] {
   ];
 }
 
-// Every drawer's marks for one plan, in the shell's append-only draw order —
-// the assembly the docs-page catalogue demos reuse to pin variants by hand.
+// The assembly the docs-page catalogue demos reuse to pin variants by hand.
 export function windowMarks(plan: ShellPlan): Mark[] {
   return [
     ...frameMarks(plan),
@@ -69,17 +64,12 @@ export function windowMarks(plan: ShellPlan): Mark[] {
   ];
 }
 
-// The per-window entry point: context, pen, palette. The shell plan expands
-// from the pen's seed — one seed drives both the plan and the tremor, and
-// the pen is the fact's one home. Marks are collected, sorted by depth,
-// projected, dressed, and handed to the pen. `eye` is the canvas's offset
-// from the screen centre (see motion/projection); the default centres it.
+// One seed drives both the shell plan and the tremor — the pen is its only home.
 export function drawWindow(
   ctx: CanvasRenderingContext2D,
   pen: Pen,
   palette: Palette,
-  eye: Eye = CENTRE_EYE,
-  focal: number = FOCAL,
+  eye: Eye,
 ): void {
-  execute(windowMarks(expandShell(pen.seed)), pen, ctx, palette, eye, focal);
+  execute(windowMarks(expandShell(pen.seed)), pen, ctx, palette, makeProjection(eye));
 }

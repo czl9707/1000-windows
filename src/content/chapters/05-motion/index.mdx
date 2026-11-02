@@ -38,19 +38,35 @@ whole: weak perspective, scale growing as a point stands nearer the viewer,
 ```ts
 const FOCAL = 30;
 
-function scaleAt(z: number, focal: number = FOCAL): number {
-  return focal / (focal - z);
+export interface Projection {
+  project(pts: Pt3[]): Pt[];
+  scaleAt(z: number): number;
+}
+
+export function makeProjection(eye: Eye, focal: number = FOCAL): Projection {
+  const scaleAt = (z: number): number => focal / (focal - z);
+  return {
+    project: (pts) =>
+      pts.map((p) => {
+        const s = scaleAt(p.z);
+        return { x: p.x * s + eye.x * (s - 1), y: p.y * s + eye.y * (s - 1) };
+      }),
+    scaleAt,
+  };
 }
 ```
 
-The demo's Focal slider sweeps the length from `2` to `50`; the engine
-default is `30`. At `30`, an add-on standing `0.4` in front of the wall
-magnifies by about `1.3%`, and the deepest mark there is — a casement
-leaf swung fully open, reaching past `1.1` — by under `4%`. Depth reads
-through placement and parallax; a depth error never gets the chance to
-read as a drawing error. Stroke widths scale by the mark's
-mean depth (`width · scaleAt(meanZ)`), so a nearer sill draws its line a
-touch heavier, the way it would if you stood closer to it.
+The focal length lives inside the projection module — no caller names or
+passes it; the builder keeps the default, and only the demo's slider
+supplies its own. The demo's Focal slider sweeps the length from `2` to
+`50`; the engine default is `30`. At `30`, an add-on standing `0.4` in
+front of the wall magnifies by about `1.3%`, and the deepest mark there
+is — a casement leaf swung fully open, reaching past `1.1` — by under
+`4%`. Depth reads through placement and parallax; a depth error never
+gets the chance to read as a drawing error. Stroke widths scale by the
+mark's mean depth (`width · projection.scaleAt(meanZ)`), so a nearer
+sill draws its line a touch heavier, the way it would if you stood
+closer to it.
 
 ## The eye sits at the screen's centre
 
@@ -60,17 +76,23 @@ wall never moves it. What moves is the canvas — on the finished home page
 each viewport of the wall sits at its own offset from the screen's centre,
 and every mark in it is drawn as seen from that one fixed point.
 
-The projection takes that offset — the `eye`, in unit measure — and lands
-each point as the eye sees it. A point at wall position `p` and depth `z`
-projects to `(p + eye) · s`; drawn back in the canvas's own frame, with the
-canvas pinned where it sits on screen, that is
+The projection is built from that offset once per frame, the way the
+palette is built from the theme's colours — `makeProjection(eye)` — and
+lands each point as the eye sees it. A point at wall position `p` and
+depth `z` projects to `(p + eye) · s`; drawn back in the canvas's own
+frame, with the canvas pinned where it sits on screen, that is
 
 ```ts
-export function project(pts: Pt3[], eye: Eye = CENTRE_EYE, focal: number = FOCAL): Pt[] {
-  return pts.map((p) => {
-    const s = scaleAt(p.z, focal);
-    return { x: p.x * s + eye.x * (s - 1), y: p.y * s + eye.y * (s - 1) };
-  });
+export function makeProjection(eye: Eye, focal: number = FOCAL): Projection {
+  const scaleAt = (z: number): number => focal / (focal - z);
+  return {
+    project: (pts) =>
+      pts.map((p) => {
+        const s = scaleAt(p.z);
+        return { x: p.x * s + eye.x * (s - 1), y: p.y * s + eye.y * (s - 1) };
+      }),
+    scaleAt,
+  };
 }
 ```
 
@@ -85,9 +107,10 @@ when you look off-axis.
 
 The demo maps the pointer to the eye by the simplest honest rule: the
 cursor at the canvas's edge reads as the strip sitting at the screen's
-edge, so the eye offset spans the canvas's own unit span. On the home wall
-the same term is fed from the canvas's real position, and the pointer
-drops out of the picture entirely.
+edge, so the eye offset spans the canvas's own unit span. On the wall
+every window feeds the same term from its own position — its world
+coordinates minus the camera, seen from that one fixed point — and the
+pointer drops out of the picture entirely.
 
 ## What it costs
 

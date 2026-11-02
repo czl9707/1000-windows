@@ -18,8 +18,10 @@ src/
                              randomness/ (hash, generator, seeded wrapper),
                              scene/ (marks: emitted drawing instructions in 3D),
                              window.ts (the per-window entry: seed → marks →
-                             pen), and window-shell/ (the window scene's
-                             catalogues and drawers).
+                             pen), window-shell/ (the window scene's
+                             catalogues and drawers), and wall/ (the wall
+                             engine: grid, camera, texture, pens, the Wall
+                             entrypoint, the pan gestures).
   pen/                       The deterministic hand tremor: Pen, tuning.
   motion/                    Placement: weak-perspective projection; grows the
                              pointer parallax.
@@ -28,7 +30,9 @@ src/
                              mount script), DemoCanvasControls.tsx (shared
                              sliders island), mount.ts (demo dispatch),
                              layouts/, ui/.
-  pages/                     index.astro and docs/[...slug].astro.
+  pages/                     index.astro (the home wall's painter lives in its
+                             script, beside its only canvas) and
+                             docs/[...slug].astro.
   lib/                       Site-level helpers (theme, constants).
 ```
 
@@ -40,8 +44,8 @@ src/
   `pen/` and `motion/` use core's `randomness/` (motion also takes pen's
   `Pt` type: the projection returns the 2D points the pen draws) — never a
   cycle, never a chapter reached from below. Site UI (`components/`) never
-  imports from the engine. Chapters may import the demo runtime in
-  `components/` (`mount.ts`, the controls island's types). No component
+  imports from the engine. Chapters and pages may import the demo runtime
+  in `components/` (`mount.ts`, the controls island's types). No component
   imports a chapter by name: `DemoCanvas.astro` discovers the chapters'
   demo modules with a build-time glob, and each demo module registers
   itself on import — so no central list of demos exists.
@@ -49,7 +53,9 @@ src/
   `registerDemo('<kind>', <mount fn>)` (from `components/mount.ts`); the
   chapter's MDX places `<DemoCanvas demo="<kind>">`. Nothing else changes.
   A tunable demo implements `TuningHandle` so the shared controls island
-  can drive it.
+  can drive it. The home wall is the one demo outside a chapter: its
+  painter lives in `pages/index.astro` and the page mounts it through the
+  same runtime.
 - **New chapter:** create `src/content/chapters/NN-<name>/index.mdx` — the
   `NN-` prefix sets the reading order — with `title` and `status`
   frontmatter; no config change needed.

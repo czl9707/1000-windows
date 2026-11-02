@@ -28,18 +28,20 @@ An Astro MDX site in this repo that documents the construction of an infinite ha
 - [Window shell archetypes — frame variants](tickets/009-window-shell-archetypes.md): every window one wide-rectangle ratio (1.6 × 1.0); sash 4 / casement 3 / picture 2 with named pane layouts, open state (closed 4 / open 2 / half-open 1, operable archetypes only); panes washed in ink at 0.05 alpha, everything else line-only (revised after landing, see the ticket addendum); shell rolls on `fork(seed, 'shell')` in order archetype → layout → open → measured; catalogue freely editable across versions, stream purity the only invariant.
 - [Shell add-ons and the layer pipeline](tickets/010-shell-addons-and-layer-pipeline.md): frame variance (head kinds, face width) stays in the shell; awning/shutters/window-box become add-ons with none-dominant rolls; the scene adopts the mark pipeline — core emits 3D marks, motion projects (`s = F/(F−z)`, F = 4.2), styling dresses, the pen draws in 2D unchanged; marks stable-sort by a numeric depth key, depth lives on points; folders split `src/core` / `src/pen` / `src/motion` / `src/styling`.
 - [Cursor parallax — the wall shifts with the gaze](tickets/011-cursor-parallax.md): the eye sits at the screen's centre, never the pointer; each point lands at `p·s + eye·(s − 1)` — wall plane pinned, nearer layers drift by depth; FOCAL now 30, magnification under 4% at the deepest mark; swung casement leaves and shutters carry real depth off the wall; the demo loop resolves the eye per frame through an injectable resolver (pointer stand-in for demos, canvas position for the home wall); landed as chapter `05-motion`.
+- [Wall and camera — infinite pan](tickets/006-wall-and-camera.md): every grid cell holds a window at pitch 3 × 2; scale adapts to the viewport (≥ 5 × 3 windows visible, ≤ 30 at the extreme); the settled wall texture — paper stipple under ragged illustrative brick patches — ports from the prototype; drag pans with inertia, eye stays at screen centre; full redraw every frame with no trace cache — pens live and die with viewport entry/exit; the wall touches windows only through `drawWindow`, and the home page never touches the engine; the home page is the wall under the header, which gains a docs button (to a new minimal `/docs` index) and a shuffle button (in-place meta-seed re-roll, camera kept, no URL state).
+- [Build the home wall](tickets/012-build-home-wall.md): landed on `home-wall` (dd89181) through TDD at four seams (`wallUnits`, `visibleCells`, `planPens`, `glide`) and three review rounds; chapter `06-the-wall` shipped, home page is the wall, `/docs` index live, prototype route on `prototype/wall-texture`; tsc/tests/build green — live-browser feel pending the human's check.
 
 ## Not yet specified
 
 - Accessories hanging off the shell: vines, cables, decals — the light end of the attached clutter; the masses landed as add-ons in ticket 010, these wait until the wall exists.
 - Idle motion vocabulary (from the skipped one-window ticket): TV flicker via `fork(seed, label)`, curtain sway, occupant micro-movement — specifiable once the wall exists to hang it on.
 - Global day/night knob: one uniform time-of-day multiplier over the whole wall. Revisit once per-window light genes exist.
-- The press layer: paper grain, ink bleed, misregistration — the reference's print-look chapter, not yet mapped to a wall.
+- The press layer beyond the landed stipple: ink bleed, misregistration — the reference's print-look chapter, remainder not yet mapped to a wall.
 - Pitfalls: which of the reference's recorded traps transfer to windows (short strokes, boiling flicker, lockstep twitching).
 - Narrative depth: names/doorbells, story vocabulary per tenant, how much written text (if any) lives in the demo.
-- "New wall" regeneration UX and shareable seed state.
+- Shareable seed state: meta-seed in the URL (the shuffle button re-rolls in place; the URL stays untouched).
 - Zoom behavior on the infinite canvas.
-- Content page structure: left sidebar navigation taking over chapter listing (per-page chapter nav, draft/landed states); header stays title + theme switch.
+- Content page structure: left sidebar navigation taking over chapter navigation (the minimal `/docs` index now exists; per-page chapter nav, draft/landed states); header stays title + buttons.
 
 ## Out of scope
 

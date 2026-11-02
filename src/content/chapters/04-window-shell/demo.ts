@@ -1,7 +1,6 @@
 // The wall demo's control UI lives in the reseed and reset buttons
-// (src/components/DemoReseedButton.astro, DemoResetButton.astro). The rest of
-// this file is the catalogue plates: fixed ShellPlans pinned by hand, one demo
-// per variant group and one per depth layer, so the chapter can enumerate the
+// (src/components/DemoReseedButton.astro, DemoResetButton.astro); the
+// catalogue plates pin ShellPlans by hand so the chapter can enumerate the
 // vocabulary instead of describing it.
 import { centreUnit, createDemoLoop, cssBox } from '@/components/demoLoop';
 import { Pen } from '@/pen/pen';
@@ -11,6 +10,7 @@ import { makePalette, type ThemeColors } from '@/styling/roles';
 import { windowSeed } from '@/core/randomness/rng';
 import { drawWindow, windowMarks } from '@/core/entry';
 import { execute } from '@/core/scene/execute';
+import { CENTRE_EYE, makeProjection } from '@/motion/projection';
 import type { ShellPlan } from '@/core/window-shell/archetypes';
 
 const COLS = 3;
@@ -22,7 +22,6 @@ const PITCH_Y = 1.9;
 const PLATE_PITCH_Y = 2.25;
 const DEFAULT_SEED = 1335613256;
 
-// The wall's grid addresses, fixed: the demo only re-rolls the meta-seed.
 const SLOTS = Array.from({ length: COLS * ROWS }, (_, i) => ({
   col: i % COLS,
   row: Math.floor(i / COLS),
@@ -56,7 +55,7 @@ function mountShellStrip(canvas: HTMLCanvasElement): TuningHandle {
           (SLOTS[i].col - (COLS - 1) / 2) * PITCH_X,
           (SLOTS[i].row - (ROWS - 1) / 2) * PITCH_Y,
         );
-        drawWindow(ctx, pen, palette);
+        drawWindow(ctx, pen, palette, CENTRE_EYE);
         ctx.restore();
       });
     },
@@ -87,8 +86,6 @@ function mountShellStrip(canvas: HTMLCanvasElement): TuningHandle {
 
 registerDemo('shell-grid', mountShellStrip);
 
-// --- The catalogue plates -------------------------------------------------
-//
 // A plate is a row of pinned ShellPlans — the drawers are pure, so the demo
 // hands each its plan directly instead of rolling one from a seed. The pens
 // still carry real seeds, for the tremor; the plate seed is a constant, so a
@@ -137,7 +134,7 @@ function mountPlates(canvas: HTMLCanvasElement, plans: ShellPlan[], cols: number
           ((i % cols) - (cols - 1) / 2) * PITCH_X,
           (Math.floor(i / cols) - (rows - 1) / 2) * PLATE_PITCH_Y,
         );
-        execute(windowMarks(plan), pen, ctx, palette);
+        execute(windowMarks(plan), pen, ctx, palette, makeProjection(CENTRE_EYE));
         ctx.restore();
       });
     },
@@ -166,8 +163,6 @@ function mountPlates(canvas: HTMLCanvasElement, plans: ShellPlan[], cols: number
   return handle;
 }
 
-// The archetype catalogue in one plate: sash's layouts on the first row,
-// casement's on the second, picture alone below — it has no layout axis.
 const ARCHETYPES: ShellPlan[] = [
   pinnedPlan('sash', { layout: '1-over-1' }),
   pinnedPlan('sash', { layout: '2-over-2' }),
@@ -179,9 +174,8 @@ const ARCHETYPES: ShellPlan[] = [
 ];
 registerDemo('shell-archetypes', (canvas) => mountPlates(canvas, ARCHETYPES, 3));
 
-// The open states, sash above casement. Sash slides: the lower sash lifts off
-// the frame. Casement swings: the leaf narrows by the swing's cosine — and the
-// two open windows show both hinge sides (open left-hinged, half-open right).
+// Sash slides: the lower sash lifts off the frame. Casement swings: the leaf
+// narrows by the swing's cosine.
 const OPEN_STATES: ShellPlan[] = [
   pinnedPlan('sash', { open: 'closed' }),
   pinnedPlan('sash', { open: 'half-open' }),
@@ -192,7 +186,6 @@ const OPEN_STATES: ShellPlan[] = [
 ];
 registerDemo('shell-open', (canvas) => mountPlates(canvas, OPEN_STATES, 3));
 
-// The sills, on an otherwise bare sash: flat, bracketed, flush (none).
 const SILLS: ShellPlan[] = [
   pinnedPlan('sash', { sill: 'flat' }),
   pinnedPlan('sash', { sill: 'bracketed' }),
@@ -200,8 +193,6 @@ const SILLS: ShellPlan[] = [
 ];
 registerDemo('shell-sills', (canvas) => mountPlates(canvas, SILLS, 3));
 
-// The add-on masses, one kind per window: both awning kinds, both shutter
-// kinds, both box counts.
 const ADDONS: ShellPlan[] = [
   pinnedPlan('sash', { awning: 'slope' }),
   pinnedPlan('sash', { awning: 'canopy' }),

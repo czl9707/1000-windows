@@ -8,9 +8,7 @@ import { ShuffleIcon } from '@radix-ui/react-icons';
 </Button>
 
 <script>
-    // The reseed button talks to whatever demo is mounted in its enclosing
-    // frame: it re-rolls that demo's seed parameter through its handle.
-    import { handleRegistered, tuningHandleFor } from './mount';
+    import { handleRegistered, reseedHandleFor, rollSeed } from './mount';
 
     for (const button of document.querySelectorAll<HTMLButtonElement>('[data-demo-reseed]')) {
         const canvas = button.closest('[data-demo-frame]')?.querySelector('canvas[data-demo]');
@@ -19,7 +17,7 @@ import { ShuffleIcon } from '@radix-ui/react-icons';
         }
         button.addEventListener('click', () => {
             handleRegistered(canvas).then(() => {
-                tuningHandleFor(canvas).reseed(Math.floor(Math.random() * 100000));
+                reseedHandleFor(canvas)!.reseed(rollSeed());
             });
         });
     }

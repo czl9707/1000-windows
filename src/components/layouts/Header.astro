@@ -2,12 +2,16 @@
 import Section from "@/components/ui/Section.astro";
 import Typography from "@/components/ui/Typography.astro";
 import ThemeToggle from "@/components/layouts/ThemeToggle.astro";
+import Button from "@/components/ui/Button.astro";
+import { ShuffleIcon } from "@radix-ui/react-icons";
 
 interface Props {
   siteTitle: string;
 }
 
 const { siteTitle } = Astro.props;
+// The shuffle belongs to the wall; the wall is the home page's canvas.
+const isHome = Astro.url.pathname === "/";
 ---
 
 <Section class:list={"HeaderContainer"}>
@@ -19,8 +23,30 @@ const { siteTitle } = Astro.props;
 
     <div style={{ flex: "1 1" }}></div>
 
+    <Button variant="filled" color="transparent" as="a" href="/docs/">
+        Docs
+    </Button>
+    {isHome && (
+        <Button variant="filled" color="transparent" id="wall-shuffle" aria-label="Shuffle the wall">
+            <ShuffleIcon />
+        </Button>
+    )}
     <ThemeToggle />
 </Section>
+
+<script>
+    import { handleRegistered, reseedHandleFor, rollSeed } from "@/components/mount";
+
+    document.getElementById("wall-shuffle")?.addEventListener("click", () => {
+        const canvas = document.querySelector('canvas[data-demo="wall"]');
+        if (!(canvas instanceof HTMLCanvasElement)) {
+            throw new Error("shuffle: no wall canvas on the page");
+        }
+        handleRegistered(canvas).then(() => {
+            reseedHandleFor(canvas)!.reseed(rollSeed());
+        });
+    });
+</script>
 
 <style>
     @keyframes SlideDown {

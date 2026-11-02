@@ -5,18 +5,26 @@ export interface DemoHandle {
   destroy(): void;
 }
 
-// The contract a demo implements so the shared controls island can drive it.
-// `reseed` is the re-roll the reseed button performs; `setParam` carries only
-// the demo's declared tuning parameters.
-export interface TuningHandle extends DemoHandle {
-  setParam(key: string, value: number): void;
+// The reseed buttons drive demos through this — demos with no tuning
+// parameters implement nothing wider.
+export interface ReseedHandle extends DemoHandle {
   reseed(value: number): void;
+}
+
+// The contract a demo implements so the shared controls island can drive it;
+// `setParam` carries only the demo's declared tuning parameters.
+export interface TuningHandle extends ReseedHandle {
+  setParam(key: string, value: number): void;
   resetParams(): void;
   snapshot(): Record<string, number>;
   subscribe(cb: () => void): () => void;
 }
 
 type Painter = (canvas: HTMLCanvasElement) => DemoHandle;
+
+export function rollSeed(): number {
+  return Math.floor(Math.random() * 2 ** 31);
+}
 
 const kinds = new Map<string, Painter>();
 const mounted = new WeakMap<HTMLCanvasElement, DemoHandle>();
@@ -40,8 +48,23 @@ export function handleRegistered(canvas: HTMLCanvasElement): Promise<DemoHandle>
   });
 }
 
+// The guards' keys derive from the contracts: a key added to or removed
+// from an interface fails this compile, so the runtime check cannot drift.
+const RESEED_KEYS: { [K in keyof ReseedHandle]: K } = { destroy: 'destroy', reseed: 'reseed' };
+const TUNING_KEYS: { [K in keyof TuningHandle]: K } = {
+  ...RESEED_KEYS,
+  setParam: 'setParam',
+  resetParams: 'resetParams',
+  snapshot: 'snapshot',
+  subscribe: 'subscribe',
+};
+
 function isTuningHandle(handle: DemoHandle): handle is TuningHandle {
-  return 'setParam' in handle && 'reseed' in handle && 'resetParams' in handle && 'snapshot' in handle && 'subscribe' in handle;
+  return Object.values(TUNING_KEYS).every((key) => key in handle);
+}
+
+function isReseedHandle(handle: DemoHandle): handle is ReseedHandle {
+  return Object.values(RESEED_KEYS).every((key) => key in handle);
 }
 
 export function tuningHandleFor(canvas: HTMLCanvasElement): TuningHandle | undefined {
@@ -49,6 +72,17 @@ export function tuningHandleFor(canvas: HTMLCanvasElement): TuningHandle | undef
   if (!handle) return undefined;
   if (!isTuningHandle(handle)) {
     throw new Error('tuning controls: demo exposes no tuning handle');
+  }
+  return handle;
+}
+
+// For controls that only re-roll: a demo with no tuning handle still
+// answers here.
+export function reseedHandleFor(canvas: HTMLCanvasElement): ReseedHandle | undefined {
+  const handle = mounted.get(canvas);
+  if (!handle) return undefined;
+  if (!isReseedHandle(handle)) {
+    throw new Error('reseed controls: demo exposes no reseed handle');
   }
   return handle;
 }
@@ -68,8 +102,6 @@ export function mount(canvas: HTMLCanvasElement): DemoHandle {
   return handle;
 }
 
-// Every canvas gets its shot even when one fails; the failures then surface
-// together, each named, instead of the first one silencing its siblings.
 export function mountAll(root: ParentNode = document, selector = '[data-demo]'): DemoHandle[] {
   const results: DemoHandle[] = [];
   const failures: string[] = [];

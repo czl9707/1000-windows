@@ -1,33 +1,22 @@
-// Shared scaffolding for chapter demo canvases: theme colours, resize, the
-// frame loop, and the change-notification plumbing the controls island
-// listens to. The painter draws the scene; everything here is the frame
-// around it.
+// Shared scaffolding for chapter demo canvases: the painter draws the
+// scene; everything here is the frame around it.
 
 export interface DemoLoopHandle {
   subscribe(cb: () => void): () => void;
   notify(): void;
-  // Resize to the CSS box and paint one still frame.
   repaint(): void;
   destroy(): void;
 }
 
-// The pointer's offset from the canvas centre, normalized to the CSS box
-// (−0.5..0.5 per axis). The stand-in for where this canvas sits relative to
-// the screen centre; the home wall replaces it with the real thing.
-export interface Pointer {
-  x: number;
-  y: number;
-}
-
 // The resolved eye: this canvas's offset from the screen centre, in unit
-// measure. Structurally motion's Eye; defined here because components never
-// import the engine.
-export interface Eye {
+// measure. Structurally motion's Eye — components never import the engine;
+// chapters pass it straight into the projection.
+export interface EyeOffset {
   x: number;
   y: number;
 }
 
-const CENTRE: Eye = { x: 0, y: 0 };
+const CENTRE: EyeOffset = { x: 0, y: 0 };
 
 export function createDemoLoop(
   canvas: HTMLCanvasElement,
@@ -38,12 +27,12 @@ export function createDemoLoop(
     ctx: CanvasRenderingContext2D,
     time: number,
     colors: { ink: string; paper: string },
-    eye: Eye,
+    eye: EyeOffset,
   ) => void,
-  // Where the eye sits for this scene. The default centres it: a demo maps
-  // the pointer to the eye, the home wall will map the canvas's real
-  // position.
-  resolveEye: (canvas: HTMLCanvasElement, pointer: Pointer) => Eye = () => CENTRE,
+  // A demo maps its own input to the eye — the motion strip its pointer,
+  // the home wall the canvas's real position — with whatever listeners it
+  // needs.
+  resolveEye: (canvas: HTMLCanvasElement) => EyeOffset = () => CENTRE,
 ): DemoLoopHandle {
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('demo canvas: 2d context unavailable');
@@ -57,13 +46,11 @@ export function createDemoLoop(
     colors = { ink: `rgb(${fg})`, paper: `rgb(${bg})` };
   };
 
-  let pointer: Pointer = { x: 0, y: 0 };
-
   const frame = (time: number) => {
     ctx.save();
     ctx.fillStyle = colors.paper;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    paint(ctx, time, colors, resolveEye(canvas, pointer));
+    paint(ctx, time, colors, resolveEye(canvas));
     ctx.restore();
   };
 
@@ -111,23 +98,6 @@ export function createDemoLoop(
   });
   themeObserver.observe(document.body, { attributes: true, attributeFilter: ['data-theme'] });
 
-  // The pointer feeds the still demos immediately; a running loop picks it
-  // up on its next frame anyway. Leaving the canvas re-centres it.
-  const onPointerMove = (e: PointerEvent) => {
-    const rect = canvas.getBoundingClientRect();
-    pointer = {
-      x: (e.clientX - rect.left) / rect.width - 0.5,
-      y: (e.clientY - rect.top) / rect.height - 0.5,
-    };
-    if (!running) frame(0);
-  };
-  const onPointerLeave = () => {
-    pointer = { x: 0, y: 0 };
-    if (!running) frame(0);
-  };
-  canvas.addEventListener('pointermove', onPointerMove);
-  canvas.addEventListener('pointerleave', onPointerLeave);
-
   readColors();
   repaint();
   start();
@@ -143,23 +113,51 @@ export function createDemoLoop(
       stop();
       observer.disconnect();
       themeObserver.disconnect();
-      canvas.removeEventListener('pointermove', onPointerMove);
-      canvas.removeEventListener('pointerleave', onPointerLeave);
       listeners.clear();
       ctx.clearRect(0, 0, canvas.width, canvas.height);
     },
   };
 }
 
-// The canvas CSS box in CSS pixels, for painters that scale unit measure to fit.
+// For painters that scale unit measure to fit.
 export function cssBox(canvas: HTMLCanvasElement): { width: number; height: number; dpr: number } {
   const dpr = window.devicePixelRatio || 1;
   return { width: canvas.width / dpr, height: canvas.height / dpr, dpr };
 }
 
-// The standard frame for painters that draw in unit measure: scale so the
-// given unit span fits the canvas, then move the origin to its centre
-// (yBias in unit measure). Call inside a ctx.save()/restore().
+// The pointer as the eye's stand-in: the cursor's offset from the canvas
+// centre, normalized to the CSS box and scaled to the spans the caller
+// gives — the cursor at an edge reads as this canvas sitting at the
+// screen's edge. Leaving the canvas re-centres it.
+export function trackPointerEye(
+  canvas: HTMLCanvasElement,
+  spanX: number,
+  spanY: number,
+): { eye: () => EyeOffset; unbind: () => void } {
+  let pointer = { x: 0, y: 0 };
+  const onMove = (e: PointerEvent) => {
+    const rect = canvas.getBoundingClientRect();
+    pointer = {
+      x: (e.clientX - rect.left) / rect.width - 0.5,
+      y: (e.clientY - rect.top) / rect.height - 0.5,
+    };
+  };
+  const onLeave = () => {
+    pointer = { x: 0, y: 0 };
+  };
+  canvas.addEventListener('pointermove', onMove);
+  canvas.addEventListener('pointerleave', onLeave);
+  return {
+    eye: () => ({ x: pointer.x * spanX, y: pointer.y * spanY }),
+    unbind: () => {
+      canvas.removeEventListener('pointermove', onMove);
+      canvas.removeEventListener('pointerleave', onLeave);
+    },
+  };
+}
+
+// The standard frame for painters that draw in unit measure. Call inside a
+// ctx.save()/restore().
 export function centreUnit(
   ctx: CanvasRenderingContext2D,
   box: { width: number; height: number; dpr: number },

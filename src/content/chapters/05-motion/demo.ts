@@ -1,15 +1,16 @@
-// The motion chapter's demo: a wall strip whose parallax is driven by the
-// pointer standing in for the canvas's offset from the screen centre — on
+// The pointer stands in for the canvas's offset from the screen centre — on
 // the home wall that offset is the canvas's real position, and no pointer
 // is involved. Control UI lives in the reseed button and the focal slider.
-import { centreUnit, createDemoLoop, cssBox, type Eye, type Pointer } from '@/components/demoLoop';
+import { centreUnit, createDemoLoop, cssBox, trackPointerEye } from '@/components/demoLoop';
 import { Pen } from '@/pen/pen';
 import { registerDemo, type TuningHandle } from '@/components/mount';
 import { DEFAULT_TUNING } from '@/pen/tuning';
 import { makePalette, type ThemeColors } from '@/styling/roles';
 import { windowSeed } from '@/core/randomness/rng';
-import { drawWindow } from '@/core/entry';
-import { FOCAL } from '@/motion/projection';
+import { windowMarks } from '@/core/entry';
+import { execute } from '@/core/scene/execute';
+import { expandShell } from '@/core/window-shell/shell';
+import { makeProjection, type Eye } from '@/motion/projection';
 
 const COLS = 3;
 const ROWS = 2;
@@ -17,6 +18,9 @@ const ROWS = 2;
 const PITCH_X = 2.3;
 const PITCH_Y = 1.9;
 const DEFAULT_SEED = 812333041;
+// The focal slider's reset value — kept in step with the projection
+// module's private default (30), which no longer exports it.
+const DEFAULT_FOCAL = 30;
 
 const SLOTS = Array.from({ length: COLS * ROWS }, (_, i) => ({
   col: i % COLS,
@@ -25,7 +29,7 @@ const SLOTS = Array.from({ length: COLS * ROWS }, (_, i) => ({
 
 function mountParallaxStrip(canvas: HTMLCanvasElement): TuningHandle {
   let baseSeed = DEFAULT_SEED;
-  let focal = FOCAL;
+  let focal = DEFAULT_FOCAL;
   // One pen per window, kept across frames: the pen caches each trace's warp
   // field, and rebuilding them per frame throws the cache away.
   let pens: { seed: number; pen: Pen }[] = [];
@@ -38,6 +42,8 @@ function mountParallaxStrip(canvas: HTMLCanvasElement): TuningHandle {
   };
   rebuild();
 
+  const pointer = trackPointerEye(canvas, COLS * PITCH_X, ROWS * PITCH_Y);
+
   const loop = createDemoLoop(
     canvas,
     (ctx, time, colors: ThemeColors, eye: Eye) => {
@@ -45,22 +51,25 @@ function mountParallaxStrip(canvas: HTMLCanvasElement): TuningHandle {
       centreUnit(ctx, box, COLS * PITCH_X, ROWS * PITCH_Y, -0.1);
       pens.forEach(({ pen }, i) => {
         pen.setTime(time);
+        const wx = (SLOTS[i].col - (COLS - 1) / 2) * PITCH_X;
+        const wy = (SLOTS[i].row - (ROWS - 1) / 2) * PITCH_Y;
         ctx.save();
-        ctx.translate(
-          (SLOTS[i].col - (COLS - 1) / 2) * PITCH_X,
-          (SLOTS[i].row - (ROWS - 1) / 2) * PITCH_Y,
+        ctx.translate(wx, wy);
+        // This window's origin seen from the eye — same term the wall feeds
+        // per window while panning. The focal slider is the demo's own dial,
+        // so it builds its projection with that focal instead of going
+        // through drawWindow.
+        execute(
+          windowMarks(expandShell(pen.seed)),
+          pen,
+          ctx,
+          makePalette(colors),
+          makeProjection({ x: eye.x + wx, y: eye.y + wy }, focal),
         );
-        drawWindow(ctx, pen, makePalette(colors), eye, focal);
         ctx.restore();
       });
     },
-    // The pointer spans the canvas, so the eye offset spans the same canvas
-    // in unit measure: the cursor at an edge reads as this strip sitting at
-    // the screen's edge.
-    (_canvas, pointer: Pointer) => ({
-      x: pointer.x * COLS * PITCH_X,
-      y: pointer.y * ROWS * PITCH_Y,
-    }),
+    pointer.eye,
   );
 
   const handle: TuningHandle = {
@@ -78,14 +87,17 @@ function mountParallaxStrip(canvas: HTMLCanvasElement): TuningHandle {
     },
     resetParams() {
       baseSeed = DEFAULT_SEED;
-      focal = FOCAL;
+      focal = DEFAULT_FOCAL;
       rebuild();
       loop.repaint();
       loop.notify();
     },
     snapshot: () => ({ seed: baseSeed, focal }),
     subscribe: (cb) => loop.subscribe(cb),
-    destroy: () => loop.destroy(),
+    destroy: () => {
+      pointer.unbind();
+      loop.destroy();
+    },
   };
   return handle;
 }

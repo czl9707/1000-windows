@@ -7,9 +7,8 @@ import type { ShellPlan } from './window-shell/archetypes';
 import { drawCasement } from './window-shell/drawCasement';
 import { BOX, SHELL_Z, expandShell } from './window-shell/shell';
 import { drawWindow } from './entry';
+import { CENTRE_EYE } from '@/motion/projection';
 
-// A pen that records trace names and forwards to a no-op canvas, so the
-// drawing seam is observable without a real 2d context.
 class RecordingPen extends Pen {
   traces: string[] = [];
   strokes: { name: string; pts: { x: number; y: number }[] }[] = [];
@@ -56,7 +55,7 @@ describe('drawWindow', () => {
   it('draws without throwing across a seed sweep', () => {
     for (let i = 0; i < 300; i++) {
       const pen = new RecordingPen(5000 + i * 104729);
-      expect(() => drawWindow(NOOP_CTX, pen, PALETTE)).not.toThrow();
+      expect(() => drawWindow(NOOP_CTX, pen, PALETTE, CENTRE_EYE)).not.toThrow();
     }
   });
 
@@ -64,7 +63,7 @@ describe('drawWindow', () => {
     for (let i = 0; i < 300; i++) {
       const seed = 9000 + i * 7919;
       const pen = new RecordingPen(seed);
-      drawWindow(NOOP_CTX, pen, PALETTE);
+      drawWindow(NOOP_CTX, pen, PALETTE, CENTRE_EYE);
       expect(pen.traces.length).toBeGreaterThan(0);
     }
   });
@@ -73,7 +72,7 @@ describe('drawWindow', () => {
     for (let i = 0; i < 300; i++) {
       const seed = 12000 + i * 104729;
       const pen = new RecordingPen(seed);
-      drawWindow(NOOP_CTX, pen, PALETTE);
+      drawWindow(NOOP_CTX, pen, PALETTE, CENTRE_EYE);
       expect(new Set(pen.traces).size).toBe(pen.traces.length);
     }
   });
@@ -82,7 +81,7 @@ describe('drawWindow', () => {
     for (let i = 0; i < 300; i++) {
       const seed = 15000 + i * 104729;
       const pen = new RecordingPen(seed);
-      drawWindow(NOOP_CTX, pen, PALETTE);
+      drawWindow(NOOP_CTX, pen, PALETTE, CENTRE_EYE);
       const { archetype } = expandShell(seed);
       const hasRail = pen.traces.some((t) => t.startsWith('rail'));
       if (archetype === 'sash') expect(hasRail).toBe(true);
@@ -94,7 +93,7 @@ describe('drawWindow', () => {
     for (let i = 0; i < 300; i++) {
       const seed = 17000 + i * 104729;
       const pen = new RecordingPen(seed);
-      drawWindow(NOOP_CTX, pen, PALETTE);
+      drawWindow(NOOP_CTX, pen, PALETTE, CENTRE_EYE);
       expect(pen.washes.length).toBeGreaterThanOrEqual(1);
     }
   });
@@ -106,7 +105,7 @@ describe('drawWindow', () => {
     for (let i = 0; i < 100; i++) {
       const seed = 21000 + i * 104729;
       const pen = new RecordingPen(seed);
-      drawWindow(NOOP_CTX, pen, PALETTE);
+      drawWindow(NOOP_CTX, pen, PALETTE, CENTRE_EYE);
       const top = pen.strokes.find((s) => s.name === 'frame-outer-top');
       expect(top).toBeDefined();
       const extent = Math.max(...top!.pts.map((p) => Math.abs(p.x)));
@@ -120,7 +119,7 @@ describe('drawWindow', () => {
     for (let i = 0; i < 100; i++) {
       const seed = 27000 + i * 104729;
       const pen = new RecordingPen(seed);
-      drawWindow(NOOP_CTX, pen, PALETTE);
+      drawWindow(NOOP_CTX, pen, PALETTE, CENTRE_EYE);
       const wash = pen.fills.find((f) => f.alpha < 0.5);
       expect(wash).toBeDefined();
       const extent = Math.max(...wash!.pts.map((p) => Math.abs(p.x)));
@@ -188,7 +187,7 @@ describe('tuning immutability', () => {
     const tuning: Tuning = { ...DEFAULT_TUNING };
     const snapshot = { ...tuning };
     const pen = new RecordingPen(42, tuning);
-    drawWindow(NOOP_CTX, pen, PALETTE);
+    drawWindow(NOOP_CTX, pen, PALETTE, CENTRE_EYE);
     expect(tuning).toEqual(snapshot);
   });
 });

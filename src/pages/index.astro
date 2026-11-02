@@ -1,75 +1,92 @@
 ---
-import { getCollection } from 'astro:content';
 import BaseLayout from '@/components/layouts/BaseLayout.astro';
-import Typography from '@/components/ui/Typography.astro';
-import { chapterSlug } from '@/lib/chapters';
-
-// The id is the folder name `NN-<name>`; lexical order is the reading order.
-const chapters = (await getCollection('chapters')).sort((a, b) =>
-  a.id.localeCompare(b.id)
-);
 ---
 
 <BaseLayout>
-  <div class="HomeHead">
-    <Typography variant="h2" as="h1">Paint 1000 windows</Typography>
-    <Typography variant="body1" color="secondary">
-      An infinite hand-drawn wall of windows, built in the open. Every window
-      is a seeded tenant — its own light, its own curtain, its own small life —
-      drawn with a boiling line that never repeats between visits. The wall is
-      endless in every direction; reload and a different wall stands there.
-    </Typography>
-    <Typography variant="body1" color="secondary">
-      This site documents the construction as it happens: chapters quote the
-      real code behind each step and record the chain of thought, and the
-      embedded demo is the engine itself, growing milestone by milestone.
-    </Typography>
-  </div>
-
-  <div class="HomeSection">
-    <Typography variant="h4" as="h2">Chapters</Typography>
-    <ol class="ChapterList">
-      {chapters.map((chapter) => (
-        <li>
-          <a href={`/docs/${chapterSlug(chapter.id)}/`}>
-            <Typography variant="h6" as="span">{chapter.data.title}</Typography>
-            <Typography
-              variant="body2"
-              color={chapter.data.status === 'landed' ? 'accent' : 'secondary'}
-            >
-              {chapter.data.status}
-            </Typography>
-          </a>
-        </li>
-      ))}
-    </ol>
-  </div>
+  <canvas
+    data-demo="wall"
+    class="Wall"
+    aria-label="The wall — an endless hand-drawn wall of windows; drag to pan, use the shuffle button for a new wall"
+    role="img"
+  ></canvas>
 </BaseLayout>
 
 <style>
-  .HomeHead {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-paragraph);
-    padding-bottom: var(--spacing-component);
+  .Wall {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    cursor: grab;
+    touch-action: none;
   }
 
-  .HomeSection {
-    padding-bottom: var(--spacing-component);
-  }
-
-  .ChapterList {
-    display: flex;
-    flex-direction: column;
-  }
-
-  .ChapterList li > a {
-    display: flex;
-    flex-direction: row;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: var(--spacing-paragraph);
-    padding: var(--spacing-paragraph) 0;
-    border-bottom: var(--border-secondary);
+  .Wall:active {
+    cursor: grabbing;
   }
 </style>
+
+<script>
+  // The home wall's painter lives here, beside its one consumer; the page
+  // mounts it through the demo runtime, so the shuffle's canvas lookup
+  // reaches the handle.
+  import { createDemoLoop, cssBox } from '@/components/demoLoop';
+  import { mount, registerDemo, rollSeed, type ReseedHandle } from '@/components/mount';
+  import { PITCH_X, PITCH_Y, visibleCells, wallUnits } from '@/core/wall/grid';
+  import { dragWall } from '@/core/wall/drag';
+  import { Wall } from '@/core/wall/wall';
+
+  // At least one full cell, so a window's pen is warm before its box scrolls in.
+  const MARGIN = Math.max(PITCH_X, PITCH_Y);
+
+  function mountWall(canvas: HTMLCanvasElement): ReseedHandle {
+    const wall = new Wall(rollSeed());
+
+    const pxPerUnit = () => {
+      const box = cssBox(canvas);
+      return wallUnits(box.width, box.height);
+    };
+    const unbindGestures = dragWall(wall, canvas, pxPerUnit);
+
+    let lastFrameTime = 0;
+    const loop = createDemoLoop(
+      canvas,
+      (ctx, time, colors, eye) => {
+        const box = cssBox(canvas);
+        const dt = Math.min(Math.max(time - lastFrameTime, 0), 0.1);
+        lastFrameTime = time;
+        wall.advance(dt);
+        const unit = wallUnits(box.width, box.height);
+        const cells = visibleCells(wall.camera, box.width / unit, box.height / unit, MARGIN);
+        wall.draw(ctx, box, { unit, eye, cells, margin: MARGIN }, time, colors);
+      },
+      // The wall's real eye: where this canvas sits relative to the screen's
+      // centre, in unit measure. Filling the viewport, it sits at the centre;
+      // the resolver keeps the term honest whatever the layout does.
+      (cv) => {
+        const rect = cv.getBoundingClientRect();
+        const unit = wallUnits(rect.width, rect.height);
+        return {
+          x: (rect.left + rect.width / 2 - window.innerWidth / 2) / unit,
+          y: (rect.top + rect.height / 2 - window.innerHeight / 2) / unit,
+        };
+      },
+    );
+
+    return {
+      reseed(value) {
+        wall.reseed(value);
+        loop.repaint();
+        loop.notify();
+      },
+      destroy() {
+        unbindGestures();
+        loop.destroy();
+      },
+    };
+  }
+
+  registerDemo('wall', mountWall);
+  mount(document.querySelector<HTMLCanvasElement>('canvas[data-demo="wall"]')!);
+</script>
