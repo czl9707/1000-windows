@@ -2,13 +2,13 @@
 // pointer standing in for the canvas's offset from the screen centre — on
 // the home wall that offset is the canvas's real position, and no pointer
 // is involved. Control UI lives in the reseed button.
-import { centreUnit, createDemoLoop, cssBox, type Eye, type Pointer } from '../../../components/demoLoop';
-import { Pen } from '../../../pen/pen';
-import { registerDemo, type TuningHandle } from '../../../components/mount';
-import { DEFAULT_TUNING } from '../../../pen/tuning';
-import { makePalette, type ThemeColors } from '../../../styling/roles';
-import { windowSeed } from '../../../core/randomness/rng';
-import { drawWindow } from '../../../core/entry';
+import { centreUnit, createDemoLoop, cssBox, type Eye, type Pointer } from '@/components/demoLoop';
+import { Pen } from '@/pen/pen';
+import { registerDemo, type TuningHandle } from '@/components/mount';
+import { DEFAULT_TUNING } from '@/pen/tuning';
+import { makePalette, type ThemeColors } from '@/styling/roles';
+import { windowSeed } from '@/core/randomness/rng';
+import { drawWindow } from '@/core/entry';
 
 const COLS = 3;
 const ROWS = 2;

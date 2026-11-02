@@ -1,7 +1,7 @@
 // The picture window: fixed glass, no lattice. The wash says glass; the
 // absence of divisions says picture.
 import type { ShellPlan } from './archetypes';
-import type { Mark } from '../scene/mark';
+import type { Mark } from '@/core/scene/mark';
 import { SHELL_Z, innerRect, rectPts } from './shell';
 
 export function drawPicture(plan: ShellPlan): Mark[] {

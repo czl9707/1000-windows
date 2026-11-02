@@ -6,8 +6,8 @@
 // This module is the shell's vocabulary: the plan, the catalogue rolls, and
 // the unit-measure geometry helpers the drawers share. Assembly — collecting
 // the drawers' marks and drawing the window — lives in core/entry.ts.
-import { fork } from '../randomness/rng';
-import type { Pt3 } from '../../motion/projection';
+import { fork } from '@/core/randomness/rng';
+import type { Pt3 } from '@/motion/projection';
 import { ARCHETYPES, ADDONS, OPEN_STATES, SILLS, type HingeSide, type ShellPlan } from './archetypes';
 
 export function expandShell(seed: number): ShellPlan {

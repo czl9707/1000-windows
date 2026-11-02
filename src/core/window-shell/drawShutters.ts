@@ -6,8 +6,8 @@
 // swing's depth. The panel fills opaque: swung out, it hides the wall behind
 // it.
 import type { ShellPlan } from './archetypes';
-import type { Mark } from '../scene/mark';
-import type { Pt3 } from '../../motion/projection';
+import type { Mark } from '@/core/scene/mark';
+import type { Pt3 } from '@/motion/projection';
 import { SHELL_Z, innerRect } from './shell';
 
 // Half-open, as the panel's angle off the wall plane. Fixed, never rolled:

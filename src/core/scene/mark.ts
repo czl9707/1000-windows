@@ -3,8 +3,8 @@
 // numeric z used only to order marks — ties keep emission order, so the
 // append-only draw order survives the sort. Dress is a role name — colour
 // and strength together, resolved by styling; a mark carries neither.
-import type { ColorRole } from '../../styling/roles';
-import type { Pt3 } from '../../motion/projection';
+import type { ColorRole } from '@/styling/roles';
+import type { Pt3 } from '@/motion/projection';
 
 interface MarkBase {
   pts: Pt3[];

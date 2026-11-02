@@ -1,14 +1,14 @@
 // The control UI for this API lives in the React island
 // (src/components/DemoCanvasControls.tsx); the reseed and reset buttons live
 // in DemoReseedButton.astro and DemoResetButton.astro.
-import { centreUnit, createDemoLoop, cssBox } from '../../../components/demoLoop';
-import type { Tuning } from '../../../pen/pen';
-import { Pen } from '../../../pen/pen';
-import { registerDemo, type TuningHandle } from '../../../components/mount';
-import type { NumericTuningKey } from '../../../pen/tuning';
-import { DEFAULT_TUNING } from '../../../pen/tuning';
-import { makePalette, type ThemeColors } from '../../../styling/roles';
-import { drawWindow } from '../../../core/entry';
+import { centreUnit, createDemoLoop, cssBox } from '@/components/demoLoop';
+import type { Tuning } from '@/pen/pen';
+import { Pen } from '@/pen/pen';
+import { registerDemo, type TuningHandle } from '@/components/mount';
+import type { NumericTuningKey } from '@/pen/tuning';
+import { DEFAULT_TUNING } from '@/pen/tuning';
+import { makePalette, type ThemeColors } from '@/styling/roles';
+import { drawWindow } from '@/core/entry';
 
 const DEFAULT_SEED = 1335613256;
 

@@ -3,15 +3,15 @@
 // this file is the catalogue plates: fixed ShellPlans pinned by hand, one demo
 // per variant group and one per depth layer, so the chapter can enumerate the
 // vocabulary instead of describing it.
-import { centreUnit, createDemoLoop, cssBox } from '../../../components/demoLoop';
-import { Pen } from '../../../pen/pen';
-import { registerDemo, type TuningHandle } from '../../../components/mount';
-import { DEFAULT_TUNING } from '../../../pen/tuning';
-import { makePalette, type ThemeColors } from '../../../styling/roles';
-import { windowSeed } from '../../../core/randomness/rng';
-import { drawWindow, windowMarks } from '../../../core/entry';
-import { execute } from '../../../core/scene/execute';
-import type { ShellPlan } from '../../../core/window-shell/archetypes';
+import { centreUnit, createDemoLoop, cssBox } from '@/components/demoLoop';
+import { Pen } from '@/pen/pen';
+import { registerDemo, type TuningHandle } from '@/components/mount';
+import { DEFAULT_TUNING } from '@/pen/tuning';
+import { makePalette, type ThemeColors } from '@/styling/roles';
+import { windowSeed } from '@/core/randomness/rng';
+import { drawWindow, windowMarks } from '@/core/entry';
+import { execute } from '@/core/scene/execute';
+import type { ShellPlan } from '@/core/window-shell/archetypes';
 
 const COLS = 3;
 const ROWS = 2;

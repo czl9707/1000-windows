@@ -3,7 +3,7 @@
 // opening below its bottom rail as bare paper, while its panes ride up over
 // the upper sash's glass (the washes stack where they overlap).
 import { ARCHETYPES, type ShellPlan } from './archetypes';
-import type { Mark } from '../scene/mark';
+import type { Mark } from '@/core/scene/mark';
 import { SHELL_Z, gridRects, innerRect, line } from './shell';
 
 // How far the lower sash lifts, as a fraction of the sash height, per open state.

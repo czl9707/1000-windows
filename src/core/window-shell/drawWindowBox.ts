@@ -2,7 +2,7 @@
 // mounted over it — its front face fills opaque and hides the sill lines
 // behind it. A few tufts of green over each lip.
 import type { ShellPlan } from './archetypes';
-import type { Mark } from '../scene/mark';
+import type { Mark } from '@/core/scene/mark';
 import { SHELL_Z } from './shell';
 
 // The box overlaps the sill: its top edge sits below the sill's top line and

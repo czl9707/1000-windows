@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { type StrokeOptions, type Tuning, Pen } from '../pen/pen';
-import { DEFAULT_TUNING } from '../pen/tuning';
-import { makePalette } from '../styling/roles';
+import { type StrokeOptions, type Tuning, Pen } from '@/pen/pen';
+import { DEFAULT_TUNING } from '@/pen/tuning';
+import { makePalette } from '@/styling/roles';
 import type { FillMark, StrokeMark } from './scene/mark';
 import type { ShellPlan } from './window-shell/archetypes';
 import { drawCasement } from './window-shell/drawCasement';

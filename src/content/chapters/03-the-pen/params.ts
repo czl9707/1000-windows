@@ -1,5 +1,5 @@
-import type { ParamSpec } from '../../../components/DemoCanvasControls';
-import type { NumericTuningKey } from '../../../pen/tuning';
+import type { ParamSpec } from '@/components/DemoCanvasControls';
+import type { NumericTuningKey } from '@/pen/tuning';
 
 export const PARAMS: (ParamSpec & { key: NumericTuningKey })[] = [
   { key: 'amplitude', label: 'Warp amplitude', min: 0, max: 0.03, step: 0.001 },

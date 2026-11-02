@@ -1,8 +1,8 @@
 // The per-window entry point: context, pen, palette — that is the whole
 // signature. It expands the shell plan from the pen's seed, collects every
 // drawer's marks, sorts them by depth, projects, and lets the pen draw.
-import type { Pen } from '../pen/pen';
-import type { Palette } from '../styling/roles';
+import type { Pen } from '@/pen/pen';
+import type { Palette } from '@/styling/roles';
 import { execute } from './scene/execute';
 import type { Mark } from './scene/mark';
 import { ARCHETYPES, type ShellPlan } from './window-shell/archetypes';
@@ -14,7 +14,7 @@ import { drawShutters } from './window-shell/drawShutters';
 import { drawSill } from './window-shell/drawSill';
 import { drawWindowBox } from './window-shell/drawWindowBox';
 import { BOX, SHELL_Z, expandShell, line } from './window-shell/shell';
-import { CENTRE_EYE, type Eye, type Pt3 } from '../motion/projection';
+import { CENTRE_EYE, FOCAL, type Eye, type Pt3 } from '@/motion/projection';
 
 // One archetype drawer per frame construction, picked by the plan.
 const ARCHETYPE_DRAWERS: Record<keyof typeof ARCHETYPES, (plan: ShellPlan) => Mark[]> = {
@@ -79,6 +79,7 @@ export function drawWindow(
   pen: Pen,
   palette: Palette,
   eye: Eye = CENTRE_EYE,
+  focal: number = FOCAL,
 ): void {
-  execute(windowMarks(expandShell(pen.seed)), pen, ctx, palette, eye);
+  execute(windowMarks(expandShell(pen.seed)), pen, ctx, palette, eye, focal);
 }

@@ -1,7 +1,7 @@
 // Placement: turning the geometry's 3D points into the 2D path the pen draws.
 // Weak perspective from the reference's raum chapter: scale grows as a point
 // stands nearer the viewer, s = F/(F−z).
-import type { Pt } from "../pen/pen";
+import type { Pt } from '@/pen/pen';
 
 // A point in scene space: x, y in unit measure, z the depth (0 = wall plane).
 export interface Pt3 {
@@ -12,8 +12,8 @@ export interface Pt3 {
 
 export const FOCAL = 30;
 
-export function scaleAt(z: number): number {
-  return FOCAL / (FOCAL - z);
+export function scaleAt(z: number, focal: number = FOCAL): number {
+  return focal / (focal - z);
 }
 
 // The eye sits at the screen centre, always — never at the pointer, never
@@ -29,9 +29,9 @@ export interface Eye {
 
 export const CENTRE_EYE: Eye = { x: 0, y: 0 };
 
-export function project(pts: Pt3[], eye: Eye = CENTRE_EYE): Pt[] {
+export function project(pts: Pt3[], eye: Eye = CENTRE_EYE, focal: number = FOCAL): Pt[] {
   return pts.map((p) => {
-    const s = scaleAt(p.z);
+    const s = scaleAt(p.z, focal);
     return { x: p.x * s + eye.x * (s - 1), y: p.y * s + eye.y * (s - 1) };
   });
 }

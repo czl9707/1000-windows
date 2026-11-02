@@ -1,4 +1,4 @@
-import { fnv1a, mulberry32 } from '../core/randomness/rng';
+import { fnv1a, mulberry32 } from '@/core/randomness/rng';
 
 export interface Pt {
   x: number;

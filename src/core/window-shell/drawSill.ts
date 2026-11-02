@@ -1,7 +1,7 @@
 // The sill: what the window sits on. Flat is the plain ledge; bracketed runs
 // deeper on two corbels; flush is no sill at all — the frame meets the wall.
 import type { ShellPlan } from './archetypes';
-import type { Mark } from '../scene/mark';
+import type { Mark } from '@/core/scene/mark';
 import { BOX, SHELL_Z, line } from './shell';
 
 export function drawSill(plan: ShellPlan): Mark[] {

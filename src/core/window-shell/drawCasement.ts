@@ -5,8 +5,8 @@
 // and parallax place it in front of the wall. Its original panes lose their
 // glass; the leaf carries the wash with it.
 import { ARCHETYPES, type ShellPlan } from './archetypes';
-import type { Mark } from '../scene/mark';
-import type { Pt3 } from '../../motion/projection';
+import type { Mark } from '@/core/scene/mark';
+import type { Pt3 } from '@/motion/projection';
 import { SHELL_Z, innerRect, line, rectPts } from './shell';
 
 // How far the leaf opens, as its angle off the wall plane, per open state.
