@@ -1,105 +1,88 @@
-// The casement: vertical mullions divide the glass into leaves; the leaf (or
-// one leaf of a pair) swings toward the viewer. The leaf keeps its true
-// rectangle and narrows by the swing's cosine — the hand-drawn "swung open" —
-// while its points stand out of the wall at the swing's depth, so projection
-// and parallax place it in front of the wall. Its original panes lose their
-// glass; the leaf carries the wash with it.
-import { ARCHETYPES, type ShellPlan } from './archetypes';
+// The casement: leaves that swing out of the wall, beside fixed picture
+// panes. A swung leaf keeps its true rectangle and narrows by the swing's
+// cosine — the hand-drawn "swung open" — while its points stand out of the
+// wall at the swing's depth, so projection and parallax place it in front
+// of the wall. The leaf carries its glass with it; a closed leaf and every
+// fixed pane draw flat on the wall.
+import { ARCHETYPES, type CasementPlan, type Side } from './archetypes';
 import type { Mark } from '@/core/scene/mark';
-import type { Pt3 } from '@/motion/projection';
-import { SHELL_Z, innerRect, line, rectPts } from './shell';
+import { WEIGHTS } from '@/styling/weights';
+import {
+  SHELL_Z,
+  innerRect,
+  paneEdges,
+  paneMarks,
+  rectPts,
+  swingDepthAt,
+  swingFreeX,
+  type PaneRect,
+} from './shell';
 
-// How far the leaf opens, as its angle off the wall plane, per open state.
+// How far a leaf opens, as its angle off the wall plane, per open state.
 const SWING = { open: 0.9, 'half-open': 0.45, closed: 0 } as const;
 
-export function drawCasement(plan: ShellPlan): Mark[] {
-  const { layout, open, hingeSide } = plan;
-  const { top, bottom, left, right } = innerRect(plan.faceWidth);
-  const t = ARCHETYPES.casement.frameThickness * plan.thicknessJitter;
-  const barW = t * 0.7;
+// A leaf: its wall span, its hinge jamb, and whether it swings or holds
+// fixed glass like a picture pane.
+interface Leaf {
+  x0: number;
+  x1: number;
+  hinge: Side;
+  operable: boolean;
+}
 
-  const marks: Mark[] = [];
-
-  if (layout !== 'single') {
-    marks.push({ kind: 'stroke', pts: line(0, top, 0, bottom), name: 'mullion-v', width: barW, role: 'ink', z: SHELL_Z.frame });
+function leaves(plan: CasementPlan, left: number, right: number): Leaf[] {
+  const { layout } = plan;
+  if (layout === 'pair') {
+    return [
+      { x0: left, x1: 0, hinge: 'left', operable: true },
+      { x0: 0, x1: right, hinge: 'right', operable: true },
+    ];
   }
-  if (layout === 'four-pane') {
-    marks.push({ kind: 'stroke', pts: line(left, 0, right, 0), name: 'bar-h', width: barW, role: 'ink', z: SHELL_Z.frame });
-  }
-
-  const wallPanes: Pt3[][] =
-    layout === 'single'
-      ? [rectPts(left, top, right, bottom)]
-      : layout === 'pair'
-        ? [rectPts(left, top, 0, bottom), rectPts(0, top, right, bottom)]
-        : [
-            rectPts(left, top, 0, 0),
-            rectPts(0, top, right, 0),
-            rectPts(left, 0, 0, bottom),
-            rectPts(0, 0, right, bottom),
-          ];
-  const glass = (pts: Pt3[]) => marks.push({ kind: 'fill', pts, role: 'glass', z: SHELL_Z.glass });
-
-  if (open === 'closed') {
-    for (const pane of wallPanes) glass(pane);
-    return marks;
-  }
-
-  const hingeX = hingeSide === 'left' ? left : right;
-  const far = layout === 'single' ? (hingeSide === 'left' ? right : left) : 0;
-  // The free edge keeps its rectangle: x foreshortened by the swing's cosine,
-  // while depth grows with distance from the hinge — the leaf's plane swings
-  // out of the wall at the swing's tangent.
-  const freeX = hingeX + (far - hingeX) * Math.cos(SWING[open]);
-  const zAt = (x: number) => Math.abs(x - hingeX) * Math.tan(SWING[open]);
-  const leafDepth = zAt(freeX);
-
-  // The leaf on the hinge side swings; the rest keeps its glass.
-  const onHingeSide = (pane: Pt3[]) =>
-    hingeSide === 'left' ? pane[0].x === left : pane[1].x === right;
-  for (const pane of wallPanes) {
-    if (!onHingeSide(pane)) glass(pane);
-  }
-
-  const leaf: Pt3[] = [
-    { x: hingeX, y: top, z: 0 },
-    { x: freeX, y: top, z: leafDepth },
-    { x: freeX, y: bottom, z: leafDepth },
-    { x: hingeX, y: bottom, z: 0 },
+  // one-two: a narrow operable leaf on the jamb, a wide fixed pane beside it.
+  const w = (right - left) / 3;
+  return [
+    { x0: left, x1: left + w, hinge: 'left', operable: true },
+    { x0: left + w, x1: right, hinge: 'right', operable: false },
   ];
-  marks.push({ kind: 'fill', pts: leaf, role: 'glass', z: SHELL_Z.open });
-  marks.push({
-    kind: 'stroke',
-    pts: [
-      { x: hingeX, y: top, z: 0 },
-      { x: freeX, y: top, z: leafDepth },
-    ],
-    name: 'casement-leaf-top',
-    width: barW,
-    role: 'ink',
-    z: SHELL_Z.open,
-  });
-  marks.push({
-    kind: 'stroke',
-    pts: [
-      { x: hingeX, y: bottom, z: 0 },
-      { x: freeX, y: bottom, z: leafDepth },
-    ],
-    name: 'casement-leaf-bottom',
-    width: barW,
-    role: 'ink',
-    z: SHELL_Z.open,
-  });
-  marks.push({
-    kind: 'stroke',
-    pts: [
-      { x: freeX, y: top, z: leafDepth },
-      { x: freeX, y: bottom, z: leafDepth },
-    ],
-    name: 'casement-leaf-free',
-    width: barW,
-    role: 'ink',
-    z: SHELL_Z.open,
-  });
-  return marks;
+}
+
+export function drawCasement(plan: CasementPlan): Mark[] {
+  const { open } = plan;
+  const opening = innerRect(plan.faceWidth);
+  const t = ARCHETYPES.casement.frameThickness * plan.thicknessJitter;
+
+  const fixedMarks: Mark[] = [];
+  const swungMarks: Mark[] = [];
+
+  for (const [i, leaf] of leaves(plan, opening.left, opening.right).entries()) {
+    const trace = `leaf-${i}`;
+    if (!leaf.operable || open === 'closed') {
+      const rect: PaneRect = { top: opening.top, bottom: opening.bottom, left: leaf.x0, right: leaf.x1 };
+      fixedMarks.push(
+        ...paneMarks(rect, trace, t, {
+          leftW: leaf.x0 !== opening.left ? WEIGHTS.minor : t,
+          rightW: leaf.x1 !== opening.right ? WEIGHTS.minor : t,
+        }),
+      );
+      continue;
+    }
+
+    // The swung leaf: its outline draws at the frame weight on every edge —
+    // swung out, it stands alone.
+    const hingeX = leaf.hinge === 'left' ? leaf.x0 : leaf.x1;
+    const farX = leaf.hinge === 'left' ? leaf.x1 : leaf.x0;
+    const depthAt = swingDepthAt(hingeX, SWING[open]);
+    const freeX = swingFreeX(hingeX, farX, SWING[open]);
+    const rect: PaneRect = {
+      top: opening.top,
+      bottom: opening.bottom,
+      left: Math.min(hingeX, freeX),
+      right: Math.max(hingeX, freeX),
+    };
+    swungMarks.push(
+      { kind: 'fill', pts: rectPts(hingeX, opening.top, freeX, opening.bottom, depthAt), role: 'glass', z: SHELL_Z.open },
+      ...paneEdges(rect, trace, SHELL_Z.open, t, { depthAt }),
+    );
+  }
+  return [...fixedMarks, ...swungMarks];
 }

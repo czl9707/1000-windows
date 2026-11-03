@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { expandShell } from './shell';
-import { ARCHETYPES, ADDONS, SILLS, type ShellPlan } from './archetypes';
+import {
+  ARCHETYPES,
+  ADDONS,
+  SILLS,
+  type CasementPlan,
+  type ShellPlan,
+  type SlidingPlan,
+} from './archetypes';
 
 describe('expandShell', () => {
   it('returns the same plan for the same seed', () => {
@@ -16,22 +23,21 @@ describe('expandShell', () => {
 
 describe('archetype catalogue', () => {
   it('carries exactly the decided archetypes with their weights', () => {
-    expect(Object.keys(ARCHETYPES).sort()).toEqual(['casement', 'picture', 'sash']);
-    expect(ARCHETYPES.sash.weight).toBe(4);
+    expect(Object.keys(ARCHETYPES).sort()).toEqual(['casement', 'picture', 'sliding']);
+    expect(ARCHETYPES.sliding.weight).toBe(4);
     expect(ARCHETYPES.casement.weight).toBe(3);
     expect(ARCHETYPES.picture.weight).toBe(2);
   });
 
   it('carries the decided pane layouts with positive weights', () => {
-    expect(ARCHETYPES.sash.layouts.map((l) => l.value).sort()).toEqual([
-      '1-over-1',
-      '2-over-2',
-      '6-over-6',
+    expect(ARCHETYPES.sliding.layouts.map((l) => l.value).sort()).toEqual([
+      'three',
+      'transom',
+      'two',
     ]);
     expect(ARCHETYPES.casement.layouts.map((l) => l.value).sort()).toEqual([
-      'four-pane',
+      'one-two',
       'pair',
-      'single',
     ]);
     expect(ARCHETYPES.picture.layouts.map((l) => l.value)).toEqual(['single']);
     for (const archetype of Object.values(ARCHETYPES)) {
@@ -39,12 +45,6 @@ describe('archetype catalogue', () => {
         expect(layout.weight).toBeGreaterThan(0);
       }
     }
-  });
-
-  it('marks operability per the decision', () => {
-    expect(ARCHETYPES.sash.operable).toBe(true);
-    expect(ARCHETYPES.casement.operable).toBe(true);
-    expect(ARCHETYPES.picture.operable).toBe(false);
   });
 });
 
@@ -68,10 +68,12 @@ describe('shell plans', () => {
     return Array.from({ length: count }, (_, i) => expandShell(1000 + i * 7919));
   }
 
-  it('never assigns an open state to a fixed archetype', () => {
+  it('gives an open state to the operable archetypes only', () => {
     for (const plan of sweep(300)) {
-      if (!ARCHETYPES[plan.archetype].operable) {
-        expect(plan.open).toBe('closed');
+      if (plan.archetype === 'picture') {
+        expect('open' in plan).toBe(false);
+      } else {
+        expect(plan.open).toBeDefined();
       }
     }
   });
@@ -99,12 +101,19 @@ describe('shell plans', () => {
     expect(by((p) => p.box)).toEqual(new Set(ADDONS.box.map((m) => m.value)));
   });
 
-  it('rolls a hinge side for every open casement and never otherwise', () => {
-    for (const plan of sweep(500)) {
-      if (plan.archetype === 'casement' && plan.open !== 'closed') {
-        expect(['left', 'right']).toContain(plan.hingeSide);
-      } else {
-        expect(plan.hingeSide).toBeNull();
+  it('mounts shutters on sliding windows only', () => {
+    for (const plan of sweep(2000)) {
+      if (plan.archetype !== 'sliding') {
+        expect(plan.shutters).toBe('none');
+      }
+    }
+  });
+
+  it('rolls a slide side for every slider and never otherwise', () => {
+    for (const plan of sweep(2000)) {
+      expect('slideSide' in plan).toBe(plan.archetype === 'sliding');
+      if (plan.archetype === 'sliding') {
+        expect(['left', 'right']).toContain(plan.slideSide);
       }
     }
   });
@@ -112,16 +121,19 @@ describe('shell plans', () => {
   it('reaches every archetype, layout, and open state across a seed sweep', () => {
     const plans = sweep(2000);
     const archetypes = new Set(plans.map((p) => p.archetype));
-    expect(archetypes).toEqual(new Set(['sash', 'casement', 'picture']));
+    expect(archetypes).toEqual(new Set(['sliding', 'casement', 'picture']));
     for (const [id, archetype] of Object.entries(ARCHETYPES)) {
       const seen = new Set(
         plans.filter((p) => p.archetype === id).map((p) => p.layout),
       );
       expect(seen).toEqual(new Set(archetype.layouts.map((l) => l.value)));
     }
-    const sash = plans.filter((p) => p.archetype === 'sash').map((p) => p.open);
-    const casement = plans.filter((p) => p.archetype === 'casement').map((p) => p.open);
-    expect(new Set(sash)).toEqual(new Set(['closed', 'half-open', 'open']));
-    expect(new Set(casement)).toEqual(new Set(['closed', 'half-open', 'open']));
+    const operable = plans.filter(
+      (p): p is SlidingPlan | CasementPlan => p.archetype !== 'picture',
+    );
+    for (const id of ['sliding', 'casement'] as const) {
+      const opens = operable.filter((p) => p.archetype === id).map((p) => p.open);
+      expect(new Set(opens)).toEqual(new Set(['closed', 'half-open', 'open']));
+    }
   });
 });

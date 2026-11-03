@@ -46,13 +46,13 @@ One piece of glass — the unit the shell draws, washes, and opens. A pane carri
 The frame construction of a window — archetype, pane layout, open state, sill — as opposed to the tenant behind it (curtain, insider, light). The shell precedes the tenant: its geometry is decided before the DNA stream begins.
 
 ## Archetype
-The frame construction a window is built as: sash, casement, or picture. One small weighted catalogue; the seed picks the archetype before anything else about the shell. Every window shares one wide-rectangle outer ratio.
+The frame construction a window is built as: sliding, casement, or picture. One small weighted catalogue; the seed picks the archetype before anything else about the shell. Every window shares one wide-rectangle outer ratio.
 
 ## Pane layout
-The named arrangement of glass inside one archetype (for example 1-over-1, a casement pair). Named kinds picked by one roll, never assembled from independent axes.
+The named arrangement of glass inside one archetype (for example a two-panel slider, a casement pair). Named kinds picked by one roll, never assembled from independent axes.
 
 ## Open state
-Whether a window is closed, half-open, or open. Only operable archetypes roll it (sash, casement); picture is fixed glass. An open sash lifts and leaves bare paper below; an open casement leaf is drawn flat on the wall and carries its pane's glass wash with it.
+Whether a window is closed, half-open, or open. Only operable archetypes roll it (sliding, casement); picture is fixed glass. An open slider's back panel glides behind its fixed neighbour, stopping while a strip of its glass still shows; an open casement leaf swings out of the wall — narrowed by the swing's cosine, standing out of the wall at the swing's depth — and carries its pane's glass wash with it.
 
 ## Still
 A stroke's hard switch that disables the frame stream entirely (reference: `ruhig`) — for marks that must never move, such as hatching.

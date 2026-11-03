@@ -3,9 +3,10 @@ import { type StrokeOptions, type Tuning, Pen } from '@/pen/pen';
 import { DEFAULT_TUNING } from '@/pen/tuning';
 import { makePalette } from '@/styling/roles';
 import type { FillMark, StrokeMark } from './scene/mark';
-import type { ShellPlan } from './window-shell/archetypes';
+import type { CasementPlan, ShellPlan, SlidingPlan } from './window-shell/archetypes';
 import { drawCasement } from './window-shell/drawCasement';
-import { BOX, SHELL_Z, expandShell } from './window-shell/shell';
+import { drawSliding } from './window-shell/drawSliding';
+import { BOX, SHELL_Z, expandShell, innerRect } from './window-shell/shell';
 import { drawWindow } from './entry';
 import { CENTRE_EYE } from '@/motion/projection';
 
@@ -77,15 +78,18 @@ describe('drawWindow', () => {
     }
   });
 
-  it('draws a meeting rail on every sash and none on other archetypes', () => {
+  // Every pane draws its own four border lines; no window carries a handle.
+  it('borders its panes and never draws a handle', () => {
     for (let i = 0; i < 300; i++) {
       const seed = 15000 + i * 104729;
       const pen = new RecordingPen(seed);
       drawWindow(NOOP_CTX, pen, PALETTE, CENTRE_EYE);
       const { archetype } = expandShell(seed);
-      const hasRail = pen.traces.some((t) => t.startsWith('rail'));
-      if (archetype === 'sash') expect(hasRail).toBe(true);
-      else expect(hasRail).toBe(false);
+      const prefix = archetype === 'picture' ? 'picture-' : archetype === 'sliding' ? 'slide-' : 'leaf-';
+      const paneTrace = pen.traces.find((t) => t.startsWith(prefix));
+      expect(paneTrace).toBeDefined();
+      expect(paneTrace).toMatch(/-(top|bottom|left|right)$/);
+      expect(pen.traces.some((t) => t.includes('handle'))).toBe(false);
     }
   });
 
@@ -114,26 +118,31 @@ describe('drawWindow', () => {
   });
 
   // Same invariant for the glass: the panes' fills are emitted from the wall
-  // plane and must land there, unshrunk and unmirrored.
+  // plane (or a hair off it, on a slider's front track) and must land there —
+  // a SHELL_Z sort key reaching the points would flip a pane through the
+  // origin and crush its span.
   it('draws the glass at wall-plane scale', () => {
     for (let i = 0; i < 100; i++) {
       const seed = 27000 + i * 104729;
       const pen = new RecordingPen(seed);
       drawWindow(NOOP_CTX, pen, PALETTE, CENTRE_EYE);
-      const wash = pen.fills.find((f) => f.alpha < 0.5);
-      expect(wash).toBeDefined();
-      const extent = Math.max(...wash!.pts.map((p) => Math.abs(p.x)));
-      expect(extent).toBeGreaterThan(BOX.halfW - 0.1);
+      const washes = pen.fills.filter((f) => f.alpha < 0.5);
+      expect(washes.length).toBeGreaterThanOrEqual(1);
+      for (const wash of washes) {
+        const xs = wash.pts.map((p) => p.x);
+        // The narrowest pane at wall scale: a swung one-two casement leaf,
+        // foreshortened by the swing's cosine (~0.30).
+        expect(Math.max(...xs) - Math.min(...xs)).toBeGreaterThan(0.2);
+      }
     }
   });
 });
 
 describe('the swung casement leaf', () => {
-  const plan: ShellPlan = {
+  const plan: CasementPlan = {
     archetype: 'casement',
-    layout: 'pair',
+    layout: 'one-two',
     open: 'open',
-    hingeSide: 'left',
     thicknessJitter: 1,
     faceWidth: 0.07,
     sill: 'flat',
@@ -144,7 +153,7 @@ describe('the swung casement leaf', () => {
 
   it('foreshortens by the swing and stands out of the wall at the swing depth', () => {
     const marks = drawCasement(plan);
-    const free = marks.find((m) => m.kind === 'stroke' && m.name === 'casement-leaf-free');
+    const free = marks.find((m) => m.kind === 'stroke' && m.name === 'leaf-0-right');
     const wash = marks.find((m): m is FillMark => m.kind === 'fill' && m.z === SHELL_Z.open);
     expect(free).toBeDefined();
     expect(wash).toBeDefined();
@@ -160,7 +169,7 @@ describe('the swung casement leaf', () => {
     expect(free!.pts[0].z).toBeCloseTo(expectedDepth, 12);
     // The rails connect the free edge back to the hinge, riding the same
     // depth gradient.
-    for (const rail of ['casement-leaf-top', 'casement-leaf-bottom']) {
+    for (const rail of ['leaf-0-top', 'leaf-0-bottom']) {
       const stroke = marks.find((m): m is StrokeMark => m.kind === 'stroke' && m.name === rail);
       expect(stroke).toBeDefined();
       expect(stroke!.pts[0]).toEqual({ x: hingeX, y: stroke!.pts[0].y, z: 0 });
@@ -179,6 +188,53 @@ describe('the swung casement leaf', () => {
     const wash = marks.find((m): m is FillMark => m.kind === 'fill' && m.z === SHELL_Z.open);
     expect(wash).toBeDefined();
     expect(wash!.role).toBe('glass');
+  });
+
+  it('keeps the fixed pane flat on the wall', () => {
+    const marks = drawCasement(plan);
+    const fixed = marks.find((m): m is FillMark => m.kind === 'fill' && m.z === SHELL_Z.glass);
+    expect(fixed).toBeDefined();
+  });
+});
+
+describe('the sliding panels', () => {
+  const base: SlidingPlan = {
+    archetype: 'sliding',
+    layout: 'two',
+    open: 'open',
+    slideSide: 'left',
+    thicknessJitter: 1,
+    faceWidth: 0.07,
+    sill: 'flat',
+    awning: 'none',
+    shutters: 'none',
+    box: 'none',
+  };
+
+  // Every panel — sliding or fixed — stays inside the opening at every open
+  // state, and an opened panel keeps at least the visible strip wide: the
+  // panels never run into the wall and never close up into one.
+  it('stays inside the frame and visibly clear at every open state', () => {
+    const { left, right } = innerRect(base.faceWidth);
+    for (const layout of ['two', 'three', 'transom'] as const) {
+      for (const slideSide of ['left', 'right'] as const) {
+        for (const open of ['closed', 'half-open', 'open'] as const) {
+          const marks = drawSliding({ ...base, layout, slideSide, open });
+          const fills = marks.filter(
+            (m): m is FillMark => m.kind === 'fill' && m.z === SHELL_Z.glass,
+          );
+          expect(fills.length).toBeGreaterThanOrEqual(2);
+          for (const fill of fills) {
+            const xs = fill.pts.map((p) => p.x);
+            expect(Math.min(...xs)).toBeGreaterThanOrEqual(left - 1e-9);
+            expect(Math.max(...xs)).toBeLessThanOrEqual(right + 1e-9);
+            const strip: number[] = [];
+            for (const p of fill.pts) if (p.y === fill.pts[0].y) strip.push(p.x);
+            expect(Math.max(...strip) - Math.min(...strip)).toBeGreaterThanOrEqual(0.12);
+          }
+        }
+      }
+    }
   });
 });
 

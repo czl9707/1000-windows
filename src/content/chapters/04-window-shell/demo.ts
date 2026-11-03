@@ -11,7 +11,7 @@ import { windowSeed } from '@/core/randomness/rng';
 import { drawWindow, windowMarks } from '@/core/entry';
 import { execute } from '@/core/scene/execute';
 import { CENTRE_EYE, makeProjection } from '@/motion/projection';
-import type { ShellPlan } from '@/core/window-shell/archetypes';
+import type { CasementPlan, PicturePlan, ShellPlan, SlidingPlan } from '@/core/window-shell/archetypes';
 
 const COLS = 3;
 const ROWS = 2;
@@ -89,23 +89,27 @@ registerDemo('shell-grid', mountShellStrip);
 // A plate is a row of pinned ShellPlans — the drawers are pure, so the demo
 // hands each its plan directly instead of rolling one from a seed. The pens
 // still carry real seeds, for the tremor; the plate seed is a constant, so a
-// plate always draws the same six (or three) windows.
+// plate always draws the same windows.
 
-function pinnedPlan(archetype: ShellPlan['archetype'], overrides: Partial<ShellPlan> = {}): ShellPlan {
-  const layout = archetype === 'sash' ? '1-over-1' : archetype === 'casement' ? 'pair' : 'single';
-  return {
-    archetype,
-    layout,
-    open: 'closed',
-    hingeSide: null,
-    thicknessJitter: 1,
-    faceWidth: 0.07,
-    sill: 'flat',
-    awning: 'none',
-    shutters: 'none',
-    box: 'none',
-    ...overrides,
-  };
+const MEASURED = {
+  thicknessJitter: 1,
+  faceWidth: 0.07,
+  sill: 'flat',
+  awning: 'none',
+  shutters: 'none',
+  box: 'none',
+} as const;
+
+function pinnedSliding(overrides: Partial<SlidingPlan> = {}): SlidingPlan {
+  return { archetype: 'sliding', layout: 'two', open: 'closed', slideSide: 'left', ...MEASURED, ...overrides };
+}
+
+function pinnedCasement(overrides: Partial<CasementPlan> = {}): CasementPlan {
+  return { archetype: 'casement', layout: 'pair', open: 'closed', ...MEASURED, ...overrides };
+}
+
+function pinnedPicture(): PicturePlan {
+  return { archetype: 'picture', layout: 'single', ...MEASURED };
 }
 
 function mountPlates(canvas: HTMLCanvasElement, plans: ShellPlan[], cols: number): TuningHandle {
@@ -164,41 +168,41 @@ function mountPlates(canvas: HTMLCanvasElement, plans: ShellPlan[], cols: number
 }
 
 const ARCHETYPES: ShellPlan[] = [
-  pinnedPlan('sash', { layout: '1-over-1' }),
-  pinnedPlan('sash', { layout: '2-over-2' }),
-  pinnedPlan('sash', { layout: '6-over-6' }),
-  pinnedPlan('casement', { layout: 'single' }),
-  pinnedPlan('casement', { layout: 'pair' }),
-  pinnedPlan('casement', { layout: 'four-pane' }),
-  pinnedPlan('picture', { layout: 'single' }),
+  pinnedSliding(),
+  pinnedSliding({ layout: 'three' }),
+  pinnedSliding({ layout: 'transom' }),
+  pinnedCasement(),
+  pinnedCasement({ layout: 'one-two' }),
+  pinnedPicture(),
 ];
 registerDemo('shell-archetypes', (canvas) => mountPlates(canvas, ARCHETYPES, 3));
 
-// Sash slides: the lower sash lifts off the frame. Casement swings: the leaf
-// narrows by the swing's cosine.
+// Sliders travel behind their fixed neighbours: never past the stile, never
+// into the wall, one moving panel at a time. Casement leaves swing out of
+// the wall.
 const OPEN_STATES: ShellPlan[] = [
-  pinnedPlan('sash', { open: 'closed' }),
-  pinnedPlan('sash', { open: 'half-open' }),
-  pinnedPlan('sash', { open: 'open' }),
-  pinnedPlan('casement', { open: 'closed' }),
-  pinnedPlan('casement', { open: 'half-open', hingeSide: 'right' }),
-  pinnedPlan('casement', { open: 'open', hingeSide: 'left' }),
+  pinnedSliding({ open: 'closed' }),
+  pinnedSliding({ open: 'half-open', slideSide: 'left' }),
+  pinnedSliding({ open: 'open', slideSide: 'right' }),
+  pinnedCasement({ open: 'closed' }),
+  pinnedCasement({ open: 'half-open' }),
+  pinnedCasement({ open: 'open' }),
 ];
 registerDemo('shell-open', (canvas) => mountPlates(canvas, OPEN_STATES, 3));
 
 const SILLS: ShellPlan[] = [
-  pinnedPlan('sash', { sill: 'flat' }),
-  pinnedPlan('sash', { sill: 'bracketed' }),
-  pinnedPlan('sash', { sill: 'flush' }),
+  pinnedSliding({ sill: 'flat' }),
+  pinnedSliding({ sill: 'bracketed' }),
+  pinnedSliding({ sill: 'flush' }),
 ];
 registerDemo('shell-sills', (canvas) => mountPlates(canvas, SILLS, 3));
 
 const ADDONS: ShellPlan[] = [
-  pinnedPlan('sash', { awning: 'slope' }),
-  pinnedPlan('sash', { awning: 'canopy' }),
-  pinnedPlan('sash', { shutters: 'louvered' }),
-  pinnedPlan('sash', { shutters: 'paneled' }),
-  pinnedPlan('sash', { box: 'box' }),
-  pinnedPlan('sash', { box: 'pair' }),
+  pinnedSliding({ awning: 'slope' }),
+  pinnedSliding({ awning: 'canopy' }),
+  pinnedSliding({ shutters: 'louvered' }),
+  pinnedSliding({ shutters: 'paneled' }),
+  pinnedSliding({ box: 'box' }),
+  pinnedSliding({ box: 'pair' }),
 ];
 registerDemo('shell-addons', (canvas) => mountPlates(canvas, ADDONS, 3));

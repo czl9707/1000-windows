@@ -1,16 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import type { ShellPlan } from './archetypes';
+import type { SlidingPlan } from './archetypes';
 import { drawAwning } from './drawAwning';
 import { drawShutters } from './drawShutters';
 import { drawSill } from './drawSill';
 import { drawWindowBox } from './drawWindowBox';
 import { innerRect } from './shell';
 
-const BASE: ShellPlan = {
-  archetype: 'sash',
-  layout: '1-over-1',
+const BASE: SlidingPlan = {
+  archetype: 'sliding',
+  layout: 'two',
   open: 'closed',
-  hingeSide: null,
+  slideSide: 'left',
   thicknessJitter: 1,
   faceWidth: 0.07,
   sill: 'flat',
@@ -19,7 +19,7 @@ const BASE: ShellPlan = {
   box: 'none',
 };
 
-const plan = (over: Partial<ShellPlan>): ShellPlan => ({ ...BASE, ...over });
+const plan = (over: Partial<SlidingPlan>): SlidingPlan => ({ ...BASE, ...over });
 
 describe('sill kinds', () => {
   it('emits nothing for a flush sill', () => {

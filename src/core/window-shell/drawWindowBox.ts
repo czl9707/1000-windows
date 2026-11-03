@@ -3,7 +3,8 @@
 // behind it. A few tufts of green over each lip.
 import type { ShellPlan } from './archetypes';
 import type { Mark } from '@/core/scene/mark';
-import { SHELL_Z } from './shell';
+import { WEIGHTS } from '@/styling/weights';
+import { SHELL_Z, paneEdges, rectPts } from './shell';
 
 // The box overlaps the sill: its top edge sits below the sill's top line and
 // over its front face, so the sill reads as disappearing behind the planter.
@@ -15,37 +16,42 @@ const HALF_W = 0.5;
 const PAIR_HALF_W = 0.38;
 const PAIR_CX = 0.4;
 
+// The front face's lines, the sides a touch lighter, and the tufts: how many,
+// their spacing along the lip, their lift above it, their size.
+const TUFTS = 3;
+const TUFT_STEP = 0.28;
+const TUFT_LIFT = 0.03;
+const TUFT_R = 0.032;
+
 function boxMarks(cx: number, halfW: number, id: string): Mark[] {
-  const z = SHELL_Z.addon;
-  const w = 0.026;
+  const z = SHELL_Z.box;
   const name = (part: string) => (id ? `box-${id}-${part}` : `box-${part}`);
   const x0 = cx - halfW;
   const x1 = cx + halfW;
-  const marks: Mark[] = [
+  return [
     {
       kind: 'fill',
-      pts: [
-        { x: x0, y: TOP_Y, z: FACE_Z },
-        { x: x1, y: TOP_Y, z: FACE_Z },
-        { x: x1, y: BOTTOM_Y, z: FACE_Z },
-        { x: x0, y: BOTTOM_Y, z: FACE_Z },
-      ],
+      pts: rectPts(x0, TOP_Y, x1, BOTTOM_Y, () => FACE_Z),
       role: 'paper',
       z,
     },
-    { kind: 'stroke', pts: [{ x: x0, y: TOP_Y, z: FACE_Z }, { x: x1, y: TOP_Y, z: FACE_Z }], name: name('front-top'), width: w, role: 'ink', z },
-    { kind: 'stroke', pts: [{ x: x0, y: BOTTOM_Y, z: FACE_Z }, { x: x1, y: BOTTOM_Y, z: FACE_Z }], name: name('front-bottom'), width: w, role: 'ink', z },
-    { kind: 'stroke', pts: [{ x: x0, y: TOP_Y, z: FACE_Z }, { x: x0, y: BOTTOM_Y, z: FACE_Z }], name: name('front-l'), width: w, role: 'ink', z },
-    { kind: 'stroke', pts: [{ x: x1, y: TOP_Y, z: FACE_Z }, { x: x1, y: BOTTOM_Y, z: FACE_Z }], name: name('front-r'), width: w, role: 'ink', z },
-    { kind: 'stroke', pts: [{ x: x0, y: TOP_Y, z: 0 }, { x: x0, y: TOP_Y, z: FACE_Z }], name: name('side-l'), width: w * 0.85, role: 'ink', z },
-    { kind: 'stroke', pts: [{ x: x1, y: TOP_Y, z: 0 }, { x: x1, y: TOP_Y, z: FACE_Z }], name: name('side-r'), width: w * 0.85, role: 'ink', z },
+    ...paneEdges({ top: TOP_Y, bottom: BOTTOM_Y, left: x0, right: x1 }, name('front'), z, WEIGHTS.major, {
+      depthAt: () => FACE_Z,
+    }),
+    { kind: 'stroke', pts: [{ x: x0, y: TOP_Y, z: 0 }, { x: x0, y: TOP_Y, z: FACE_Z }], name: name('side-l'), width: WEIGHTS.minor, role: 'ink', z },
+    { kind: 'stroke', pts: [{ x: x1, y: TOP_Y, z: 0 }, { x: x1, y: TOP_Y, z: FACE_Z }], name: name('side-r'), width: WEIGHTS.minor, role: 'ink', z },
+    ...tufts(cx, z, name),
   ];
-  for (let i = 0; i < 3; i++) {
+}
+
+function tufts(cx: number, z: number, name: (part: string) => string): Mark[] {
+  const marks: Mark[] = [];
+  for (let i = 0; i < TUFTS; i++) {
     marks.push({
       kind: 'dot',
-      pts: [{ x: cx - 0.28 + i * 0.28, y: TOP_Y - 0.03, z: FACE_Z }],
+      pts: [{ x: cx - TUFT_STEP + i * TUFT_STEP, y: TOP_Y - TUFT_LIFT, z: FACE_Z }],
       name: name(`tuft-${i}`),
-      r: 0.032,
+      r: TUFT_R,
       role: 'ink',
       z,
     });
