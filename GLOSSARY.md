@@ -15,8 +15,14 @@ Who lives behind one window — the window's identity as a whole: occupant (if a
 ## Dominant element
 The single most readable thing in a window scene (an occupant silhouette, a cat on the sill, a lone lamp). Every window has at most one; it carries the story at a glance. Everything else in the window is supporting props.
 
+## Curtain
+The window covering — cloth or blind hung behind the glass. A tenant trait: some windows carry one, some stand bare. Four kinds — panels, drapes, venetian, roman — each a named construction with its own ceiling on how much of the opening it may cover; coverage rolls in discrete levels — bare, lightly dressed, half, full — mostly bare or light, a rare window full. Its dense line work obeys the hand rule, and the hanging cloth (panels, drapes) hangs on verticals alone. The curtain's density is curtain identity, not a light trait.
+
+## Hand rule
+How dense line work is drawn on paper: a run of dense lines is never fully drawn — some are omitted outright, and a kept line runs over only part of its span, the fill carrying the texture instead. Picked by the golden-angle sine, deterministic, no stream draw. Object edges (hems, bars, rails, the roman's rod) are not dense line work and draw full.
+
 ## Light gene
-A per-window inherited trait describing the apartment's lighting: whether lights are on, their warmth (amber lamp, cool ceiling, TV-blue flicker), and curtain density. Identity, not global state.
+A per-window inherited trait describing the apartment's lighting: whether lights are on, their warmth (amber lamp, cool ceiling, TV-blue flicker). Identity, not global state.
 
 ## Trace
 A named drawing path (for example a window frame, a curtain edge). The line tremor is derived from the window seed and the trace's name, so the same window shows the same tremor every frame and across re-renders while panning.
@@ -58,7 +64,7 @@ Whether a window is closed, half-open, or open. Only operable archetypes roll it
 A stroke's hard switch that disables the frame stream entirely (reference: `ruhig`) — for marks that must never move, such as hatching.
 
 ## Mark
-One emitted drawing instruction: a discriminated union — a stroke (trace name, width), a fill, or a dot (radius) — each carrying its 3D points, a dress role (`ink` draws solid; `glass` is the pane wash; `paper` occludes in the background colour), and a numeric depth sort key. Colour and strength both live in the role, resolved by styling. Geometry emits marks; motion places them; style dresses them; the pen draws them.
+One emitted drawing instruction: a discriminated union — a stroke (trace name, width), a fill, or a dot (radius) — each carrying its 3D points, a dress role (`ink` draws solid; `glass` is the pane wash; `paper` occludes in the background colour; the cloth roles `fabric`, `shade`, and `blind` dress curtain fills by construction), and a numeric depth sort key. Colour and strength both live in the role, resolved by styling. Geometry emits marks; motion places them; style dresses them; the pen draws them.
 
 ## Depth
 The z coordinate of a point, in unit measure; 0 is the wall plane, larger stands nearer the viewer. The draw stage stable-sorts marks by their depth key and projects each point through weak perspective before the pen sees it.

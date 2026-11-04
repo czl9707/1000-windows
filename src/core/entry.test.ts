@@ -2,12 +2,15 @@ import { describe, expect, it } from 'vitest';
 import { type StrokeOptions, type Tuning, Pen } from '@/pen/pen';
 import { DEFAULT_TUNING } from '@/pen/tuning';
 import { makePalette } from '@/styling/roles';
+import { execute } from './scene/execute';
+import { makeProjection } from '@/motion/projection';
 import type { FillMark, StrokeMark } from './scene/mark';
 import type { CasementPlan, ShellPlan, SlidingPlan } from './window-shell/archetypes';
 import { drawCasement } from './window-shell/drawCasement';
 import { drawSliding } from './window-shell/drawSliding';
 import { BOX, SHELL_Z, expandShell, innerRect } from './window-shell/shell';
-import { drawWindow } from './entry';
+import { drawWindow, windowMarks } from './entry';
+import { expandCurtain } from './curtain/curtain';
 import { CENTRE_EYE } from '@/motion/projection';
 
 class RecordingPen extends Pen {
@@ -51,6 +54,9 @@ class RecordingPen extends Pen {
 
 const NOOP_CTX = {} as CanvasRenderingContext2D;
 const PALETTE = makePalette({ ink: '#000', paper: '#fff' });
+// The cloth strengths, by role: a fill at one of these alphas is curtain.
+const CLOTH_ALPHAS = (['fabric', 'shade', 'blind'] as const).map((role) => PALETTE(role).alpha);
+const isCloth = (alpha: number) => CLOTH_ALPHAS.some((a) => Math.abs(alpha - a) < 1e-9);
 
 describe('drawWindow', () => {
   it('draws without throwing across a seed sweep', () => {
@@ -126,7 +132,9 @@ describe('drawWindow', () => {
       const seed = 27000 + i * 104729;
       const pen = new RecordingPen(seed);
       drawWindow(NOOP_CTX, pen, PALETTE, CENTRE_EYE);
-      const washes = pen.fills.filter((f) => f.alpha < 0.5);
+      // The cloth washes louder than the glass, so the band under the
+      // quietest cloth strength isolates panes.
+      const washes = pen.fills.filter((f) => f.alpha < Math.min(...CLOTH_ALPHAS));
       expect(washes.length).toBeGreaterThanOrEqual(1);
       for (const wash of washes) {
         const xs = wash.pts.map((p) => p.x);
@@ -234,6 +242,56 @@ describe('the sliding panels', () => {
           }
         }
       }
+    }
+  });
+  it('fills the frame face in four strips on its own mullion role', () => {
+    const seed = 4200;
+    const plan = expandShell(seed);
+    const face = windowMarks(plan).filter(
+      (m): m is FillMark => m.kind === 'fill' && m.role === 'mullion',
+    );
+    expect(face.length).toBe(4);
+    for (const strip of face) expect(strip.z).toBe(SHELL_Z.frame);
+    // No strip reaches into the opening; every box corner sits on one.
+    const { left, top, right, bottom } = innerRect(plan.faceWidth);
+    for (const strip of face) {
+      for (const p of strip.pts) {
+        const inHole = p.x > left && p.x < right && p.y > top && p.y < bottom;
+        expect(inHole).toBe(false);
+      }
+    }
+    const corners: [number, number][] = [
+      [-BOX.halfW, -BOX.halfH],
+      [BOX.halfW, -BOX.halfH],
+      [BOX.halfW, BOX.halfH],
+      [-BOX.halfW, BOX.halfH],
+    ];
+    for (const [cx, cy] of corners) {
+      expect(
+        face.some((f) => f.pts.some((p) => Math.abs(p.x - cx) < 1e-9 && Math.abs(p.y - cy) < 1e-9)),
+        `corner ${cx},${cy}`,
+      ).toBe(true);
+    }
+  });
+});
+
+describe('the tenant behind the glass', () => {
+  it('draws the curtain when the DNA stream rolls one, never when bare', () => {
+    for (let i = 0; i < 300; i++) {
+      const seed = 31000 + i * 104729;
+      const pen = new RecordingPen(seed);
+      drawWindow(NOOP_CTX, pen, PALETTE, CENTRE_EYE);
+      const cloth = pen.fills.filter((f) => isCloth(f.alpha));
+      expect(cloth.length > 0).toBe(expandCurtain(seed).present);
+    }
+  });
+
+  it('leaves the shell-only assembly bare: windowMarks draws no cloth', () => {
+    for (let i = 0; i < 100; i++) {
+      const seed = 35000 + i * 104729;
+      const pen = new RecordingPen(seed);
+      execute(windowMarks(expandShell(seed)), pen, NOOP_CTX, PALETTE, makeProjection(CENTRE_EYE));
+      expect(pen.fills.some((f) => isCloth(f.alpha))).toBe(false);
     }
   });
 });

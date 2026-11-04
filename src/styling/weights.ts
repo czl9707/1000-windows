@@ -10,4 +10,7 @@ export const WEIGHTS = {
   minor: 0.015,
   // Hairlines: masonry joints and the lightest surface work.
   frame: 0.01,
+  // The lightest: curtain line work — folds, slats — reading as texture
+  // over the cloth, quieter than the frame's own lines.
+  texture: 0.008,
 } as const;

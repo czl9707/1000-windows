@@ -2,6 +2,8 @@ import type { Pen } from '@/pen/pen';
 import type { Palette } from '@/styling/roles';
 import { execute } from './scene/execute';
 import type { Mark } from './scene/mark';
+import { expandCurtain } from './curtain/curtain';
+import { curtainMarks } from './curtain/drawCurtain';
 import { ARCHETYPES, type ShellPlan } from './window-shell/archetypes';
 import { drawAwning } from './window-shell/drawAwning';
 import { drawCasement } from './window-shell/drawCasement';
@@ -34,7 +36,20 @@ function rectStrokes(x0: number, y0: number, x1: number, y1: number, trace: stri
 function frameMarks(plan: ShellPlan): Mark[] {
   const t = ARCHETYPES[plan.archetype].frameThickness * plan.thicknessJitter;
   const r = innerRect(plan.faceWidth);
+  // The frame's face in four flat strips: head and sill run the box's full
+  // width, the jambs fill between them — no fill-rule subtlety, the opening
+  // stays a hole for the glass and its washes.
+  const strip = (x0: number, y0: number, x1: number, y1: number): Mark => ({
+    kind: 'fill',
+    pts: rectPts(x0, y0, x1, y1),
+    role: 'mullion',
+    z: SHELL_Z.frame,
+  });
   return [
+    strip(-BOX.halfW, -BOX.halfH, BOX.halfW, r.top),
+    strip(-BOX.halfW, r.bottom, BOX.halfW, BOX.halfH),
+    strip(-BOX.halfW, r.top, r.left, r.bottom),
+    strip(r.right, r.top, BOX.halfW, r.bottom),
     ...rectStrokes(-BOX.halfW, -BOX.halfH, BOX.halfW, BOX.halfH, 'frame-outer', t, SHELL_Z.frame),
     ...rectStrokes(r.left, r.top, r.right, r.bottom, 'frame-inner', t, SHELL_Z.frame),
   ];
@@ -47,7 +62,8 @@ function backingMarks(): Mark[] {
   return [{ kind: 'fill', pts: rectPts(-BOX.halfW, -BOX.halfH, BOX.halfW, BOX.halfH), role: 'paper', z: SHELL_Z.backing }];
 }
 
-// The assembly the docs-page catalogue demos reuse to pin variants by hand.
+// The shell-only assembly the docs-page catalogue demos reuse to pin
+// variants by hand: frame, panes, sill, add-ons — no tenant.
 export function windowMarks(plan: ShellPlan): Mark[] {
   // The switch narrows the plan to its union member, so each drawer sees only
   // the fields its archetype carries.
@@ -72,12 +88,21 @@ export function windowMarks(plan: ShellPlan): Mark[] {
   ];
 }
 
-// One seed drives both the shell plan and the tremor — the pen is its only home.
+// One seed drives both the shell plan and the tremor — the pen is its only
+// home. The tenant hangs behind the glass: the curtain rolls on the DNA
+// stream, its marks sorting under the pane wash, and a bare tenant adds
+// nothing. The seed and the plan are one window's — the plan must come from
+// expandShell(seed) (or a pinned variant of the same window), never another
+// window's shell.
+export function windowSceneMarks(seed: number, plan: ShellPlan): Mark[] {
+  return [...windowMarks(plan), ...curtainMarks(expandCurtain(seed), innerRect(plan.faceWidth))];
+}
+
 export function drawWindow(
   ctx: CanvasRenderingContext2D,
   pen: Pen,
   palette: Palette,
   eye: Eye,
 ): void {
-  execute(windowMarks(expandShell(pen.seed)), pen, ctx, palette, makeProjection(eye));
+  execute(windowSceneMarks(pen.seed, expandShell(pen.seed)), pen, ctx, palette, makeProjection(eye));
 }

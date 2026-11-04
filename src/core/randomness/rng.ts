@@ -43,6 +43,16 @@ export class Rng {
     return min + (max - min) * this.r();
   }
 
+  // The reference's mitAusreissern: one draw, 8/10 of the unit interval in
+  // the plain range, the outer tenth on each side stretched to the outlier
+  // bound — most windows ordinary, a rare few reach further.
+  outliers(min: number, max: number, outlierMin: number, outlierMax: number): number {
+    const r = this.r();
+    if (r < 0.8) return min + (max - min) * (r / 0.8);
+    if (r < 0.9) return min - (min - outlierMin) * ((r - 0.8) / 0.1);
+    return max + (outlierMax - max) * ((r - 0.9) / 0.1);
+  }
+
   weighted<T>(items: readonly { value: T; weight: number }[]): T {
     let total = 0;
     for (const item of items) total += item.weight;
