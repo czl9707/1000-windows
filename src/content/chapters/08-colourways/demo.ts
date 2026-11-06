@@ -1,12 +1,21 @@
 // The colour chapter's street rolls for real: every window resolves its own
 // colourway from its seed, jitter included. The pens still carry real seeds,
-// for the tremor.
+// for the tremor. Two benches ride the same street: the compare bench puts
+// the same three windows in two columns, day on the left and night on the
+// right, with the night veil on a slider; the tuning bench drives the
+// feelings knobs (params.ts), re-resolving the palettes unmemoized every
+// frame.
 import { centreUnit, createDemoLoop, cssBox } from '@/components/demoLoop';
 import { Pen } from '@/pen/pen';
-import { registerDemo, plateCols, type ReseedHandle } from '@/components/mount';
+import { registerDemo, plateCols, type ReseedHandle, type TuningHandle } from '@/components/mount';
 import { DEFAULT_TUNING } from '@/pen/tuning';
-import { type ThemeColors } from '@/styling/roles';
-import { windowPalette } from '@/styling/colourway';
+import { type Palette, type ThemeColors } from '@/styling/roles';
+import {
+  DEFAULT_COLOURWAY_TUNING,
+  tunedWindowPalette,
+  windowPalette,
+  type ColourwayTuning,
+} from '@/styling/colourway';
 import { windowSeed } from '@/core/randomness/rng';
 import { drawWindow } from '@/core/window';
 import { CENTRE_EYE } from '@/motion/projection';
@@ -15,43 +24,53 @@ const UNIT_PITCH_X = 2.3;
 const UNIT_PITCH_Y = 2.25;
 const STREET_SEED = 1335613256;
 const STREET_COUNT = 6;
+const COMPARE_COUNT = 3;
 
-function mountStreet(canvas: HTMLCanvasElement): ReseedHandle {
+const DAY = { ink: 'rgb(33 37 41)', paper: 'rgb(229 222 214)' } as const;
+const DARK = { ink: 'rgb(233 236 239)', paper: 'rgb(0 0 0)' } as const;
+
+function buildStreet(seed: number, count: number = STREET_COUNT): Pen[] {
+  return Array.from(
+    { length: count },
+    (_, i) => new Pen({ ...DEFAULT_TUNING }, windowSeed(seed, i, 0)),
+  );
+}
+
+function drawStreet(
+  ctx: CanvasRenderingContext2D,
+  box: { width: number; height: number; dpr: number },
+  time: number,
+  pens: Pen[],
+  paletteFor: (pen: Pen, colors: ThemeColors) => Palette,
+  colors: ThemeColors,
+): void {
   const cols = plateCols(STREET_COUNT);
   const rows = Math.ceil(STREET_COUNT / cols);
-  let baseSeed = STREET_SEED;
-  let pens: Pen[] = [];
-
-  const rebuild = () => {
-    pens = Array.from(
-      { length: STREET_COUNT },
-      (_, i) => new Pen({ ...DEFAULT_TUNING }, windowSeed(baseSeed, i, 0)),
+  centreUnit(ctx, box, cols * UNIT_PITCH_X, rows * UNIT_PITCH_Y);
+  pens.forEach((pen, i) => {
+    pen.setTime(time);
+    ctx.save();
+    ctx.translate(
+      ((i % cols) - (cols - 1) / 2) * UNIT_PITCH_X,
+      (Math.floor(i / cols) - (rows - 1) / 2) * UNIT_PITCH_Y,
     );
-  };
-  rebuild();
+    drawWindow(ctx, pen, paletteFor(pen, colors), CENTRE_EYE);
+    ctx.restore();
+  });
+}
 
-  const loop = createDemoLoop(
-    canvas,
-    (ctx, time, colors: ThemeColors) => {
-      const box = cssBox(canvas);
-      centreUnit(ctx, box, cols * UNIT_PITCH_X, rows * UNIT_PITCH_Y);
-      pens.forEach((pen, i) => {
-        pen.setTime(time);
-        ctx.save();
-        ctx.translate(
-          ((i % cols) - (cols - 1) / 2) * UNIT_PITCH_X,
-          (Math.floor(i / cols) - (rows - 1) / 2) * UNIT_PITCH_Y,
-        );
-        drawWindow(ctx, pen, windowPalette(pen.seed, colors), CENTRE_EYE);
-        ctx.restore();
-      });
-    },
-  );
+function mountStreet(canvas: HTMLCanvasElement): ReseedHandle {
+  let baseSeed = STREET_SEED;
+  let pens = buildStreet(baseSeed);
+
+  const loop = createDemoLoop(canvas, (ctx, time, colors: ThemeColors) => {
+    drawStreet(ctx, cssBox(canvas), time, pens, (pen) => windowPalette(pen.seed, colors), colors);
+  });
 
   return {
     reseed(value) {
       baseSeed = Math.round(value);
-      rebuild();
+      pens = buildStreet(baseSeed);
       loop.repaint();
       loop.notify();
     },
@@ -60,3 +79,114 @@ function mountStreet(canvas: HTMLCanvasElement): ReseedHandle {
 }
 
 registerDemo('colourway-street', mountStreet);
+
+// The compare bench: the same three windows in two columns — the light
+// theme on the left, the dark one on the right — with the night veil (the
+// mix that sinks night's colours into its ground) on a slider. Each half
+// runs full-bleed and centres its column, so the two grounds meet at the
+// canvas's midline.
+function mountCompare(canvas: HTMLCanvasElement): TuningHandle {
+  let baseSeed = STREET_SEED;
+  let veil = DEFAULT_COLOURWAY_TUNING.nightMix;
+  let pens = buildStreet(baseSeed, COMPARE_COUNT);
+
+  const loop = createDemoLoop(canvas, (ctx, time) => {
+    const box = cssBox(canvas);
+    const extentW = 2 * UNIT_PITCH_X;
+    const extentH = COMPARE_COUNT * UNIT_PITCH_Y;
+    const scale = Math.min(box.width / extentW, box.height / extentH);
+    ctx.fillStyle = DAY.paper;
+    ctx.fillRect(0, 0, canvas.width / 2, canvas.height);
+    ctx.fillStyle = DARK.paper;
+    ctx.fillRect(canvas.width / 2, 0, canvas.width / 2, canvas.height);
+    ctx.scale(box.dpr * scale, box.dpr * scale);
+    ctx.translate(box.width / (2 * scale), box.height / (2 * scale));
+    const colX = box.width / (4 * scale);
+    const day = { ink: DAY.ink, paper: DAY.paper };
+    const dark = { ink: DARK.ink, paper: DARK.paper };
+    const nightTuning: ColourwayTuning = { ...DEFAULT_COLOURWAY_TUNING, nightMix: veil };
+    pens.forEach((pen, i) => {
+      pen.setTime(time);
+      const columns = [
+        { x: -colX, palette: windowPalette(pen.seed, day) },
+        { x: colX, palette: tunedWindowPalette(pen.seed, dark, nightTuning) },
+      ];
+      for (const { x, palette } of columns) {
+        ctx.save();
+        ctx.translate(x, (i - (COMPARE_COUNT - 1) / 2) * UNIT_PITCH_Y);
+        drawWindow(ctx, pen, palette, CENTRE_EYE);
+        ctx.restore();
+      }
+    });
+  });
+
+  const handle: TuningHandle = {
+    setParam(key, value) {
+      if (key !== 'nightMix') throw new Error(`compare bench: unknown parameter: ${key}`);
+      veil = value;
+      loop.repaint();
+      loop.notify();
+    },
+    reseed(value) {
+      baseSeed = Math.round(value);
+      pens = buildStreet(baseSeed, COMPARE_COUNT);
+      loop.repaint();
+      loop.notify();
+    },
+    resetParams() {
+      veil = DEFAULT_COLOURWAY_TUNING.nightMix;
+      loop.repaint();
+      loop.notify();
+    },
+    snapshot: () => ({ nightMix: veil }),
+    subscribe: (cb) => loop.subscribe(cb),
+    destroy: () => loop.destroy(),
+  };
+  return handle;
+}
+
+registerDemo('colourway-night', mountCompare);
+
+// The tuning bench: the feelings knobs (params.ts) over the street at the
+// page's own theme, palettes re-resolved unmemoized every frame.
+function mountBench(canvas: HTMLCanvasElement): TuningHandle {
+  let baseSeed = STREET_SEED;
+  const tuning: ColourwayTuning = { ...DEFAULT_COLOURWAY_TUNING };
+  let pens = buildStreet(baseSeed);
+
+  const loop = createDemoLoop(canvas, (ctx, time, colors: ThemeColors) => {
+    drawStreet(
+      ctx,
+      cssBox(canvas),
+      time,
+      pens,
+      (pen) => tunedWindowPalette(pen.seed, colors, tuning),
+      colors,
+    );
+  });
+
+  const handle: TuningHandle = {
+    setParam(key, value) {
+      tuning[key as keyof ColourwayTuning] = value;
+      loop.repaint();
+      loop.notify();
+    },
+    reseed(value) {
+      baseSeed = Math.round(value);
+      pens = buildStreet(baseSeed);
+      loop.repaint();
+      loop.notify();
+    },
+    resetParams() {
+      Object.assign(tuning, DEFAULT_COLOURWAY_TUNING);
+      loop.repaint();
+      loop.notify();
+    },
+    snapshot: () => ({ ...tuning }),
+    subscribe: (cb) => loop.subscribe(cb),
+    destroy: () => loop.destroy(),
+  };
+  return handle;
+}
+
+registerDemo('colourway-tuning', mountBench);

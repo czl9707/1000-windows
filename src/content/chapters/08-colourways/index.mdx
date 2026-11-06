@@ -5,6 +5,8 @@ status: landed
 
 import DemoCanvas from '@/components/DemoCanvas.astro';
 import DemoReseedButton from '@/components/DemoReseedButton.astro';
+import DemoCanvasControls from '@/components/DemoCanvasControls';
+import { PARAMS, NIGHT_PARAM } from './params';
 
 ## Why the wall takes colour
 
@@ -48,6 +50,19 @@ house. The awning wears its one colour at two strengths — the fabric's cells
 alternate full paint and laid-thin, stripe by stripe — so the stripes carry the
 strength where a second colour would only add noise.
 
+## The tuning bench
+
+The knobs of the feelings round over the shipped model — family chroma courage,
+painted lightness, cloth wash strength — on one street at the page's own theme.
+Drag a slider and the street answers; judge the feeling, not a hex. The values the
+page settled on are the ones the street rolls with, and whatever position the bench
+finds ships as constants.
+
+<DemoCanvas demo="colourway-tuning" label="Demo canvas — the feelings knobs, live">
+  <DemoCanvasControls client:load params={PARAMS} />
+  <DemoReseedButton />
+</DemoCanvas>
+
 ## Night
 
 The dark theme is not an inverted drawing and not a second palette; it is the same
@@ -57,6 +72,16 @@ midnight, quieter. The mix lives inside the palette resolution: night is a prope
 of a colour, never a layer drawn over the wall, and nothing about the scene changes
 but the colours themselves. The ground itself decides: a paper at half lightness is
 night.
+
+The compare bench puts the same three windows in two columns — the light theme on
+the left, the dark one on the right — so every surface faces its night self. The
+veil slider drags the night mix live: at zero the night column wears its day
+colours, and as it climbs the whole column sinks into the dark ground, hues held.
+
+<DemoCanvas demo="colourway-night" label="Demo canvas — the same windows, day on the left, night on the right">
+  <DemoCanvasControls client:load params={NIGHT_PARAM} />
+  <DemoReseedButton />
+</DemoCanvas>
 
 ## The watercolour pass
 

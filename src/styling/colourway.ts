@@ -47,21 +47,24 @@ export const COLOURWAYS: readonly Colourway[] = [
   { name: "chalk", hue: 90, chroma: 0.011, lightness: 0.8, weight: 0.26 },
 ];
 
-const HUE_JITTER = 6;
 const ECHO_L = 0.05;
 
 // Each coloured surface rolls its own family off the window seed, on a fork
 // per group, so a tenant's frame, awning, sill, box, and cloth mostly
 // differ and share a family only by chance. The three cloth roles are one
 // construction per window, so they roll together as one group.
-function rollColourway(seed: number, group: string): Omit<Colourway, "weight"> {
+function rollColourway(
+  seed: number,
+  group: string,
+  hueJitter: number,
+): Omit<Colourway, "weight"> {
   const rng = fork(seed, `colourway:${group}`);
   const row = rng.weighted(
     COLOURWAYS.map((way) => ({ value: way, weight: way.weight })),
   );
   return {
     name: row.name,
-    hue: rng.float(row.hue - HUE_JITTER, row.hue + HUE_JITTER),
+    hue: rng.float(row.hue - hueJitter, row.hue + hueJitter),
     chroma: row.chroma,
     lightness: row.lightness,
   };
@@ -70,7 +73,6 @@ function rollColourway(seed: number, group: string): Omit<Colourway, "weight"> {
 // A role carries no lightness: the colourway row is the finished colour.
 interface RoleTint {
   alpha: number;
-  chromaCap: number;
   echo: boolean;
 }
 
@@ -78,32 +80,52 @@ const ROLE_TINTS: Record<
   "mullion" | "awning" | "sill" | "box" | "fabric" | "shade" | "blind",
   RoleTint
 > = {
-  mullion: { alpha: 1, chromaCap: 0.09, echo: false },
-  awning: { alpha: 1, chromaCap: 0.09, echo: false },
-  sill: { alpha: 1, chromaCap: 0.09, echo: false },
-  box: { alpha: 1, chromaCap: 0.09, echo: false },
-  fabric: { alpha: 0.14, chromaCap: 0.09, echo: true },
-  shade: { alpha: 0.14, chromaCap: 0.09, echo: true },
-  blind: { alpha: 0.16, chromaCap: 0.09, echo: true },
+  mullion: { alpha: 1, echo: false },
+  awning: { alpha: 1, echo: false },
+  sill: { alpha: 1, echo: false },
+  box: { alpha: 1, echo: false },
+  fabric: { alpha: 0.14, echo: true },
+  shade: { alpha: 0.14, echo: true },
+  blind: { alpha: 0.16, echo: true },
 };
 
-// The awning wears one colourway at two strengths — the row as mixed, and
-// the laid-thin rung: lighter and quieter, toward the whitewash. Its
-// fabric's cells alternate the two, stripe by stripe.
-const AWNING_WEAR = {
-  thin: { chromaScale: 0.6, lightnessShift: 0.05 },
-} as const;
+// The dials of the colour model, all in one place: the hue jitter band, the
+// saturation ceiling every tinted role wears, the scale on the families'
+// chroma, the lift on their lightness, the scale on the cloth washes' alphas,
+// the awning's laid-thin rung, and the night mix. The tuning bench drives
+// these live; production always runs the defaults.
+export interface ColourwayTuning {
+  hueJitter: number;
+  chromaCap: number;
+  chromaScale: number;
+  lightnessLift: number;
+  washScale: number;
+  awningChromaScale: number;
+  awningLightnessShift: number;
+  nightMix: number;
+}
+
+export const DEFAULT_COLOURWAY_TUNING: ColourwayTuning = {
+  hueJitter: 6,
+  chromaCap: 0.09,
+  chromaScale: 1,
+  lightnessLift: 0,
+  washScale: 1,
+  awningChromaScale: 0.6,
+  awningLightnessShift: 0.05,
+  nightMix: 0.7,
+};
 
 const NIGHT_PAPER_L = 0.5;
 // The flip reads the ground itself, so the theme tokens carry a second
 // constraint beside their contrast with the ink: a paper moved across this
 // lightness silently flips night for the whole wall.
-const NIGHT_MIX = 0.7;
 
 interface RoleContext {
   colors: ThemeColors;
   night: boolean;
   wayFor: (group: ColourGroup) => Omit<Colourway, "weight">;
+  tuning: ColourwayTuning;
 }
 
 // A tinted role's resolver: the colourway row passes the tint — chroma cap,
@@ -120,15 +142,19 @@ const tintResolver =
     }),
   ) =>
   (ctx: RoleContext): ResolvedColor => {
-    const { colors, night, wayFor } = ctx;
+    const { colors, night, wayFor, tuning } = ctx;
     const way = wayFor(group);
     const wear = strength(ctx);
-    const l = way.lightness + wear.lightnessShift;
-    const chroma = Math.min(way.chroma * wear.chromaScale, t.chromaCap);
+    const l = way.lightness + tuning.lightnessLift + wear.lightnessShift;
+    const chroma = Math.min(
+      way.chroma * tuning.chromaScale * wear.chromaScale,
+      tuning.chromaCap,
+    );
     const color = oklchToCss({ l, c: chroma, h: way.hue });
+    const alpha = t.alpha * (t.echo ? tuning.washScale : 1);
     let dress: ResolvedColor;
     if (!t.echo) {
-      dress = { color, alpha: t.alpha };
+      dress = { color, alpha };
     } else {
       // The pooling echo — a second pass, lighter at half strength — composites
       // into the one fill it actually draws as: canvas blending is linear per
@@ -139,15 +165,15 @@ const tintResolver =
         c: chroma,
         h: way.hue,
       });
-      const echoAlpha = t.alpha / 2;
-      const alpha = 1 - (1 - t.alpha) * (1 - echoAlpha);
+      const echoAlpha = alpha / 2;
+      const compounded = 1 - (1 - alpha) * (1 - echoAlpha);
       dress = {
-        color: mixCss(echo, color, (t.alpha * (1 - echoAlpha)) / alpha),
-        alpha,
+        color: mixCss(echo, color, (alpha * (1 - echoAlpha)) / compounded),
+        alpha: compounded,
       };
     }
     return night
-      ? { color: mixCss(dress.color, colors.paper, NIGHT_MIX), alpha: dress.alpha }
+      ? { color: mixCss(dress.color, colors.paper, tuning.nightMix), alpha: dress.alpha }
       : dress;
   };
 
@@ -161,7 +187,10 @@ const ROLE_RESOLVERS: Record<ColorRole, (ctx: RoleContext) => ResolvedColor> = {
   paper: ({ colors }) => ({ color: colors.paper, alpha: OCCLUDE }),
   mullion: tintResolver(ROLE_TINTS.mullion, "mullion"),
   awning: tintResolver(ROLE_TINTS.awning, "awning"),
-  awningThin: tintResolver(ROLE_TINTS.awning, "awning", () => AWNING_WEAR.thin),
+  awningThin: tintResolver(ROLE_TINTS.awning, "awning", ({ tuning }) => ({
+    chromaScale: tuning.awningChromaScale,
+    lightnessShift: tuning.awningLightnessShift,
+  })),
   sill: tintResolver(ROLE_TINTS.sill, "sill"),
   box: tintResolver(ROLE_TINTS.box, "box"),
   fabric: tintResolver(ROLE_TINTS.fabric, "cloth"),
@@ -183,21 +212,41 @@ export function windowPalette(seed: number, colors: ThemeColors): Palette {
   const key = `${seed}|${colors.ink}|${colors.paper}`;
   let palette = paletteCache.get(key);
   if (!palette) {
-    palette = buildPalette(colors, (group) => rollColourway(seed, group));
+    palette = buildPalette(
+      colors,
+      (group) => rollColourway(seed, group, DEFAULT_COLOURWAY_TUNING.hueJitter),
+      DEFAULT_COLOURWAY_TUNING,
+    );
     if (paletteCache.size >= PALETTE_CACHE_MAX) paletteCache.clear();
     paletteCache.set(key, palette);
   }
   return palette;
 }
 
+// The tuning bench's entry: the same resolution, unmemoized and wearing
+// whatever tuning the bench's sliders hold.
+export function tunedWindowPalette(
+  seed: number,
+  colors: ThemeColors,
+  tuning: ColourwayTuning,
+): Palette {
+  return buildPalette(
+    colors,
+    (group) => rollColourway(seed, group, tuning.hueJitter),
+    tuning,
+  );
+}
+
 function buildPalette(
   colors: ThemeColors,
   wayFor: (group: ColourGroup) => Omit<Colourway, "weight">,
+  tuning: ColourwayTuning,
 ): Palette {
   const ctx: RoleContext = {
     colors,
     night: cssToOklch(colors.paper).l < NIGHT_PAPER_L,
     wayFor,
+    tuning,
   };
   // Resolved eagerly, so a role's roll happens even when a bare window never
   // reads it — a silently discarded throw keeps the stream's shape honest.
