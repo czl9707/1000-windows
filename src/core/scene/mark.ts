@@ -1,8 +1,8 @@
 // Marks: what geometry emits, what the draw stage consumes. A mark carries
 // its points in 3D (depth on the points, see motion/projection) plus a plain
 // numeric z used only to order marks — ties keep emission order, so the
-// append-only draw order survives the sort. Dress is a role name — colour
-// and strength together, resolved by styling; a mark carries neither.
+// append-only draw order survives the sort. A role names a colour role —
+// colour and strength together, resolved by styling; a mark carries neither.
 import type { ColorRole } from '@/styling/roles';
 import type { Pt3 } from '@/motion/projection';
 
@@ -16,8 +16,7 @@ export interface StrokeMark extends MarkBase {
   kind: 'stroke';
   // The trace name: the warp hangs on it.
   name: string;
-  // Full stroke width in unit measure.
-  width: number;
+  widthUnits: number;
 }
 
 export interface FillMark extends MarkBase {

@@ -7,7 +7,6 @@ export type Velocity = Camera;
 
 export const FRICTION = 4;
 
-// Below this speed a glide snaps to rest rather than crawling forever.
 export const REST_VELOCITY = 0.05;
 
 export function glide(

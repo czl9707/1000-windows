@@ -4,7 +4,7 @@
 // from its front edge. Either kind fills opaque: the fabric hides the wall,
 // the frame top, and every layer behind it.
 import type { ShellPlan } from "./archetypes";
-import type { Mark } from "../scene/mark";
+import type { Mark } from '@/core/scene';
 import type { Pt3 } from "../../motion/projection";
 import { WEIGHTS } from "@/styling/weights";
 import { SHELL_Z, line } from "./shell";
@@ -17,18 +17,15 @@ const DROP = 0.17;
 const SLOPE_REACH = 0.5;
 const CANOPY_REACH = 0.35;
 
-// The canopy pulls its wall line in from the slope's; its valance hangs from
-// a hem line this far below the drop, the lobes this far below the hem.
 const CANOPY_INSET = 0.05;
 const HEM_DROP = 0.02;
 const LOBE_DROP = 0.03;
 const LOBES = 5;
 
-// The slope's ribs, the canopy arc's sample count, and the stroke weights.
 const RIBS = 5;
 const ARC_POINTS = 7;
 const ATTACH_W = WEIGHTS.outline;
-const EDGE_W = WEIGHTS.major;
+const EDGE_W = WEIGHTS.structural;
 
 function drawSlope(): Mark[] {
   const marks: Mark[] = [
@@ -40,14 +37,14 @@ function drawSlope(): Mark[] {
         { x: HALF_W, y: ATTACH_Y + DROP, z: SLOPE_REACH },
         { x: -HALF_W, y: ATTACH_Y + DROP, z: SLOPE_REACH },
       ],
-      role: "paper",
+      role: "awning",
       z: SHELL_Z.awning,
     },
     {
       kind: "stroke",
       pts: line(-HALF_W, ATTACH_Y, HALF_W, ATTACH_Y),
       name: "awning-attach",
-      width: ATTACH_W,
+      widthUnits: ATTACH_W,
       role: "ink",
       z: SHELL_Z.awning,
     },
@@ -55,7 +52,7 @@ function drawSlope(): Mark[] {
       kind: "stroke",
       pts: line(-HALF_W, ATTACH_Y + DROP, HALF_W, ATTACH_Y + DROP, () => SLOPE_REACH),
       name: "awning-front",
-      width: EDGE_W,
+      widthUnits: EDGE_W,
       role: "ink",
       z: SHELL_Z.awning,
     },
@@ -69,7 +66,7 @@ function drawSlope(): Mark[] {
         { x, y: ATTACH_Y + DROP, z: SLOPE_REACH },
       ],
       name: `awning-rib-${i}`,
-      width: WEIGHTS.frame,
+      widthUnits: WEIGHTS.hairline,
       role: "ink",
       z: SHELL_Z.awning,
     });
@@ -82,8 +79,6 @@ function drawCanopy(): Mark[] {
   const hemY = ATTACH_Y + DROP + HEM_DROP;
   const marks: Mark[] = [
     {
-      // The fabric fills from the attach line down to the hem; the valance's
-      // lobes ride on top of the fill.
       kind: "fill",
       pts: [
         { x: -halfW, y: ATTACH_Y, z: 0 },
@@ -91,19 +86,18 @@ function drawCanopy(): Mark[] {
         { x: halfW, y: hemY, z: CANOPY_REACH },
         { x: -halfW, y: hemY, z: CANOPY_REACH },
       ],
-      role: "paper",
+      role: "awning",
       z: SHELL_Z.awning,
     },
     {
       kind: "stroke",
       pts: line(-halfW, ATTACH_Y, halfW, ATTACH_Y),
       name: "canopy-attach",
-      width: EDGE_W,
+      widthUnits: EDGE_W,
       role: "ink",
       z: SHELL_Z.awning,
     },
   ];
-  // Side arcs: quarter curves from the wall attach down to the hem ends.
   const arc = (x: number): Pt3[] =>
     Array.from({ length: ARC_POINTS }, (_, i) => {
       const t = i / (ARC_POINTS - 1);
@@ -121,7 +115,7 @@ function drawCanopy(): Mark[] {
       kind: "stroke",
       pts: arc(x),
       name: `canopy-side-${tag}`,
-      width: WEIGHTS.minor,
+      widthUnits: WEIGHTS.detail,
       role: "ink",
       z: SHELL_Z.awning,
     });
@@ -139,7 +133,7 @@ function drawCanopy(): Mark[] {
     kind: "stroke",
     pts: valance,
     name: "canopy-valance",
-    width: WEIGHTS.minor,
+    widthUnits: WEIGHTS.detail,
     role: "ink",
     z: SHELL_Z.awning,
   });

@@ -2,7 +2,7 @@
 // mounted over it — its front face fills opaque and hides the sill lines
 // behind it. A few tufts of green over each lip.
 import type { ShellPlan } from './archetypes';
-import type { Mark } from '@/core/scene/mark';
+import type { Mark } from '@/core/scene';
 import { WEIGHTS } from '@/styling/weights';
 import { SHELL_Z, paneEdges, rectPts } from './shell';
 
@@ -12,12 +12,9 @@ const TOP_Y = 0.54;
 const BOTTOM_Y = 0.8;
 const FACE_Z = 0.12;
 const HALF_W = 0.5;
-// Two in a row: narrower planters side by side, a hand's gap between them.
 const PAIR_HALF_W = 0.38;
 const PAIR_CX = 0.4;
 
-// The front face's lines, the sides a touch lighter, and the tufts: how many,
-// their spacing along the lip, their lift above it, their size.
 const TUFTS = 3;
 const TUFT_STEP = 0.28;
 const TUFT_LIFT = 0.03;
@@ -32,14 +29,14 @@ function boxMarks(cx: number, halfW: number, id: string): Mark[] {
     {
       kind: 'fill',
       pts: rectPts(x0, TOP_Y, x1, BOTTOM_Y, () => FACE_Z),
-      role: 'paper',
+      role: 'box',
       z,
     },
-    ...paneEdges({ top: TOP_Y, bottom: BOTTOM_Y, left: x0, right: x1 }, name('front'), z, WEIGHTS.major, {
+    ...paneEdges({ top: TOP_Y, bottom: BOTTOM_Y, left: x0, right: x1 }, name('front'), z, WEIGHTS.structural, {
       depthAt: () => FACE_Z,
     }),
-    { kind: 'stroke', pts: [{ x: x0, y: TOP_Y, z: 0 }, { x: x0, y: TOP_Y, z: FACE_Z }], name: name('side-l'), width: WEIGHTS.minor, role: 'ink', z },
-    { kind: 'stroke', pts: [{ x: x1, y: TOP_Y, z: 0 }, { x: x1, y: TOP_Y, z: FACE_Z }], name: name('side-r'), width: WEIGHTS.minor, role: 'ink', z },
+    { kind: 'stroke', pts: [{ x: x0, y: TOP_Y, z: 0 }, { x: x0, y: TOP_Y, z: FACE_Z }], name: name('side-l'), widthUnits: WEIGHTS.detail, role: 'ink', z },
+    { kind: 'stroke', pts: [{ x: x1, y: TOP_Y, z: 0 }, { x: x1, y: TOP_Y, z: FACE_Z }], name: name('side-r'), widthUnits: WEIGHTS.detail, role: 'ink', z },
     ...tufts(cx, z, name),
   ];
 }

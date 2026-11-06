@@ -5,14 +5,15 @@
 //
 // This module is the shell's vocabulary: the catalogue rolls, and the
 // unit-measure geometry helpers the drawers share. Assembly — collecting the
-// drawers' marks and drawing the window — lives in core/entry.ts.
+// drawers' marks and drawing the window — lives in this folder's index.
 import { fork } from '@/core/randomness/rng';
 import type { Pt3 } from '@/motion/projection';
-import type { Mark } from '@/core/scene/mark';
+import type { Mark } from '@/core/scene';
 import { ADDONS, ARCHETYPES, OPEN_STATES, SIDES, SILLS, type ShellPlan } from './archetypes';
 
 // The archetype roll table, hoisted: building it per call allocated for no
-// reason, and Object.entries order is stable so the roll sequence is not.
+// reason, and Object.entries order is stable, so the roll sequence never
+// shifts.
 const ARCHETYPE_ROLLS = Object.entries(ARCHETYPES).map(([value, a]) => ({
   value,
   weight: a.weight,
@@ -93,7 +94,6 @@ export const SHELL_Z = {
   box: 60,
 } as const;
 
-// The glass opening: the inner frame line, inset by the rolled face width.
 export interface PaneRect {
   top: number;
   bottom: number;
@@ -175,7 +175,7 @@ export function paneEdges(
     kind: 'stroke',
     pts: line(x0, y0, x1, y1, depthAt),
     name,
-    width,
+    widthUnits: width,
     role: 'ink',
     z,
   });

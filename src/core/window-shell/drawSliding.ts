@@ -6,16 +6,14 @@
 // transom layout pins a fixed picture strip across the head, the sliding
 // row beneath it.
 import { ARCHETYPES, type Side, type SlidingPlan } from './archetypes';
-import type { Mark } from '@/core/scene/mark';
+import type { Mark } from '@/core/scene';
 import { WEIGHTS } from '@/styling/weights';
 import { SHELL_Z, innerRect, paneMarks, type PaneRect } from './shell';
 
 // How far a sliding panel travels, as a fraction of the run that leaves the
 // visible strip, per open state.
 const TRAVEL = { open: 0.7, 'half-open': 0.35, closed: 0 } as const;
-// The transom's fixed picture strip, as a fraction of the opening height.
 const TRANSOM_FRACTION = 0.28;
-// True depth of the front track, out of the wall.
 const TRACK_STEP = 0.02;
 // The strip of sliding glass an opened panel always leaves visible past its
 // neighbour's stile — the panels never close up into one.
@@ -61,7 +59,7 @@ function rowPanels(layout: SlidingPlan['layout'], slideSide: Side): PanelConfig[
 export function drawSliding(plan: SlidingPlan): Mark[] {
   const { layout, open, slideSide } = plan;
   const opening = innerRect(plan.faceWidth);
-  const t = ARCHETYPES.sliding.frameThickness * plan.thicknessJitter;
+  const t = ARCHETYPES.sliding.frameThicknessUnits * plan.thicknessJitter;
 
   const marks: Mark[] = [];
 
@@ -91,8 +89,8 @@ export function drawSliding(plan: SlidingPlan): Mark[] {
     };
     marks.push(
       ...paneMarks(rect, `slide-${i}`, t, {
-        leftW: i !== 0 ? WEIGHTS.minor : t,
-        rightW: i !== panels.length - 1 ? WEIGHTS.minor : t,
+        leftW: i !== 0 ? WEIGHTS.detail : t,
+        rightW: i !== panels.length - 1 ? WEIGHTS.detail : t,
         depthAt: depth,
       }),
     );

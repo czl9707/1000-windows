@@ -4,8 +4,7 @@
 // is the wall at rest.
 import { createDemoLoop, cssBox, trackPointerEye } from '@/components/demoLoop';
 import { registerDemo, type ReseedHandle } from '@/components/mount';
-import { PITCH_X, PITCH_Y } from '@/core/wall/grid';
-import { Wall } from '@/core/wall/wall';
+import { PITCH_X, PITCH_Y, Wall } from '@/core/wall';
 
 const STRIP_COLS = 3;
 const STRIP_ROWS = 2;

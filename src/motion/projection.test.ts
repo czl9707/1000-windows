@@ -56,7 +56,6 @@ describe('makeProjection', () => {
   });
 
   it('shifts a wall-plane-point-sized scene exactly like its magnification around the eye axis', () => {
-    // screen = (p + eye)·s, drawn back in the canvas frame: p·s + eye·(s−1).
     const eye = { x: 1.7, y: -0.6 };
     const p = { x: 0.35, y: 0.2, z: 0.6 };
     const view = makeProjection(eye);
@@ -75,7 +74,6 @@ describe('makeProjection', () => {
 
   it('honours an explicit focal for the demo slider', () => {
     const view = makeProjection(CENTRE_EYE, 6);
-    // s = F/(F−z) at F = 6, z = 1: exactly 1.2.
     expect(view.scaleAt(1)).toBeCloseTo(1.2, 12);
   });
 });

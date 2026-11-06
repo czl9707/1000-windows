@@ -7,7 +7,7 @@ import DemoCanvas from "@/components/DemoCanvas.astro";
 import DemoReseedButton from "@/components/DemoReseedButton.astro";
 
 [The shell](/docs/window-shell) gave every window its construction;
-[motion](/docs/cursor-parallax) pinned the eye and gave depth its drift.
+[motion](/docs/motion) pinned the eye and gave depth its drift.
 This chapter is the step where the windows stop being specimens and become
 a wall: an infinite grid of them, alive under the pointer, pannable in
 every direction. The wall is the home page now — the canvas you are
@@ -20,7 +20,7 @@ looking at if you came in through the front door.
 The demo is the wall at rest: a frame of windows in their stippled,
 patched wall, nothing panning. The eye follows the cursor — the pointer
 standing in for where this canvas sits relative to the screen's centre,
-the same stand-in [motion](/docs/cursor-parallax) uses; on the home wall
+the same stand-in [motion](/docs/motion) uses; on the home wall
 that offset is the canvas's real position. Panning lives on the home
 page — drag and let go: the wall glides, decelerates, and settles.
 Everywhere it applies the same rule: every visible window redraws every
@@ -35,40 +35,16 @@ coordinates, and its seed is `windowSeed(metaSeed, col, row)`: the
 coordinates exist inside that one call and nowhere else, so pan history
 cannot reach a tenant even in principle.
 
-```ts
-export const PITCH_X = 3;
-export const PITCH_Y = 2;
-```
-
-The pitch is deliberately sparse: 3 × 2 units around the 1.6 × 1.0 window
-box, so every window stands in its own frame of bare wall and the
-neighbours never crowd it. How large a unit lands on screen is not a
-constant — it is a rule about counts, decided once and enforced by the
-viewport:
-
-```ts
-const MIN_COLS = 5;
-const MIN_ROWS = 3;
-const MAX_CELLS = 30;
-const MIN_UNIT_PX = 120;
-
-export function wallUnits(widthPx: number, heightPx: number): number {
-  const cap = Math.sqrt((widthPx * heightPx) / (MAX_CELLS * PITCH_X * PITCH_Y));
-  return Math.max(
-    Math.min(widthPx / (MIN_COLS * PITCH_X), heightPx / (MIN_ROWS * PITCH_Y)),
-    cap,
-    MIN_UNIT_PX,
-  );
-}
-```
-
-The uncapped minimum fits the minimum view of five columns and three
-rows; the clamp holds the visible count to thirty; the floor holds each
-window's rendered size up at 120 px. Where the bounds conflict, the
-count bounds yield first: a shrinking viewport drops columns and rows
-rather than shrinking tenants into specks, a phone shows a couple of
-large windows instead of thirty small ones, and only past the floor does
-the clamp's thirty-cell cap get a word in. The cell's screen size
+The pitch is deliberately sparse — several units of bare wall around
+each window box — so every window stands in its own frame of wall and
+the neighbours never crowd it. How large a unit lands on screen is not
+a constant — it is a rule about counts, decided once and enforced by the
+viewport: a minimum view in columns and rows, a cap on the visible cell
+count, a floor under each window's rendered size. Where the bounds
+conflict, the count bounds yield first: a shrinking viewport drops
+columns and rows rather than shrinking tenants into specks, a phone
+shows a couple of large windows instead of a crowd of small ones, and
+only past the floor does the cap get a word in. The cell's screen size
 adjusts to hit the bounds; the bounds are never enforced by cutting the
 draw short.
 
@@ -109,7 +85,7 @@ panning exactly as a window does, and re-rolls when the wall shuffles.
 ## Drag, inertia, rest
 
 Panning moves the world; the eye stays at the screen's centre, exactly as
-[motion](/docs/cursor-parallax) fixed it. A drag translates the camera
+[motion](/docs/motion) fixed it. A drag translates the camera
 under the pointer; a release hands the smoothed drag velocity to the
 glide — velocity decaying exponentially under friction, the camera
 advancing by the decay's exact integral, so the physics is deterministic

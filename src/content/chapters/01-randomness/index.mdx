@@ -12,10 +12,10 @@ this machinery first and let it rule every later decision; so do we.
 
 ## Two primitives
 
-A name becomes a seed through `fnv1a`, a 32-bit FNV-1a hash — the same
+A name becomes a seed through `fnv1a`, the FNV-1a hash — the same
 string always hashes to the same number, on every machine, in every
 browser, with no library. A seed becomes a stream of draws through
-`mulberry32`, a fourteen-line generator returning numbers between 0 and 1.
+`mulberry32`, a small generator returning numbers between 0 and 1.
 That is the whole foundation; both are direct ports from the reference.
 
 ## One wrapper, one warm-up

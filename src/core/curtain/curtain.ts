@@ -13,7 +13,6 @@ import {
   ZONE_CEILING,
   type CurtainKind,
 } from './catalogue';
-
 export interface BareCurtain {
   present: false;
 }
@@ -44,4 +43,24 @@ export function expandCurtain(seed: number): CurtainPlan {
   const drapeSide = rng.weighted(DRAPE_SIDES);
   const slatShare = rng.outliers(SLAT_SHARE_RANGE.min, SLAT_SHARE_RANGE.max, SLAT_SHARE_RANGE.outlierMin, SLAT_SHARE_RANGE.outlierMax);
   return { present: true, kind, coverage, rodY, widthJitter, drapeSide, slatShare };
+}
+
+// A hand-pinned plan for the demo plates: the drawers are pure, so a plate
+// hands its plan directly, and the clamp matches the roller's so a pinned
+// level draws what the street would draw.
+export function pinnedCurtain(
+  kind: CurtainKind,
+  coverage: number,
+  overrides: Partial<CoveredCurtain> = {},
+): CurtainPlan {
+  const base: CoveredCurtain = {
+    present: true,
+    kind,
+    coverage: Math.min(coverage, ZONE_CEILING[kind]),
+    rodY: 0,
+    widthJitter: 1,
+    drapeSide: 'left',
+    slatShare: 0,
+  };
+  return { ...base, ...overrides };
 }

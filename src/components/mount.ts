@@ -5,8 +5,6 @@ export interface DemoHandle {
   destroy(): void;
 }
 
-// The reseed buttons drive demos through this — demos with no tuning
-// parameters implement nothing wider.
 export interface ReseedHandle extends DemoHandle {
   reseed(value: number): void;
 }
@@ -24,6 +22,10 @@ type Painter = (canvas: HTMLCanvasElement) => DemoHandle;
 
 export function rollSeed(): number {
   return Math.floor(Math.random() * 2 ** 31);
+}
+
+export function plateCols(count: number): number {
+  return count % 3 === 0 || count % 2 !== 0 ? 3 : 2;
 }
 
 const kinds = new Map<string, Painter>();
@@ -76,8 +78,6 @@ export function tuningHandleFor(canvas: HTMLCanvasElement): TuningHandle | undef
   return handle;
 }
 
-// For controls that only re-roll: a demo with no tuning handle still
-// answers here.
 export function reseedHandleFor(canvas: HTMLCanvasElement): ReseedHandle | undefined {
   const handle = mounted.get(canvas);
   if (!handle) return undefined;

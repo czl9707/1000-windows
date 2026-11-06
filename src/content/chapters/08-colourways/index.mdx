@@ -1,0 +1,73 @@
+---
+title: The colourway
+status: landed
+---
+
+import DemoCanvas from '@/components/DemoCanvas.astro';
+import DemoReseedButton from '@/components/DemoReseedButton.astro';
+
+## Why the wall takes colour
+
+A thousand windows in one ink read as one building, and the street dies. Colour enters
+where a hand would put it: the curtain cloth, the awning canvas, the shutter slats, the
+window-box wood, the frame's painted face. The drawing stays ink — the line work, the
+dots, the sill brackets; the wall stays paper; the glass keeps its whisper wash. The
+rule that held since [the layers](/docs/the-layers) still holds: drawing code names
+roles, and only `src/styling/` decides colour.
+
+## Each surface rolls its own
+
+Each coloured surface rolls its own colourway off the window seed, on its own stream —
+never the [dna](/docs/curtains) or shell streams, so retuning a colour rule never
+re-randomizes a tenant. A colourway is a finished colour, picked whole from one
+weighted list, and the list carries the rarity: the quiet pale families dominate the
+weights; the louder ones are rare rows of the same list, no separate gate to fall
+through. Two gates were the reference's habit; one list with honest weights draws the
+same street with less machinery, and merging or splitting colours later is a table
+edit.
+
+The frame face, the awning canvas, the shutter slats, and the box wood each roll for
+themselves, and the curtain's three constructions roll together as one cloth — one
+curtain per window, one cloth colour. So a house's surfaces mostly differ, each wearing
+its own colour; when two rolls land on the same family the house reads as painted by
+one careful owner, and that is chance, not policy. The tint is tenant identity, not
+state: it never changes with the page theme.
+
+<DemoCanvas demo="colourway-street" label="Demo canvas — one street, every window its own colourway">
+  <DemoReseedButton />
+</DemoCanvas>
+
+## Roles apply their own finish
+
+The colourway row is the colour; a role applies only the finish its construction
+needs. The cloth washes translucent, the painted faces go down opaque — they exist to
+hide the wall and the layers behind them, so anything less lets lines ghost through. A
+chroma cap guards each role's saturation ceiling, and a hue jitter rolled with every
+colourway keeps neighbours from matching exactly — the pigment mixed fresh at every
+house.
+
+## Night
+
+The dark theme is not an inverted drawing and not a second palette; it is the same
+street sunk into dark paper. Every coloured surface mixes toward the ground — the
+same recipe for every surface — so the hue you saw at noon is still the hue at
+midnight, quieter. The mix lives inside the palette resolution: night is a property
+of a colour, never a layer drawn over the wall, and nothing about the scene changes
+but the colours themselves. The ground itself decides: a paper at half lightness is
+night.
+
+## The watercolour pass
+
+A wash at whisper alpha reads as a flat tint. Each cloth wash resolves with its
+pooling echo folded in — a lighter pass at half strength, composited into the one
+fill styling hands the pen — so the pigment pools and the fill reads as a wash that
+dried. Opaque paint carries no echo: paint does not pool. The rim pass — edge
+darkening, the real watercolour's calling card — waits with the press layer, where
+the print look lives.
+
+## The rolls
+
+One fork, one roll: family, then the jitter band around its hue. A bare window never
+reads the tint — the roll still happens, a silently discarded throw, and the stream
+stays append-only for the roles that arrive later. What a role may never do is draw in
+a guessed colour: a role with no registered resolution crashes at the resolution site.

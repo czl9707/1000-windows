@@ -58,12 +58,11 @@ export function makeProjection(eye: Eye, focal: number = FOCAL): Projection {
 
 The focal length lives inside the projection module — no caller names or
 passes it; the builder keeps the default, and only the demo's slider
-supplies its own. The demo's Focal slider sweeps the length from `2` to
-`50`; the engine default is `30`. At `30`, an add-on standing `0.4` in
-front of the wall magnifies by about `1.3%`, and the deepest mark there
-is — a casement leaf swung fully open, reaching past `1.1` — by under
-`4%`. Depth reads through placement and parallax; a depth error never
-gets the chance to read as a drawing error. Stroke widths scale by the
+supplies its own. The slider sweeps the length so you can feel what it
+does: short, and the near layers balloon; long, and the wall flattens
+toward orthographic. The engine keeps one default, chosen so depth reads
+through placement and parallax — a depth error never gets the chance to
+read as a drawing error. Stroke widths scale by the
 mark's mean depth (`width · projection.scaleAt(meanZ)`), so a nearer
 sill draws its line a touch heavier, the way it would if you stood
 closer to it.
@@ -80,21 +79,8 @@ The projection is built from that offset once per frame, the way the
 palette is built from the theme's colours — `makeProjection(eye)` — and
 lands each point as the eye sees it. A point at wall position `p` and
 depth `z` projects to `(p + eye) · s`; drawn back in the canvas's own
-frame, with the canvas pinned where it sits on screen, that is
-
-```ts
-export function makeProjection(eye: Eye, focal: number = FOCAL): Projection {
-  const scaleAt = (z: number): number => focal / (focal - z);
-  return {
-    project: (pts) =>
-      pts.map((p) => {
-        const s = scaleAt(p.z);
-        return { x: p.x * s + eye.x * (s - 1), y: p.y * s + eye.y * (s - 1) };
-      }),
-    scaleAt,
-  };
-}
-```
+frame, with the canvas pinned where it sits on screen, the eye term is
+exactly the code above.
 
 The eye enters only as `eye · (s − 1)`. On the wall plane `s` is exactly
 `1`, so the eye term vanishes: the wall itself is pinned, and a window's

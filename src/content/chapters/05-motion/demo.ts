@@ -5,18 +5,17 @@ import { centreUnit, createDemoLoop, cssBox, trackPointerEye } from '@/component
 import { Pen } from '@/pen/pen';
 import { registerDemo, type TuningHandle } from '@/components/mount';
 import { DEFAULT_TUNING } from '@/pen/tuning';
-import { makePalette, type ThemeColors } from '@/styling/roles';
+import { type ThemeColors } from '@/styling/roles';
+import { windowPalette } from '@/styling/colourway';
 import { windowSeed } from '@/core/randomness/rng';
-import { windowMarks } from '@/core/entry';
-import { execute } from '@/core/scene/execute';
-import { expandShell } from '@/core/window-shell/shell';
+import { windowMarks, expandShell } from '@/core/window-shell';
+import { execute } from '@/core/scene';
 import { makeProjection, type Eye } from '@/motion/projection';
 
 const COLS = 3;
 const ROWS = 2;
-// Unit-measure pitch between columns and rows: window box, sill, and air.
-const PITCH_X = 2.3;
-const PITCH_Y = 1.9;
+const UNIT_PITCH_X = 2.3;
+const UNIT_PITCH_Y = 1.9;
 const DEFAULT_SEED = 812333041;
 // The focal slider's reset value — kept in step with the projection
 // module's private default (30), which no longer exports it.
@@ -42,17 +41,17 @@ function mountParallaxStrip(canvas: HTMLCanvasElement): TuningHandle {
   };
   rebuild();
 
-  const pointer = trackPointerEye(canvas, COLS * PITCH_X, ROWS * PITCH_Y);
+  const pointer = trackPointerEye(canvas, COLS * UNIT_PITCH_X, ROWS * UNIT_PITCH_Y);
 
   const loop = createDemoLoop(
     canvas,
     (ctx, time, colors: ThemeColors, eye: Eye) => {
       const box = cssBox(canvas);
-      centreUnit(ctx, box, COLS * PITCH_X, ROWS * PITCH_Y, -0.1);
+      centreUnit(ctx, box, COLS * UNIT_PITCH_X, ROWS * UNIT_PITCH_Y, -0.1);
       pens.forEach(({ pen }, i) => {
         pen.setTime(time);
-        const wx = (SLOTS[i].col - (COLS - 1) / 2) * PITCH_X;
-        const wy = (SLOTS[i].row - (ROWS - 1) / 2) * PITCH_Y;
+        const wx = (SLOTS[i].col - (COLS - 1) / 2) * UNIT_PITCH_X;
+        const wy = (SLOTS[i].row - (ROWS - 1) / 2) * UNIT_PITCH_Y;
         ctx.save();
         ctx.translate(wx, wy);
         // This window's origin seen from the eye — same term the wall feeds
@@ -63,7 +62,7 @@ function mountParallaxStrip(canvas: HTMLCanvasElement): TuningHandle {
           windowMarks(expandShell(pen.seed)),
           pen,
           ctx,
-          makePalette(colors),
+          windowPalette(pen.seed, colors),
           makeProjection({ x: eye.x + wx, y: eye.y + wy }, focal),
         );
         ctx.restore();

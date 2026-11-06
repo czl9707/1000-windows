@@ -33,9 +33,7 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
   // reaches the handle.
   import { createDemoLoop, cssBox } from '@/components/demoLoop';
   import { mount, registerDemo, rollSeed, type ReseedHandle } from '@/components/mount';
-  import { PITCH_X, PITCH_Y, visibleCells, wallUnits } from '@/core/wall/grid';
-  import { dragWall } from '@/core/wall/drag';
-  import { Wall } from '@/core/wall/wall';
+  import { PITCH_X, PITCH_Y, visibleCells, wallUnits, dragWall, Wall } from '@/core/wall';
 
   // At least one full cell, so a window's pen is warm before its box scrolls in.
   const MARGIN = Math.max(PITCH_X, PITCH_Y);

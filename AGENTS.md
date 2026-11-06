@@ -41,14 +41,14 @@ src/
 - **Import direction:** chapters sit on top of the engine folders
   (`core/`, `pen/`, `motion/`, `styling/`); within the engine, calls only
   go toward leaf modules — core uses `pen/`, `motion/`, `styling/`, and
-  `pen/` and `motion/` use core's `randomness/` (motion also takes pen's
-  `Pt` type: the projection returns the 2D points the pen draws) — never a
-  cycle, never a chapter reached from below. Site UI (`components/`) never
-  imports from the engine. Chapters and pages may import the demo runtime
-  in `components/` (`mount.ts`, the controls island's types). No component
-  imports a chapter by name: `DemoCanvas.astro` discovers the chapters'
-  demo modules with a build-time glob, and each demo module registers
-  itself on import — so no central list of demos exists.
+  `pen/`, `motion/`, and `styling/` use core's `randomness/` (motion also
+  takes pen's `Pt` type: the projection returns the 2D points the pen
+  draws) — never a cycle, never a chapter reached from below. Site UI
+  (`components/`) never imports from the engine. Chapters and pages may
+  import the demo runtime in `components/` (`mount.ts`, the controls
+  island's types). No component imports a chapter by name: `DemoCanvas.astro`
+  discovers the chapters' demo modules with a build-time glob, and each demo
+  module registers itself on import — so no central list of demos exists.
 - **Adding a demo:** the painter lives beside its chapter and ends in
   `registerDemo('<kind>', <mount fn>)` (from `components/mount.ts`); the
   chapter's MDX places `<DemoCanvas demo="<kind>">`. Nothing else changes.
@@ -59,6 +59,14 @@ src/
 - **New chapter:** create `src/content/chapters/NN-<name>/index.mdx` — the
   `NN-` prefix sets the reading order — with `title` and `status`
   frontmatter; no config change needed.
+- **Chapter prose:** chapters read as a maker's log, not a reference
+  manual. Methodology and rationale lead — why the mechanism exists, what
+  alternative it rejected — and the embedded demo canvas is the exhibit:
+  point the reader at what to look at in it. Exact constants, defaults,
+  weights, and ratios stay in the code; prose names the rule ("skewed
+  toward closed", "a whisper of ink") without the numeric value and never
+  catalogues a tuning surface — the code and the demo's sliders are the
+  reference.
 - **Design tokens:** UI code uses the theme tokens from `src/styles/global.css`
   (`--color-*`, `--typography-*`), never raw fonts or colors.
 - **Verification:** `npx tsc --noEmit && npx astro build` after any change.

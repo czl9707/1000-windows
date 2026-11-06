@@ -18,6 +18,12 @@ The single most readable thing in a window scene (an occupant silhouette, a cat 
 ## Curtain
 The window covering — cloth or blind hung behind the glass. A tenant trait: some windows carry one, some stand bare. Four kinds — panels, drapes, venetian, roman — each a named construction with its own ceiling on how much of the opening it may cover; coverage rolls in discrete levels — bare, lightly dressed, half, full — mostly bare or light, a rare window full. Its dense line work obeys the hand rule, and the hanging cloth (panels, drapes) hangs on verticals alone. The curtain's density is curtain identity, not a light trait.
 
+## Colourway
+The finished colour one of a tenant's coloured surfaces wears — curtain cloth, awning canvas, shutter slats, window box, and the painted frame face each roll their own off the window seed, from one weighted list; the curtain's three constructions roll together as one cloth. Two surfaces land on the same colour only by chance. A colourway is tenant identity, not state — it never changes with the page theme. Most rolls land on quiet, pale families; louder ones exist and stay rare.
+
+## Night
+What the site's dark theme means for the wall: the same tenants and the same scene re-read under darkness, never a different scene. Every coloured surface sinks most of the way into the dark ground — the same mix for every surface — so night is the day palette mixed into the paper, hue kept, and no separate night palette exists.
+
 ## Hand rule
 How dense line work is drawn on paper: a run of dense lines is never fully drawn — some are omitted outright, and a kept line runs over only part of its span, the fill carrying the texture instead. Picked by the golden-angle sine, deterministic, no stream draw. Object edges (hems, bars, rails, the roman's rod) are not dense line work and draw full.
 
@@ -64,7 +70,7 @@ Whether a window is closed, half-open, or open. Only operable archetypes roll it
 A stroke's hard switch that disables the frame stream entirely (reference: `ruhig`) — for marks that must never move, such as hatching.
 
 ## Mark
-One emitted drawing instruction: a discriminated union — a stroke (trace name, width), a fill, or a dot (radius) — each carrying its 3D points, a dress role (`ink` draws solid; `glass` is the pane wash; `paper` occludes in the background colour; the cloth roles `fabric`, `shade`, and `blind` dress curtain fills by construction), and a numeric depth sort key. Colour and strength both live in the role, resolved by styling. Geometry emits marks; motion places them; style dresses them; the pen draws them.
+One emitted drawing instruction: a discriminated union — a stroke (trace name, width), a fill, or a dot (radius) — each carrying its 3D points, a dress role (`ink` draws solid; `glass` is the pane wash; `paper` occludes in the background colour; the painted roles `mullion`, `awning`, `shutter`, and `box` occlude in their own paint; the cloth roles `fabric`, `shade`, and `blind` dress curtain fills by construction), and a numeric depth sort key. Colour and strength both live in the role, resolved by styling from the window's colourway. Geometry emits marks; motion places them; style dresses them; the pen draws them.
 
 ## Depth
 The z coordinate of a point, in unit measure; 0 is the wall plane, larger stands nearer the viewer. The draw stage stable-sorts marks by their depth key and projects each point through weak perspective before the pen sees it.

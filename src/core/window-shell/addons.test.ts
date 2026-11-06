@@ -53,14 +53,14 @@ describe('masses', () => {
     for (const kind of ['slope', 'canopy'] as const) {
       const fill = drawAwning(plan({ awning: kind })).find((m) => m.kind === 'fill');
       expect(fill).toBeDefined();
-      expect(fill!.role).toBe('paper');
+      expect(fill!.role).toBe('awning');
     }
   });
 
   it('fills the box front with the occluding role and overlaps the sill face', () => {
     const fill = drawWindowBox(plan({ box: 'box' })).find((m) => m.kind === 'fill');
     expect(fill).toBeDefined();
-    expect(fill!.role).toBe('paper');
+    expect(fill!.role).toBe('box');
     // The sill's front edge (y 0.62 flat) falls inside the box's span, so the
     // planter reads as standing in front of the sill.
     const ys = fill!.pts.map((p) => p.y);
@@ -72,9 +72,8 @@ describe('masses', () => {
     const marks = drawWindowBox(plan({ box: 'pair' }));
     const fills = marks.filter((m) => m.kind === 'fill');
     expect(fills.length).toBe(2);
-    expect(fills.every((f) => f.role === 'paper')).toBe(true);
+    expect(fills.every((f) => f.role === 'box')).toBe(true);
     const xs = marks.flatMap((m) => m.pts.map((p) => p.x));
-    // Both planters stay inside the single box's wall footprint.
     expect(Math.max(...xs.map(Math.abs))).toBeLessThanOrEqual(0.79);
     const names = marks.filter((m) => m.kind !== 'fill').map((m) => m.name);
     expect(new Set(names).size).toBe(names.length);
@@ -85,8 +84,7 @@ describe('masses', () => {
       const marks = drawShutters(plan({ shutters: kind }));
       const fill = marks.find((m) => m.kind === 'fill');
       expect(fill).toBeDefined();
-      expect(fill!.role).toBe('paper');
-      // Swung outward: every point beside the opening, none over it.
+      expect(fill!.role).toBe('shutter');
       const { left, right } = innerRect(BASE.faceWidth);
       for (const mark of marks) {
         for (const p of mark.pts) {

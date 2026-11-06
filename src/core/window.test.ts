@@ -1,16 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { type StrokeOptions, type Tuning, Pen } from '@/pen/pen';
 import { DEFAULT_TUNING } from '@/pen/tuning';
-import { makePalette } from '@/styling/roles';
-import { execute } from './scene/execute';
+import { windowPalette } from '@/styling/colourway';
+import { execute, type FillMark, type StrokeMark } from './scene';
 import { makeProjection } from '@/motion/projection';
-import type { FillMark, StrokeMark } from './scene/mark';
-import type { CasementPlan, ShellPlan, SlidingPlan } from './window-shell/archetypes';
+import type { CasementPlan, ShellPlan, SlidingPlan } from './window-shell';
 import { drawCasement } from './window-shell/drawCasement';
 import { drawSliding } from './window-shell/drawSliding';
-import { BOX, SHELL_Z, expandShell, innerRect } from './window-shell/shell';
-import { drawWindow, windowMarks } from './entry';
-import { expandCurtain } from './curtain/curtain';
+import { BOX, SHELL_Z, expandShell, innerRect, windowMarks } from './window-shell';
+import { drawWindow } from './window';
+import { expandCurtain } from './curtain';
 import { CENTRE_EYE } from '@/motion/projection';
 
 class RecordingPen extends Pen {
@@ -53,8 +52,7 @@ class RecordingPen extends Pen {
 }
 
 const NOOP_CTX = {} as CanvasRenderingContext2D;
-const PALETTE = makePalette({ ink: '#000', paper: '#fff' });
-// The cloth strengths, by role: a fill at one of these alphas is curtain.
+const PALETTE = windowPalette(0, { ink: '#000000', paper: '#ffffff' });
 const CLOTH_ALPHAS = (['fabric', 'shade', 'blind'] as const).map((role) => PALETTE(role).alpha);
 const isCloth = (alpha: number) => CLOTH_ALPHAS.some((a) => Math.abs(alpha - a) < 1e-9);
 
@@ -84,7 +82,6 @@ describe('drawWindow', () => {
     }
   });
 
-  // Every pane draws its own four border lines; no window carries a handle.
   it('borders its panes and never draws a handle', () => {
     for (let i = 0; i < 300; i++) {
       const seed = 15000 + i * 104729;
@@ -132,9 +129,9 @@ describe('drawWindow', () => {
       const seed = 27000 + i * 104729;
       const pen = new RecordingPen(seed);
       drawWindow(NOOP_CTX, pen, PALETTE, CENTRE_EYE);
-      // The cloth washes louder than the glass, so the band under the
-      // quietest cloth strength isolates panes.
-      const washes = pen.fills.filter((f) => f.alpha < Math.min(...CLOTH_ALPHAS));
+      // Panes are the only fills drawn at exactly the glass wash — the cloth
+      // fills land strictly between the glass and cloth strengths.
+      const washes = pen.fills.filter((f) => f.alpha === PALETTE('glass').alpha);
       expect(washes.length).toBeGreaterThanOrEqual(1);
       for (const wash of washes) {
         const xs = wash.pts.map((p) => p.x);
@@ -165,8 +162,6 @@ describe('the swung casement leaf', () => {
     const wash = marks.find((m): m is FillMark => m.kind === 'fill' && m.z === SHELL_Z.open);
     expect(free).toBeDefined();
     expect(wash).toBeDefined();
-    // The hinge edge lies on the wall plane; the free edge stands out of the
-    // wall by the swing — its drawn span times the swing's tangent.
     const hingeX = wash!.pts[0].x;
     const freeX = free!.pts[0].x;
     const expectedDepth = Math.abs(freeX - hingeX) * Math.tan(0.9);
@@ -175,18 +170,14 @@ describe('the swung casement leaf', () => {
       else expect(p.z).toBeCloseTo(expectedDepth, 12);
     }
     expect(free!.pts[0].z).toBeCloseTo(expectedDepth, 12);
-    // The rails connect the free edge back to the hinge, riding the same
-    // depth gradient.
     for (const rail of ['leaf-0-top', 'leaf-0-bottom']) {
       const stroke = marks.find((m): m is StrokeMark => m.kind === 'stroke' && m.name === rail);
       expect(stroke).toBeDefined();
       expect(stroke!.pts[0]).toEqual({ x: hingeX, y: stroke!.pts[0].y, z: 0 });
       expect(stroke!.pts[1].z).toBeCloseTo(expectedDepth, 12);
     }
-    // The free edge pulled in from the opening's far side, still inside it.
     expect(freeX).toBeGreaterThan(-0.73);
     expect(freeX).toBeLessThan(0);
-    // The leaf keeps its full height.
     expect(wash!.pts.some((p) => p.y < -0.4)).toBe(true);
     expect(wash!.pts.some((p) => p.y > 0.4)).toBe(true);
   });
@@ -219,9 +210,6 @@ describe('the sliding panels', () => {
     box: 'none',
   };
 
-  // Every panel — sliding or fixed — stays inside the opening at every open
-  // state, and an opened panel keeps at least the visible strip wide: the
-  // panels never run into the wall and never close up into one.
   it('stays inside the frame and visibly clear at every open state', () => {
     const { left, right } = innerRect(base.faceWidth);
     for (const layout of ['two', 'three', 'transom'] as const) {
@@ -252,7 +240,6 @@ describe('the sliding panels', () => {
     );
     expect(face.length).toBe(4);
     for (const strip of face) expect(strip.z).toBe(SHELL_Z.frame);
-    // No strip reaches into the opening; every box corner sits on one.
     const { left, top, right, bottom } = innerRect(plan.faceWidth);
     for (const strip of face) {
       for (const p of strip.pts) {

@@ -2,14 +2,13 @@
 // lives beside the wall it drives — a pannable surface binds it once and
 // the wall at rest (the strip) simply never does. Writes go through the
 // wall's camera, velocity, and drag hold; the glide reads the same state.
-import type { Wall } from './wall';
+import type { Wall } from './index';
 
 const CLICK_THRESHOLD_PX = 5;
 
 export function dragWall(wall: Wall, canvas: HTMLCanvasElement, unitPx: () => number): () => void {
   let dragApplied = false;
   let dragDistance = 0;
-  // Read only under an active gesture; armed on pointerdown.
   let dragStart = { x: 0, y: 0 };
   let activePointer: number | null = null;
   let lastPointer: { x: number; y: number } | null = null;

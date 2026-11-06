@@ -4,7 +4,8 @@
 //
 // Roll order in the shell stream (append new rolls at the end, never between):
 // archetype → pane layout → open state → slide side (when a slider rolls)
-// → measured. The catalogue itself is freely editable between versions; the
+// → measured → the mounted masses (shutters, sill, awning, box). The
+// catalogue itself is freely editable between versions; the
 // only invariant is that a seed's roll sequence stays a pure function of the
 // seed, never of pan position or render order.
 //
@@ -27,7 +28,6 @@ export type AwningId = 'none' | 'slope' | 'canopy';
 export type ShuttersId = 'none' | 'louvered' | 'paneled';
 export type BoxId = 'none' | 'box' | 'pair';
 
-// The measured rolls and the mounted masses, shared by every archetype.
 interface ShellMasses {
   thicknessJitter: number;
   faceWidth: number;
@@ -41,7 +41,6 @@ export interface SlidingPlan extends ShellMasses {
   archetype: 'sliding';
   layout: SlidingLayout;
   open: OpenState;
-  // Which side's panel rides the back track and slides.
   slideSide: Side;
 }
 
@@ -61,8 +60,7 @@ export type ShellPlan = SlidingPlan | CasementPlan | PicturePlan;
 interface Archetype<L extends LayoutId> {
   weight: number;
   layouts: readonly { value: L; weight: number }[];
-  // Frame face thickness in unit measure (outer box 1.6 × 1.0).
-  frameThickness: number;
+  frameThicknessUnits: number;
 }
 
 export const OPEN_STATES: readonly { value: OpenState; weight: number }[] = [
@@ -116,7 +114,7 @@ export const ARCHETYPES: {
       { value: 'three', weight: 2 },
       { value: 'transom', weight: 2 },
     ],
-    frameThickness: WEIGHTS.major,
+    frameThicknessUnits: WEIGHTS.structural,
   },
   casement: {
     weight: 3,
@@ -124,11 +122,11 @@ export const ARCHETYPES: {
       { value: 'pair', weight: 4 },
       { value: 'one-two', weight: 2 },
     ],
-    frameThickness: WEIGHTS.major,
+    frameThicknessUnits: WEIGHTS.structural,
   },
   picture: {
     weight: 2,
     layouts: [{ value: 'single', weight: 1 }],
-    frameThickness: WEIGHTS.major,
+    frameThicknessUnits: WEIGHTS.structural,
   },
 };

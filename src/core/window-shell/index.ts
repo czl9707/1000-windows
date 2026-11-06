@@ -1,19 +1,21 @@
-import type { Pen } from '@/pen/pen';
-import type { Palette } from '@/styling/roles';
-import { execute } from './scene/execute';
-import type { Mark } from './scene/mark';
-import { expandCurtain } from './curtain/curtain';
-import { curtainMarks } from './curtain/drawCurtain';
-import { ARCHETYPES, type ShellPlan } from './window-shell/archetypes';
-import { drawAwning } from './window-shell/drawAwning';
-import { drawCasement } from './window-shell/drawCasement';
-import { drawPicture } from './window-shell/drawPicture';
-import { drawSliding } from './window-shell/drawSliding';
-import { drawShutters } from './window-shell/drawShutters';
-import { drawSill } from './window-shell/drawSill';
-import { drawWindowBox } from './window-shell/drawWindowBox';
-import { BOX, SHELL_Z, expandShell, innerRect, line, rectPts } from './window-shell/shell';
-import { makeProjection, type Eye, type Pt3 } from '@/motion/projection';
+// The window shell's entry: a ShellPlan becomes the marks of one bare
+// window — backing, frame, the archetype's sashes, sill, add-ons. The
+// module's public surface rides here; consumers reach the shell only
+// through this file.
+import type { Mark } from '@/core/scene';
+import type { Pt3 } from '@/motion/projection';
+import { ARCHETYPES, type ShellPlan } from './archetypes';
+import { BOX, SHELL_Z, innerRect, line, rectPts } from './shell';
+import { drawSliding } from './drawSliding';
+import { drawCasement } from './drawCasement';
+import { drawPicture } from './drawPicture';
+import { drawSill } from './drawSill';
+import { drawAwning } from './drawAwning';
+import { drawShutters } from './drawShutters';
+import { drawWindowBox } from './drawWindowBox';
+
+export { expandShell, innerRect, line, rectPts, BOX, SHELL_Z, type PaneRect } from './shell';
+export type { ShellPlan, SlidingPlan, CasementPlan, PicturePlan } from './archetypes';
 
 // Four separate strokes running past the sharp corners, like the reference's
 // sheet edges — a rectangle that closes exactly reads as drawn by a program.
@@ -30,11 +32,11 @@ function rectStrokes(x0: number, y0: number, x1: number, y1: number, trace: stri
     [line(x1 + runPast, y1, x0 - runPast, y1), `${trace}-bottom`],
     [line(x0, y1 + runPast, x0, y0 - runPast), `${trace}-left`],
   ];
-  return edges.map(([pts, name]) => ({ kind: 'stroke', pts, name, width, role: 'ink', z: zKey }));
+  return edges.map(([pts, name]) => ({ kind: 'stroke', pts, name, widthUnits: width, role: 'ink', z: zKey }));
 }
 
 function frameMarks(plan: ShellPlan): Mark[] {
-  const t = ARCHETYPES[plan.archetype].frameThickness * plan.thicknessJitter;
+  const t = ARCHETYPES[plan.archetype].frameThicknessUnits * plan.thicknessJitter;
   const r = innerRect(plan.faceWidth);
   // The frame's face in four flat strips: head and sill run the box's full
   // width, the jambs fill between them — no fill-rule subtlety, the opening
@@ -86,23 +88,4 @@ export function windowMarks(plan: ShellPlan): Mark[] {
     ...drawShutters(plan),
     ...drawWindowBox(plan),
   ];
-}
-
-// One seed drives both the shell plan and the tremor — the pen is its only
-// home. The tenant hangs behind the glass: the curtain rolls on the DNA
-// stream, its marks sorting under the pane wash, and a bare tenant adds
-// nothing. The seed and the plan are one window's — the plan must come from
-// expandShell(seed) (or a pinned variant of the same window), never another
-// window's shell.
-export function windowSceneMarks(seed: number, plan: ShellPlan): Mark[] {
-  return [...windowMarks(plan), ...curtainMarks(expandCurtain(seed), innerRect(plan.faceWidth))];
-}
-
-export function drawWindow(
-  ctx: CanvasRenderingContext2D,
-  pen: Pen,
-  palette: Palette,
-  eye: Eye,
-): void {
-  execute(windowSceneMarks(pen.seed, expandShell(pen.seed)), pen, ctx, palette, makeProjection(eye));
 }

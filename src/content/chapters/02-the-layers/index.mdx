@@ -50,15 +50,15 @@ and the mark's own `z` is only a *sort key*, set by the drawer, with
 ties keeping emission order. The append-only draw order that the
 [Randomness](/docs/randomness) chapter promises survives the sort.
 
-The depths themselves are plain numbers, spaced so later layers can
-interleave — the shell uses glass `0`, frame `10`, sill `20`, open `30`,
-add-on `40`.
+The depths themselves are plain numbers, spaced widely enough that
+anything later can interleave a layer between the shell's.
 
 ## Motion: weak perspective
 
 Projection is the base of the motion layer: every point passes through
-`s = F/(F − z)` with focal length `F = 30`, and stroke widths scale by
-the mark's mean `s`. It is the reference's `raum` chapter ported whole.
+`s = F/(F − z)`, the focal length living inside the motion module, and
+stroke widths scale by the mark's mean `s`. It is the reference's `raum`
+chapter ported whole.
 Near things grow; the shapes that reach out of the wall plane — the
 awning, the swung casement leaf, the shutters — carry real depth on
 their points and pick up an honest foreshortening.
@@ -72,8 +72,8 @@ costs; nothing upstream changes.
 
 A mark carries no colour and no strength — it carries a *role*, and the
 role is the whole dress. `ink` draws solid, the lines and the dots; `glass`
-is the pane wash, at the strength styling settles it at (0.05 —
-visible, never louder than the lines); `paper` occludes, painted opaque in
+is the pane wash, at the strength styling settles it at — visible, never
+louder than the lines; `paper` occludes, painted opaque in
 the ground colour so an awning or a window box hides the wall behind it.
 `src/styling/` owns what each role means — colour and strength together,
 resolved by one function built fresh each frame from the theme's two

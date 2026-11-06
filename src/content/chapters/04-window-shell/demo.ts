@@ -4,22 +4,22 @@
 // vocabulary instead of describing it.
 import { centreUnit, createDemoLoop, cssBox } from '@/components/demoLoop';
 import { Pen } from '@/pen/pen';
-import { registerDemo, type TuningHandle } from '@/components/mount';
+import { registerDemo, plateCols, type TuningHandle } from '@/components/mount';
 import { DEFAULT_TUNING } from '@/pen/tuning';
-import { makePalette, type ThemeColors } from '@/styling/roles';
+import { type ThemeColors } from '@/styling/roles';
+import { windowPalette } from '@/styling/colourway';
 import { windowSeed } from '@/core/randomness/rng';
-import { drawWindow, windowMarks } from '@/core/entry';
-import { execute } from '@/core/scene/execute';
+import { drawWindow } from '@/core/window';
+import { execute } from '@/core/scene';
 import { CENTRE_EYE, makeProjection } from '@/motion/projection';
-import type { CasementPlan, PicturePlan, ShellPlan, SlidingPlan } from '@/core/window-shell/archetypes';
+import { windowMarks, type CasementPlan, type PicturePlan, type ShellPlan, type SlidingPlan } from '@/core/window-shell';
 
 const COLS = 3;
 const ROWS = 2;
-// Unit-measure pitch between columns and rows: window box, sill, and air.
-const PITCH_X = 2.3;
-const PITCH_Y = 1.9;
+const UNIT_PITCH_X = 2.3;
+const UNIT_PITCH_Y = 1.9;
 // The catalogue plates carry sills and add-ons, so they breathe a little more.
-const PLATE_PITCH_Y = 2.25;
+const UNIT_PLATE_PITCH_Y = 2.25;
 const DEFAULT_SEED = 1335613256;
 
 const SLOTS = Array.from({ length: COLS * ROWS }, (_, i) => ({
@@ -31,7 +31,7 @@ function mountShellStrip(canvas: HTMLCanvasElement): TuningHandle {
   let baseSeed = DEFAULT_SEED;
   // One pen per window, kept across frames: the pen caches each trace's warp
   // field, and rebuilding them per frame throws the cache away. Colours ride
-  // with the frame's palette, so a theme switch never rebuilds a pen.
+  // with the window's own palette, so a theme switch never rebuilds a pen.
   let pens: { seed: number; pen: Pen }[] = [];
 
   const rebuild = () => {
@@ -45,17 +45,16 @@ function mountShellStrip(canvas: HTMLCanvasElement): TuningHandle {
   const loop = createDemoLoop(
     canvas,
     (ctx, time, colors: ThemeColors) => {
-      const palette = makePalette(colors);
       const box = cssBox(canvas);
-      centreUnit(ctx, box, COLS * PITCH_X, ROWS * PITCH_Y, -0.1);
+      centreUnit(ctx, box, COLS * UNIT_PITCH_X, ROWS * UNIT_PITCH_Y, -0.1);
       pens.forEach(({ seed, pen }, i) => {
         pen.setTime(time);
         ctx.save();
         ctx.translate(
-          (SLOTS[i].col - (COLS - 1) / 2) * PITCH_X,
-          (SLOTS[i].row - (ROWS - 1) / 2) * PITCH_Y,
+          (SLOTS[i].col - (COLS - 1) / 2) * UNIT_PITCH_X,
+          (SLOTS[i].row - (ROWS - 1) / 2) * UNIT_PITCH_Y,
         );
-        drawWindow(ctx, pen, palette, CENTRE_EYE);
+        drawWindow(ctx, pen, windowPalette(pen.seed, colors), CENTRE_EYE);
         ctx.restore();
       });
     },
@@ -112,7 +111,8 @@ function pinnedPicture(): PicturePlan {
   return { archetype: 'picture', layout: 'single', ...MEASURED };
 }
 
-function mountPlates(canvas: HTMLCanvasElement, plans: ShellPlan[], cols: number): TuningHandle {
+function mountPlates(canvas: HTMLCanvasElement, plans: ShellPlan[]): TuningHandle {
+  const cols = plateCols(plans.length);
   let baseSeed = DEFAULT_SEED;
   let plates: { plan: ShellPlan; pen: Pen }[] = [];
 
@@ -128,17 +128,16 @@ function mountPlates(canvas: HTMLCanvasElement, plans: ShellPlan[], cols: number
   const loop = createDemoLoop(
     canvas,
     (ctx, time, colors: ThemeColors) => {
-      const palette = makePalette(colors);
       const box = cssBox(canvas);
-      centreUnit(ctx, box, cols * PITCH_X, rows * PLATE_PITCH_Y);
+      centreUnit(ctx, box, cols * UNIT_PITCH_X, rows * UNIT_PLATE_PITCH_Y);
       plates.forEach(({ plan, pen }, i) => {
         pen.setTime(time);
         ctx.save();
         ctx.translate(
-          ((i % cols) - (cols - 1) / 2) * PITCH_X,
-          (Math.floor(i / cols) - (rows - 1) / 2) * PLATE_PITCH_Y,
+          ((i % cols) - (cols - 1) / 2) * UNIT_PITCH_X,
+          (Math.floor(i / cols) - (rows - 1) / 2) * UNIT_PLATE_PITCH_Y,
         );
-        execute(windowMarks(plan), pen, ctx, palette, makeProjection(CENTRE_EYE));
+        execute(windowMarks(plan), pen, ctx, windowPalette(pen.seed, colors), makeProjection(CENTRE_EYE));
         ctx.restore();
       });
     },
@@ -175,7 +174,7 @@ const ARCHETYPES: ShellPlan[] = [
   pinnedCasement({ layout: 'one-two' }),
   pinnedPicture(),
 ];
-registerDemo('shell-archetypes', (canvas) => mountPlates(canvas, ARCHETYPES, 3));
+registerDemo('shell-archetypes', (canvas) => mountPlates(canvas, ARCHETYPES));
 
 // Sliders travel behind their fixed neighbours: never past the stile, never
 // into the wall, one moving panel at a time. Casement leaves swing out of
@@ -188,14 +187,14 @@ const OPEN_STATES: ShellPlan[] = [
   pinnedCasement({ open: 'half-open' }),
   pinnedCasement({ open: 'open' }),
 ];
-registerDemo('shell-open', (canvas) => mountPlates(canvas, OPEN_STATES, 3));
+registerDemo('shell-open', (canvas) => mountPlates(canvas, OPEN_STATES));
 
 const SILLS: ShellPlan[] = [
   pinnedSliding({ sill: 'flat' }),
   pinnedSliding({ sill: 'bracketed' }),
   pinnedSliding({ sill: 'flush' }),
 ];
-registerDemo('shell-sills', (canvas) => mountPlates(canvas, SILLS, 3));
+registerDemo('shell-sills', (canvas) => mountPlates(canvas, SILLS));
 
 const ADDONS: ShellPlan[] = [
   pinnedSliding({ awning: 'slope' }),
@@ -205,4 +204,4 @@ const ADDONS: ShellPlan[] = [
   pinnedSliding({ box: 'box' }),
   pinnedSliding({ box: 'pair' }),
 ];
-registerDemo('shell-addons', (canvas) => mountPlates(canvas, ADDONS, 3));
+registerDemo('shell-addons', (canvas) => mountPlates(canvas, ADDONS));

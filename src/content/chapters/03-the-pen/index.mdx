@@ -22,9 +22,9 @@ Where the numbers come from — the hash, the generator, the seeding of a
 window — is the [Randomness](/docs/randomness) chapter. Here we stay with
 the line itself.
 
-All measures are unit measure: the window box is `1.6 × 1.0` units, and the
-caller scales the canvas to size, so a width of `0.032` is about three
-percent of the window height.
+All measures are unit measure: the window box is one ratio, the caller
+scales the canvas to size, and every width is a share of that box — the
+sliders below tune against the same scale.
 
 <DemoCanvas demo="pen-prototype" label="Demo canvas — the pen">
   <DemoReseedButton />
@@ -60,7 +60,8 @@ Three tools:
   in the ground colour, an add-on that must hide the wall behind it (the
   dressing decides; see [the layers](/docs/the-layers)). No warp, no
   ghost, no boil.
-- `pen.setTime(time)` advances the beat: `takt = floor(time * 8 + taktVersatz)`.
+- `pen.setTime(time)` advances the beat: the frame stream re-rolls a few
+  times a second, offset per window so neighbours never boil in lockstep.
   Call it once per frame before any strokes.
 
 A stroke's options, all required beside the last three:
@@ -76,23 +77,18 @@ A stroke's options, all required beside the last three:
 - `ruhig` — hard off-switch for boiling: the stroke hangs on the hand only,
   never the beat.
 
-Stroke widths themselves are not tuning: they are hand-set constants in the
-scene — frame `0.032`, sill `0.036`, and so on — because a frame rail
-and a sill front should not share one knob.
+Stroke widths themselves are not tuning: they are hand-set constants in
+the scene, because a frame rail and a sill front should not share one knob.
 
 ## Tuning
 
-- `amplitude` — base size of the warp, in unit measure. Default `0.008`.
-- `scratchWeight` — share of the fine scratch wave inside the warp.
-  Default `0.35`.
-- `kochHand` — stroke length below which a stroke hangs on the hand only.
-  Default `0.4`.
-- `kochFrame` — length above which a stroke boils fully on the beat.
-  Default `1.2`.
-- `handGain` — strength of the hand stream. Default `0.62`.
-- `frameGain` — strength of the frame stream. Default `0.5`.
-- `spitz` — pressure: how far a stroke runs out toward its middle.
-  Default `0.6`.
+`tuning` is a handful of knobs, and the demo's sliders drive every one
+live: how large the warp is and how much of it is fine scratch, the
+stroke lengths below which a line hangs on the hand only or fully on the
+beat, the strength of the hand stream and of the frame stream, and how
+far the pressure curve runs out toward a stroke's middle. The defaults
+are the hand — set once in the code, and the demo is where they get
+argued with.
 
 ## The warp has a name
 
@@ -102,18 +98,16 @@ stroke's draw, and half the scene jumps to a different drawing for a frame —
 the flickering face. So the deviation hangs off the trace `name`: the same
 name always produces the same tremor, whatever was drawn before it.
 
-From the window's seed and the trace's name a hash makes a seed, and from
-that seed one field of `52`
-support values: `12` for a coarse meander, `40` for a fine scratch weighted
-at `scratchWeight`. Both are interpolated cubically along the stroke. The
-meander alone is rubber hose, the scratch alone a short circuit. The field
-is cached on the pen — the same trace recurs every frame, and a window has
-only a few dozen traces.
+From the window's seed and the trace's name a hash makes a seed, and
+from that seed one field of support values: a coarse meander and a fine
+scratch, mixed in the `scratchWeight` share. Both are interpolated
+cubically along the stroke. The meander alone is rubber hose, the
+scratch alone a short circuit. The field is cached on the pen — the same
+trace recurs every frame, and a window has only a few dozen traces.
 
-The hand stream reads the field directly; the frame stream reads the same
-field shifted by the beat, so it re-rolls eight times a second while
-nothing else moves. The two mix as `handGain` against
-`mix * frameGain`, where `mix` comes from the stroke's length:
+The hand stream reads the field directly; the frame stream reads the
+same field shifted by the beat, so it re-rolls a few times a second
+while nothing else moves. The two mix by the stroke's length:
 
 - below `kochHand` — hand only: sill details, inner splitters.
 - `kochHand` to `kochFrame` — mixed, sliding with length: mullions.
@@ -130,14 +124,14 @@ No `ctx.stroke()`. A stroke is a ribbon: the centre line plus half a width
 to each side as one filled polygon. The reason is the width itself — it is
 supposed to change within a stroke, which a canvas line cannot do.
 
-Under every stroke lies the same stroke once more: half as wide, at `32%`
-opacity, with its own warp (trace `name~`, amplitude `1.7× + 0.004`).
-That is where the pencil lives — beside the ink line, not on it.
+Under every stroke lies the same stroke once more: half as wide, pale,
+with its own warp under a shifted trace name. That is where the pencil
+lives — beside the ink line, not on it.
 
-Closed strokes run `3.5%` past their start. The place where the hand set
-down stays visible; a rectangle that closes exactly reads as drawn by a
-program. The window's frame goes further and draws its four edges as four
-separate strokes that run past the corners.
+Closed strokes run a little past their start. The place where the hand
+set down stays visible; a rectangle that closes exactly reads as drawn by
+a program. The window's frame goes further and draws its four edges as
+four separate strokes that run past the corners.
 
 ### Pressure
 
@@ -153,7 +147,7 @@ reference, recorded beside the curve in the code.
 Before a ribbon comes about, the point sequence becomes an evenly sampled
 path: near-duplicate points dropped, then a centripetal Catmull-Rom spline
 (provably free of cusps and self-intersections), then resampling by arc
-length at a step of `0.012`. The end point always belongs: if the last
+length at a fixed step. The end point always belongs: if the last
 sample lies further than half a step from it, the end point is appended;
 otherwise it replaces the last sample. Without this, short strokes tremble
 by one whole step from frame to frame.
@@ -170,6 +164,6 @@ details decide:
   without them, two dots share the same bulge in the same place: twins.
 - The ring is computed open, with a gap at the end — that gap is the
   set-down mark.
-- The warp is capped at `0.15 r`, at most `0.007` — beyond that the dot
+- The warp is capped well short of the radius — beyond that the dot
   becomes an amoeba.
 - No beat — a dot that trembles at every frame is a flicker, not a dot.

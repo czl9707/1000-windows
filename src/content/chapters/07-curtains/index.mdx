@@ -20,9 +20,10 @@ before light, a window that has cloth is a window someone dressed.
 ## The coverage levels
 
 The stream's first roll decides both whether a window is dressed and how
-much cloth it carries, in one pick: **coverage levels** — `0` weight 4,
-`0.3` weight 4, `0.6` weight 1, `1` weight 1. The zero level is the bare
-window — roughly two in five stand bare, and the glass shows through.
+much cloth it carries, in one pick: **coverage levels** — bare at the
+bottom, then three depths of cloth, with bare the most common pick. The
+bare window is the point: roughly two windows in five stand bare, and
+the glass shows through.
 The level is a desired value, not a share; the kind's zone takes it from
 there. When the roll lands on zero the stream ends: a bare window rolls
 no kind, no jitter, and its tenant DNA simply starts further down —
@@ -32,8 +33,8 @@ grows.
 ## The kinds
 
 Covered, the roll picks one of four home coverings, weighted toward what
-a real street shows: `panels` 4, `drapes` 3, `venetian` 2,
-`roman` 2. The catalogue is flat — one roll, one named kind, one
+a real street shows: `panels`, `drapes`, `venetian`, `roman`. The
+catalogue is flat — one roll, one named kind, one
 construction — because independent axes multiply into combinations nobody
 designed (see [the window shell](/docs/window-shell)). Café tiers,
 vertical blinds, sheers, tie-backs, valances: all plausible, all absent.
@@ -46,22 +47,22 @@ trim over any kind — and not one existing tenant re-randomizes.
 **Panels** hang at the sides, one mass per jamb. The coverage measures
 the inward reach of each panel as a share of half the opening's width,
 so panels always read as dressing, never as covering — their zone
-ceiling is 0.4. **Drapes** are one mass hung from a rolled jamb, its
-span the coverage's share of the opening's width, ceiling 0.95.
-**Venetian** and **roman** hang from the head, and their coverage
-measures down as a share of the opening's height — the venetian as
-opaque slat rows over transparent gaps (ceiling 0.85), the roman as a
-shade whose folds bunch above its bottom bar (0.9).
+ceiling sits at dressing. **Drapes** are one mass hung from a rolled
+jamb, its span the coverage's share of the opening's width, riding
+almost the whole opening. **Venetian** and **roman** hang from the
+head, and their coverage measures down as a share of the opening's
+height — the venetian as opaque slat rows over transparent gaps, the
+roman as a shade whose folds bunch above its bottom bar.
 
 ## Coverage: the zone is the ceiling, not the measure
 
 The rolled level is the desired coverage; the kind's zone is the ceiling
 it is clamped to after the draw. The drapes ride the levels nearly
-verbatim — 0.3, 0.6, and a full 1 pulled down to their 0.95 — while the
-panels pull 0.6 and 1 both onto their dressing ceiling of 0.4: those two
-windows draw the same cloth apart from the jitter, because a panel is
-dressing, never covering. The gene never pushes a kind out of its
-silhouette.
+verbatim, the deepest pulled down just short of the whole opening,
+while the panels pull every deep level onto their dressing ceiling:
+those two windows draw the same cloth apart from the jitter, because a
+panel is dressing, never covering. The gene never pushes a kind out of
+its silhouette.
 
 <DemoCanvas demo="curtain-coverage" label="Demo canvas — the drapes riding the levels, the panels clamped to their ceiling" />
 
@@ -73,9 +74,9 @@ wash follows. The cloth resolves in the ink colour at a whisper: a wash
 a shade darker than the paper it covers, so the cloth reads against the
 wall at any distance yet stays quieter than the lines. The hanging cloth
 (panels, drapes) reads as `fabric` and the roman's flat cloth as
-`shade`, tuned together at 0.08; the venetian's slat rows read as
-`blind` at 0.12 — they are the opaque faces, and what shows between them
-is the glass. Every cloth is a base wash, and the fold bands are the
+`shade`, tuned together; the venetian's slat rows read as
+`blind`, a touch stronger — they are the opaque faces, and what shows
+between them is the glass. Every cloth is a base wash, and the fold bands are the
 same wash drawn again over it, an irregular number of passes per
 band — dark, bare, mid — so the drape darkens where the cloth turns and
 mottles between folds without a texture pass. Band boundaries wobble
@@ -114,16 +115,17 @@ keeps its own fork, so frame vocabulary and tenant vocabulary grow
 without re-randomizing each other (the curtain is the tenant's first
 layer; the insider genes will append behind it). The order is fixed:
 coverage level, then kind, then the measured rolls (rod
-jitter ±0.02, width jitter, drape side, blind slat share) — and new rolls
+jitter, width jitter, drape side, blind slat share) — and new rolls
 append at the end, never between. A bare window consumes only the
 coverage roll:
 its stream ends there, and everything appended later lands after it for
 every tenant alike. The blind slat share rolls for every dressed
-window, mostly light (0 to 0.35, a rare blind reaching 0.8), and
-only the venetian reads it: each slat row draws opaque down its rolled
-share of the row and transparent below, hard to both jambs, no padding —
-the lighter the roll, the more glass shows through the gaps — and the 0
-roll is the closed blind, its rows joined into one opaque face.
+window, mostly light, a rare blind nearly closed,
+and only the venetian reads it: each slat row draws opaque down its
+rolled share of the row and transparent below, hard to both jambs, no
+padding — the lighter the roll, the more glass shows through the gaps —
+and the lightest roll is the closed blind, its rows joined into one
+opaque face.
 
 ```ts
 export function expandCurtain(seed: number): CurtainPlan {

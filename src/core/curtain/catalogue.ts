@@ -39,15 +39,12 @@ export const ZONE_CEILING: Record<CurtainKind, number> = {
   roman: 0.9,
 };
 
-// The rod sits a hair off the opening's head, jittered per window.
 export const ROD_JITTER = { min: -0.02, max: 0.02 } as const;
-// The rod hangs this far inside the opening's head.
 export const ROD_CLEARANCE = 0.03;
 // The cloth widths (the panels' inward reach) jitter around their rolled
 // share, so two windows of the same kind and coverage never match cloth for
 // cloth.
 export const WIDTH_JITTER = { min: 0.9, max: 1.1 } as const;
-// Which jamb the drapes mass hangs from.
 export const DRAPE_SIDES: readonly { value: 'left' | 'right'; weight: number }[] = [
   { value: 'left', weight: 1 },
   { value: 'right', weight: 1 },

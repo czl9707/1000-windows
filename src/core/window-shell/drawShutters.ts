@@ -7,7 +7,7 @@
 // the wall at the swing's depth. The panel fills opaque: swung out, it hides
 // the wall behind it.
 import type { ShellPlan } from './archetypes';
-import type { Mark } from '@/core/scene/mark';
+import type { Mark } from '@/core/scene';
 import { WEIGHTS } from '@/styling/weights';
 import { SHELL_Z, innerRect, paneEdges, rectPts, swingDepthAt, type PaneRect } from './shell';
 
@@ -17,11 +17,8 @@ const SWING = 1.05;
 const SLATS = 6;
 const INSET = 0.045;
 
-// The louver slats are pulled this far in from the panel edges.
 const SLAT_MARGIN = 0.02;
 
-// One panel's span: the swung wall span (hinge to drawn outer edge) and the
-// depth field off the hinge.
 interface Span {
   x0: number;
   x1: number;
@@ -40,12 +37,11 @@ function panelMarks(side: 'l' | 'r', span: Span, top: number, bottom: number): M
   const { x0, x1, zAt } = span;
   const rect: PaneRect = { top, bottom, left: x0, right: x1 };
   return [
-    { kind: 'fill', pts: rectPts(x0, top, x1, bottom, zAt), role: 'paper', z: SHELL_Z.shutter },
-    ...paneEdges(rect, `shutter-${side}`, SHELL_Z.shutter, WEIGHTS.major, { depthAt: zAt }),
+    { kind: 'fill', pts: rectPts(x0, top, x1, bottom, zAt), role: 'shutter', z: SHELL_Z.shutter },
+    ...paneEdges(rect, `shutter-${side}`, SHELL_Z.shutter, WEIGHTS.structural, { depthAt: zAt }),
   ];
 }
 
-// Both shutters as spans beside the opening.
 function shutterSides(face: number): { side: 'l' | 'r'; span: Span }[] {
   const { left, right } = innerRect(face);
   // True panel width: half the opening, so shut panels would meet over the
@@ -73,7 +69,7 @@ function louvered(face: number): Mark[] {
           { x: x1 - SLAT_MARGIN, y, z: zAt(x1 - SLAT_MARGIN) },
         ],
         name: `shutter-${side}-slat-${i}`,
-        width: WEIGHTS.frame,
+        widthUnits: WEIGHTS.hairline,
         role: 'ink',
         z: SHELL_Z.shutter,
       });
@@ -94,7 +90,7 @@ function paneled(face: number): Mark[] {
       left: x0 + INSET,
       right: x1 - INSET,
     };
-    marks.push(...paneEdges(inset, `shutter-${side}-panel`, SHELL_Z.shutter, WEIGHTS.frame, { depthAt: zAt }));
+    marks.push(...paneEdges(inset, `shutter-${side}-panel`, SHELL_Z.shutter, WEIGHTS.hairline, { depthAt: zAt }));
   }
   return marks;
 }

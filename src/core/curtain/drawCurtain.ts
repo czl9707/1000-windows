@@ -9,15 +9,13 @@
 // bare ids unique within a window — the pen warps each stroke off its name.
 // Every curtain line draws at the texture weight, the lightest in the
 // catalogue: the cloth's hand reads quieter than the frame's own lines.
-import type { Mark } from '@/core/scene/mark';
+import type { Mark } from '@/core/scene';
 import { WEIGHTS } from '@/styling/weights';
 import type { ColorRole } from '@/styling/roles';
-import type { PaneRect } from '@/core/window-shell/shell';
-import { line, rectPts } from '@/core/window-shell/shell';
+import { line, rectPts, type PaneRect } from '@/core/window-shell';
 import { CURTAIN_DEPTH, CURTAIN_Z, ROD_CLEARANCE } from './catalogue';
 import type { CoveredCurtain, CurtainPlan } from './curtain';
 
-// The cloth stops a hair above the opening's sill.
 export const HEM_CLEARANCE = 0.04;
 // Fold bands: count per kind, and how far a boundary may wobble off its
 // even share, as a share of the band width — the golden-angle sine keeps
@@ -25,11 +23,7 @@ export const HEM_CLEARANCE = 0.04;
 export const FOLD_BANDS = { panels: 3, drapes: 5, roman: 3 } as const;
 const BAND_WOBBLE = 0.08;
 const GOLDEN_ANGLE = 2.399;
-// The venetian's coarsest slat pitch, in unit measure; the slats distribute
-// evenly through the covered band, so the drawn pitch never exceeds this.
 const SLAT_MIN_PITCH = 0.045;
-// The roman's fold bands bunch above its bottom bar, each this share of the
-// covered drop.
 const ROMAN_BAND_SHARE = 0.18;
 
 // The hand rule: a run of dense lines on paper is never fully drawn — some
@@ -56,7 +50,7 @@ function clothFill(role: ColorRole, x0: number, y0: number, x1: number, y1: numb
 }
 
 function inkLine(name: string, x0: number, y0: number, x1: number, y1: number): Mark {
-  return { kind: 'stroke', pts: line(x0, y0, x1, y1, atDepth), name, width: WEIGHTS.texture, role: 'ink', z: CURTAIN_Z };
+  return { kind: 'stroke', pts: line(x0, y0, x1, y1, atDepth), name, widthUnits: WEIGHTS.texture, role: 'ink', z: CURTAIN_Z };
 }
 
 function handLine(name: string, i: number, x0: number, y0: number, x1: number, y1: number): Mark[] {
@@ -67,28 +61,18 @@ function handLine(name: string, i: number, x0: number, y0: number, x1: number, y
   ];
 }
 
-// Where the top-hung kinds (venetian, roman) hang from: the rail's line
-// inside the opening's head. The hanging cloth (panels, drapes) has no rod
-// line to hang from — it runs all the way to the head.
 function hangTop(plan: CoveredCurtain, o: PaneRect): number {
   return o.top + ROD_CLEARANCE + plan.rodY;
 }
 
-// How deep the top-hung kinds (venetian, roman) descend: the rolled coverage
-// as a share of the opening's height, measured from the opening.
 function coveredBottom(plan: CoveredCurtain, o: PaneRect): number {
   return o.top + plan.coverage * (o.bottom - o.top);
 }
 
-// The fold shading: how many extra passes of the cloth wash a band draws
-// over the base, cycled dark / bare / mid so the drape mottles.
 function bandShade(i: number): number {
   return i % 3 === 0 ? 2 : i % 3 === 2 ? 1 : 0;
 }
 
-// Vertical fold bands across a hanging cloth: shaded bands draw their extra
-// passes, each inner boundary carries a fold line. Returns the marks
-// appended after the base fill.
 function foldBands(
   trace: string,
   x0: number,
@@ -171,8 +155,6 @@ function roman(plan: CoveredCurtain, o: PaneRect): Mark[] {
     inkLine('curtain-rod', o.left, top, o.right, top),
     clothFill('shade', o.left, top, o.right, bottom),
   ];
-  // The raised shade's folds bunch above the bottom bar: chunky horizontal
-  // bands, shaded by the same irregular passes as the hanging cloth.
   const bandH = (bottom - top) * ROMAN_BAND_SHARE;
   for (let i = 0; i < FOLD_BANDS.roman; i++) {
     const y0 = bottom - (i + 1) * bandH;
@@ -183,8 +165,4 @@ function roman(plan: CoveredCurtain, o: PaneRect): Mark[] {
 }
 
 const DRAWERS = { panels, drapes, venetian, roman } as const;
-
-export function curtainMarks(plan: CurtainPlan, opening: PaneRect): Mark[] {
-  if (!plan.present) return [];
-  return DRAWERS[plan.kind](plan, opening);
-}
+export { DRAWERS };

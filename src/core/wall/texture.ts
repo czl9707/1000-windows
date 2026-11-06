@@ -9,10 +9,13 @@
 // panning, and re-rolls with the meta-seed like every window does.
 import { fnv1a, mulberry32 } from '@/core/randomness/rng';
 import type { Pen } from '@/pen/pen';
-import { WALL_TEXTURE_WASH } from '@/styling/roles';
 import { WEIGHTS } from '@/styling/weights';
 import type { Camera } from './grid';
 import { pairKey } from './pens';
+
+// The texture's washes: the stipple grain, and the brick-patch islands
+// sitting over it — quieter than the patches stood alone.
+const WALL_TEXTURE_WASH = { stipple: 0.4, patch: 0.24 } as const;
 
 const SLOT_W = 1.5;
 const SLOT_H = 1.1;
@@ -106,7 +109,7 @@ export function drawPatchSlot(
         { x: x0 - runPast, y: y + (rr() - 0.5) * 0.006 },
         { x: x0 + len + runPast, y: y + tilt + (rr() - 0.5) * 0.006 },
       ],
-      { name: `hl:${si}:${ti}:${ri}`, width: WEIGHTS.frame, color: ink, ruhig: true, spitz: 0.6 },
+      { name: `hl:${si}:${ti}:${ri}`, width: WEIGHTS.hairline, color: ink, ruhig: true, spitz: 0.6 },
     );
     if (ri === rows - 1) continue;
     const step = 0.13 + rr() * 0.05;
@@ -123,7 +126,7 @@ export function drawPatchSlot(
           { x: jx, y: y + rj() * 0.012 },
           { x: jx + (rj() - 0.5) * 0.008, y: y + BRICK_HEIGHT },
         ],
-        { name: `vj:${si}:${ti}:${ri}:${ji}`, width: WEIGHTS.frame, color: ink, ruhig: true, spitz: 0.6 },
+        { name: `vj:${si}:${ti}:${ri}:${ji}`, width: WEIGHTS.hairline, color: ink, ruhig: true, spitz: 0.6 },
       );
     }
   }

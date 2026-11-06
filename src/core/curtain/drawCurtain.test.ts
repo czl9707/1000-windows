@@ -1,15 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { curtainMarks } from './drawCurtain';
+import { curtainMarks } from './index';
 import { KINDS, ZONE_CEILING, type CurtainKind } from './catalogue';
 import type { CoveredCurtain, CurtainPlan } from './curtain';
-import { makePalette } from '@/styling/roles';
-import { innerRect, SHELL_Z } from '@/core/window-shell/shell';
+import { windowPalette } from '@/styling/colourway';
+import { cssToOklch } from '@/styling/oklch';
+import { innerRect, SHELL_Z } from '@/core/window-shell';
 import { ROD_CLEARANCE } from './catalogue';
 import { FOLD_BANDS, HEM_CLEARANCE } from './drawCurtain';
-import type { FillMark, StrokeMark } from '@/core/scene/mark';
+import type { FillMark, StrokeMark } from '@/core/scene';
 
 const OPENING = innerRect(0.07);
-const PALETTE = makePalette({ ink: '#000', paper: '#fff' });
+const PALETTE = windowPalette(0, { ink: '#000000', paper: '#ffffff' });
 const CLOTH_ROLES = ['fabric', 'shade', 'blind'] as const;
 type ClothRole = (typeof CLOTH_ROLES)[number];
 
@@ -39,18 +40,20 @@ function strokes(marks: ReturnType<typeof curtainMarks>): StrokeMark[] {
 }
 
 describe('the cloth roles', () => {
-  it('resolve as an ink wash — a shade darker than the paper it covers, louder than the glass, under solid ink', () => {
+  it('resolve as a colourway wash — louder than the glass, under solid ink', () => {
     for (const role of CLOTH_ROLES) {
       const dress = PALETTE(role);
-      expect(dress.color).toBe(PALETTE('ink').color);
+      expect(dress.color).not.toBe(PALETTE('ink').color);
+      expect(() => cssToOklch(dress.color)).not.toThrow();
       expect(dress.alpha).toBeGreaterThan(PALETTE('glass').alpha);
       expect(dress.alpha).toBeLessThan(1);
     }
   });
 
-  it('resolves the mullion face in the ground colour, occluding', () => {
+  it('resolves the mullion face in its own paint, occluding', () => {
     const dress = PALETTE('mullion');
-    expect(dress.color).toBe(PALETTE('paper').color);
+    expect(dress.color).not.toBe(PALETTE('paper').color);
+    expect(() => cssToOklch(dress.color)).not.toThrow();
     expect(dress.alpha).toBe(1);
   });
 });

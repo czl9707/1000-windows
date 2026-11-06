@@ -14,7 +14,6 @@ export interface Tuning {
   kochFrame: number;
   handGain: number;
   frameGain: number;
-  // 0 blunt ends, 1 running out to a point.
   spitz: number;
 }
 
@@ -137,7 +136,6 @@ function resample(pts: Pt[], step: number): Pt[] {
     carry += segLen;
     prev = next;
   }
-  // The end point always belongs: appended when far, replacing when close.
   const last = out[out.length - 1];
   const end = pts[pts.length - 1];
   if (Math.hypot(end.x - last.x, end.y - last.y) > step / 2) out.push(end);

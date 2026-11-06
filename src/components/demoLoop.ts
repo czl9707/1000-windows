@@ -119,7 +119,6 @@ export function createDemoLoop(
   };
 }
 
-// For painters that scale unit measure to fit.
 export function cssBox(canvas: HTMLCanvasElement): { width: number; height: number; dpr: number } {
   const dpr = window.devicePixelRatio || 1;
   return { width: canvas.width / dpr, height: canvas.height / dpr, dpr };
