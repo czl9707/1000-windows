@@ -29,7 +29,7 @@ export function drawSill(plan: ShellPlan): Mark[] {
   const topX = halfW + SPREAD;
   const frontX = topX - FRONT_INSET;
 
-  // The ledge's face fills paper first, so the wall texture never shows
+  // The ledge's face fills in its own paint, so the wall texture never shows
   // between its lines.
   marks.push({
     kind: 'fill',
@@ -39,7 +39,7 @@ export function drawSill(plan: ShellPlan): Mark[] {
       { x: frontX, y: front, z: 0 },
       { x: -frontX, y: front, z: 0 },
     ],
-    role: 'paper',
+    role: 'sill',
     z,
   });
   marks.push({ kind: 'stroke', pts: line(-topX, y0, topX, y0), name: 'sill-top', widthUnits: TOP_W, role: 'ink', z });

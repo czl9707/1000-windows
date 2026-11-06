@@ -27,19 +27,31 @@ const ARC_POINTS = 7;
 const ATTACH_W = WEIGHTS.outline;
 const EDGE_W = WEIGHTS.structural;
 
+// The awning wears one colourway at two strengths; the fabric's cells
+// alternate them, stripe by stripe.
+const cellRole = (i: number) => (i % 2 === 0 ? "awning" : "awningThin");
+
 function drawSlope(): Mark[] {
-  const marks: Mark[] = [
-    {
+  // The slope's cells sit between its ribs.
+  const cells = RIBS - 1;
+  const cellW = (2 * HALF_W) / cells;
+  const marks: Mark[] = [];
+  for (let i = 0; i < cells; i++) {
+    const x0 = -HALF_W + i * cellW;
+    const x1 = x0 + cellW;
+    marks.push({
       kind: "fill",
       pts: [
-        { x: -HALF_W, y: ATTACH_Y, z: 0 },
-        { x: HALF_W, y: ATTACH_Y, z: 0 },
-        { x: HALF_W, y: ATTACH_Y + DROP, z: SLOPE_REACH },
-        { x: -HALF_W, y: ATTACH_Y + DROP, z: SLOPE_REACH },
+        { x: x0, y: ATTACH_Y, z: 0 },
+        { x: x1, y: ATTACH_Y, z: 0 },
+        { x: x1, y: ATTACH_Y + DROP, z: SLOPE_REACH },
+        { x: x0, y: ATTACH_Y + DROP, z: SLOPE_REACH },
       ],
-      role: "awning",
+      role: cellRole(i),
       z: SHELL_Z.awning,
-    },
+    });
+  }
+  marks.push(
     {
       kind: "stroke",
       pts: line(-HALF_W, ATTACH_Y, HALF_W, ATTACH_Y),
@@ -56,7 +68,7 @@ function drawSlope(): Mark[] {
       role: "ink",
       z: SHELL_Z.awning,
     },
-  ];
+  );
   for (let i = 0; i < RIBS; i++) {
     const x = -HALF_W + (i * 2 * HALF_W) / (RIBS - 1);
     marks.push({
@@ -77,27 +89,32 @@ function drawSlope(): Mark[] {
 function drawCanopy(): Mark[] {
   const halfW = HALF_W - CANOPY_INSET;
   const hemY = ATTACH_Y + DROP + HEM_DROP;
-  const marks: Mark[] = [
-    {
+  // The canopy's cells follow its lobes: one stripe per lobe.
+  const cellW = (2 * halfW) / LOBES;
+  const marks: Mark[] = [];
+  for (let i = 0; i < LOBES; i++) {
+    const x0 = -halfW + i * cellW;
+    const x1 = x0 + cellW;
+    marks.push({
       kind: "fill",
       pts: [
-        { x: -halfW, y: ATTACH_Y, z: 0 },
-        { x: halfW, y: ATTACH_Y, z: 0 },
-        { x: halfW, y: hemY, z: CANOPY_REACH },
-        { x: -halfW, y: hemY, z: CANOPY_REACH },
+        { x: x0, y: ATTACH_Y, z: 0 },
+        { x: x1, y: ATTACH_Y, z: 0 },
+        { x: x1, y: hemY, z: CANOPY_REACH },
+        { x: x0, y: hemY, z: CANOPY_REACH },
       ],
-      role: "awning",
+      role: cellRole(i),
       z: SHELL_Z.awning,
-    },
-    {
-      kind: "stroke",
-      pts: line(-halfW, ATTACH_Y, halfW, ATTACH_Y),
-      name: "canopy-attach",
-      widthUnits: EDGE_W,
-      role: "ink",
-      z: SHELL_Z.awning,
-    },
-  ];
+    });
+  }
+  marks.push({
+    kind: "stroke",
+    pts: line(-halfW, ATTACH_Y, halfW, ATTACH_Y),
+    name: "canopy-attach",
+    widthUnits: EDGE_W,
+    role: "ink",
+    z: SHELL_Z.awning,
+  });
   const arc = (x: number): Pt3[] =>
     Array.from({ length: ARC_POINTS }, (_, i) => {
       const t = i / (ARC_POINTS - 1);

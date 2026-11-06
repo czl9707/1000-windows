@@ -37,7 +37,7 @@ function panelMarks(side: 'l' | 'r', span: Span, top: number, bottom: number): M
   const { x0, x1, zAt } = span;
   const rect: PaneRect = { top, bottom, left: x0, right: x1 };
   return [
-    { kind: 'fill', pts: rectPts(x0, top, x1, bottom, zAt), role: 'shutter', z: SHELL_Z.shutter },
+    { kind: 'fill', pts: rectPts(x0, top, x1, bottom, zAt), role: 'mullion', z: SHELL_Z.shutter },
     ...paneEdges(rect, `shutter-${side}`, SHELL_Z.shutter, WEIGHTS.structural, { depthAt: zAt }),
   ];
 }

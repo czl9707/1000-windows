@@ -84,7 +84,7 @@ describe('masses', () => {
       const marks = drawShutters(plan({ shutters: kind }));
       const fill = marks.find((m) => m.kind === 'fill');
       expect(fill).toBeDefined();
-      expect(fill!.role).toBe('shutter');
+      expect(fill!.role).toBe('mullion');
       const { left, right } = innerRect(BASE.faceWidth);
       for (const mark of marks) {
         for (const p of mark.pts) {

@@ -33,7 +33,7 @@ export interface Colourway {
   weight: number;
 }
 
-type ColourGroup = "mullion" | "awning" | "shutter" | "box" | "cloth";
+type ColourGroup = "mullion" | "awning" | "sill" | "box" | "cloth";
 
 // Rarity lives in the character: the quiet families dominate, the dyed-looking
 // ones are rare rows, not a separate gate. Each row is a finished colour —
@@ -51,7 +51,7 @@ const HUE_JITTER = 6;
 const ECHO_L = 0.05;
 
 // Each coloured surface rolls its own family off the window seed, on a fork
-// per group, so a tenant's frame, awning, shutters, box, and cloth mostly
+// per group, so a tenant's frame, awning, sill, box, and cloth mostly
 // differ and share a family only by chance. The three cloth roles are one
 // construction per window, so they roll together as one group.
 function rollColourway(seed: number, group: string): Omit<Colourway, "weight"> {
@@ -75,17 +75,24 @@ interface RoleTint {
 }
 
 const ROLE_TINTS: Record<
-  "mullion" | "awning" | "shutter" | "box" | "fabric" | "shade" | "blind",
+  "mullion" | "awning" | "sill" | "box" | "fabric" | "shade" | "blind",
   RoleTint
 > = {
   mullion: { alpha: 1, chromaCap: 0.09, echo: false },
   awning: { alpha: 1, chromaCap: 0.09, echo: false },
-  shutter: { alpha: 1, chromaCap: 0.09, echo: false },
+  sill: { alpha: 1, chromaCap: 0.09, echo: false },
   box: { alpha: 1, chromaCap: 0.09, echo: false },
   fabric: { alpha: 0.14, chromaCap: 0.09, echo: true },
   shade: { alpha: 0.14, chromaCap: 0.09, echo: true },
   blind: { alpha: 0.16, chromaCap: 0.09, echo: true },
 };
+
+// The awning wears one colourway at two strengths — the row as mixed, and
+// the laid-thin rung: lighter and quieter, toward the whitewash. Its
+// fabric's cells alternate the two, stripe by stripe.
+const AWNING_WEAR = {
+  thin: { chromaScale: 0.6, lightnessShift: 0.05 },
+} as const;
 
 const NIGHT_PAPER_L = 0.5;
 // The flip reads the ground itself, so the theme tokens carry a second
@@ -104,11 +111,21 @@ interface RoleContext {
 // and night sinks the result into the paper. Night is handled inside the
 // resolver: it is a property of a colour, never a layer drawn over the wall.
 const tintResolver =
-  (t: RoleTint, group: ColourGroup) =>
-  ({ colors, night, wayFor }: RoleContext): ResolvedColor => {
+  (
+    t: RoleTint,
+    group: ColourGroup,
+    strength: (ctx: RoleContext) => { chromaScale: number; lightnessShift: number } = () => ({
+      chromaScale: 1,
+      lightnessShift: 0,
+    }),
+  ) =>
+  (ctx: RoleContext): ResolvedColor => {
+    const { colors, night, wayFor } = ctx;
     const way = wayFor(group);
-    const chroma = Math.min(way.chroma, t.chromaCap);
-    const color = oklchToCss({ l: way.lightness, c: chroma, h: way.hue });
+    const wear = strength(ctx);
+    const l = way.lightness + wear.lightnessShift;
+    const chroma = Math.min(way.chroma * wear.chromaScale, t.chromaCap);
+    const color = oklchToCss({ l, c: chroma, h: way.hue });
     let dress: ResolvedColor;
     if (!t.echo) {
       dress = { color, alpha: t.alpha };
@@ -118,7 +135,7 @@ const tintResolver =
       // channel, so the two passes collapse to a compounded alpha and the
       // matching channel blend of echo and base.
       const echo = oklchToCss({
-        l: way.lightness + ECHO_L,
+        l: l + ECHO_L,
         c: chroma,
         h: way.hue,
       });
@@ -144,7 +161,8 @@ const ROLE_RESOLVERS: Record<ColorRole, (ctx: RoleContext) => ResolvedColor> = {
   paper: ({ colors }) => ({ color: colors.paper, alpha: OCCLUDE }),
   mullion: tintResolver(ROLE_TINTS.mullion, "mullion"),
   awning: tintResolver(ROLE_TINTS.awning, "awning"),
-  shutter: tintResolver(ROLE_TINTS.shutter, "shutter"),
+  awningThin: tintResolver(ROLE_TINTS.awning, "awning", () => AWNING_WEAR.thin),
+  sill: tintResolver(ROLE_TINTS.sill, "sill"),
   box: tintResolver(ROLE_TINTS.box, "box"),
   fabric: tintResolver(ROLE_TINTS.fabric, "cloth"),
   shade: tintResolver(ROLE_TINTS.shade, "cloth"),

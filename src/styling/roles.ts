@@ -2,8 +2,9 @@
 
 // 'ink' draws solid — the lines and dots; 'glass' is the pane wash;
 // 'paper' occludes in the ground colour. The painted surfaces occlude in
-// their own paint: the frame face ('mullion'), the awning canvas, the
-// shutter slats, the window-box wood. The curtain cloth resolves by
+// their own paint: the frame face ('mullion'), the awning canvas at its two
+// wears ('awning' full, 'awningThin' laid thin), the sill ledge, the
+// window-box wood. The curtain cloth resolves by
 // construction: 'fabric' is hanging cloth (panels, drapes), 'shade' the
 // roman's flat cloth, and 'blind' the venetian's opaque slat rows.
 export type ColorRole =
@@ -12,7 +13,8 @@ export type ColorRole =
   | "paper"
   | "mullion"
   | "awning"
-  | "shutter"
+  | "awningThin"
+  | "sill"
   | "box"
   | "fabric"
   | "shade"

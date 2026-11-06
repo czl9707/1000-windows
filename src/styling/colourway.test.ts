@@ -8,13 +8,13 @@ import { cssToOklch, type Oklch } from './oklch';
 // tokens hold — tinted roles must not depend on them.
 const LIGHT = { ink: 'rgb(33 37 41)', paper: 'rgb(229 222 214)' };
 const DARK = { ink: 'rgb(233 236 239)', paper: 'rgb(0 0 0)' };
-const TINTED = ['mullion', 'fabric', 'shade', 'blind', 'awning', 'shutter', 'box'] as const;
+const TINTED = ['mullion', 'fabric', 'shade', 'blind', 'awning', 'sill', 'box'] as const;
 // The cloth washes land at their base alpha compounded with the half-strength
 // pooling echo: fabric/shade 1 − 0.86 × 0.93, blind 1 − 0.84 × 0.92. Every
 // painted surface goes down opaque — its fill exists to hide the wall and the
 // layers behind it.
 const WASH_ALPHAS = { fabric: 0.2002, shade: 0.2002, blind: 0.2272 } as const;
-const PAINTED = ['mullion', 'awning', 'shutter', 'box'] as const;
+const PAINTED = ['mullion', 'awning', 'awningThin', 'sill', 'box'] as const;
 
 describe('the colourway catalogue', () => {
   it('weights sum to one', () => {
@@ -103,7 +103,7 @@ describe('windowPalette', () => {
     expect(Number.isFinite(measured.h)).toBe(true);
   });
 
-  it.each(TINTED)('mixes %s into the ground at night', (role) => {
+  it.each([...TINTED, 'awningThin'] as const)('mixes %s into the ground at night', (role) => {
     const day = windowPalette(42, LIGHT)(role).color;
     const night = windowPalette(42, DARK)(role).color;
     const ch = (css: string) => css.match(/\d+/g)!.map(Number);
@@ -116,6 +116,19 @@ describe('windowPalette', () => {
 
   it.each(PAINTED)('paints %s opaque', (role) => {
     expect(windowPalette(42, LIGHT)(role).alpha).toBe(1);
+  });
+
+  it('wears the awning thin from the same roll: same hue, quieter and lighter', () => {
+    for (let i = 0; i < 50; i++) {
+      const palette = windowPalette(6000 + i * 7919, LIGHT);
+      const full = cssToOklch(palette('awning').color);
+      const thin = cssToOklch(palette('awningThin').color);
+      // The hue slop absorbs the encoded rounding, loudest at the thin
+      // wear's whisper chroma.
+      expect(Math.abs(thin.h - full.h)).toBeLessThanOrEqual(0.5 / thin.c);
+      expect(thin.c).toBeLessThan(full.c);
+      expect(thin.l).toBeGreaterThan(full.l);
+    }
   });
 
   it('washes the cloth roles at their whisper alphas', () => {
