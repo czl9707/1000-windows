@@ -2,7 +2,7 @@
 // cell's identity is its integer coordinates, and its seed is
 // `windowSeed(metaSeed, col, row)` — coordinates exist nowhere else, so the
 // same address is the same tenant no matter how the camera arrived.
-import { BOX } from '@/core/window-shell';
+import { BOX } from '@/core/window-shell/shell';
 
 export const PITCH_X = 3;
 export const PITCH_Y = 2;

@@ -1,7 +1,9 @@
-// The window shell's entry: a ShellPlan becomes the marks of one bare
-// window — backing, frame, the archetype's sashes, sill, add-ons. The
-// module's public surface rides here; consumers reach the shell only
-// through this file.
+// The window shell's entry — one base shape per layer module: expandShell
+// rolls the layer's plan (the shell's own stream, before the DNA walk),
+// shellMarks draws one bare window — backing, frame, the archetype's
+// sashes, sill, add-ons — and ShellPlan is the plan the roll returns.
+// Anything else (geometry helpers, sort buckets, the per-part drawers)
+// lives on the child modules; import it there directly.
 import type { Mark } from '@/core/scene';
 import type { Pt3 } from '@/motion/projection';
 import { ARCHETYPES, type ShellPlan } from './archetypes';
@@ -14,8 +16,8 @@ import { drawAwning } from './drawAwning';
 import { drawShutters } from './drawShutters';
 import { drawWindowBox } from './drawWindowBox';
 
-export { expandShell, innerRect, line, rectPts, BOX, SHELL_Z, type PaneRect } from './shell';
-export type { ShellPlan, SlidingPlan, CasementPlan, PicturePlan } from './archetypes';
+export { expandShell } from './shell';
+export type { ShellPlan } from './archetypes';
 
 // Four separate strokes running past the sharp corners, like the reference's
 // sheet edges — a rectangle that closes exactly reads as drawn by a program.
@@ -64,9 +66,7 @@ function backingMarks(): Mark[] {
   return [{ kind: 'fill', pts: rectPts(-BOX.halfW, -BOX.halfH, BOX.halfW, BOX.halfH), role: 'paper', z: SHELL_Z.backing }];
 }
 
-// The shell-only assembly the docs-page catalogue demos reuse to pin
-// variants by hand: frame, panes, sill, add-ons — no tenant.
-export function windowMarks(plan: ShellPlan): Mark[] {
+export function shellMarks(plan: ShellPlan): Mark[] {
   // The switch narrows the plan to its union member, so each drawer sees only
   // the fields its archetype carries.
   const archetypeMarks = (() => {

@@ -4,12 +4,19 @@ import { DEFAULT_TUNING } from '@/pen/tuning';
 import { windowPalette } from '@/styling/colourway';
 import { execute, type FillMark, type StrokeMark } from './scene';
 import { makeProjection } from '@/motion/projection';
-import type { CasementPlan, ShellPlan, SlidingPlan } from './window-shell';
+import type { ShellPlan } from './window-shell';
+import type { CasementPlan, SlidingPlan } from './window-shell/archetypes';
 import { drawCasement } from './window-shell/drawCasement';
 import { drawSliding } from './window-shell/drawSliding';
-import { BOX, SHELL_Z, expandShell, innerRect, windowMarks } from './window-shell';
+import { BOX, SHELL_Z, innerRect } from './window-shell/shell';
+import { expandShell, shellMarks } from './window-shell';
 import { drawWindow } from './window';
+import { expandSill } from './sill';
+import { SILL_ITEM_Z } from './sill/catalogue';
 import { expandCurtain } from './curtain';
+import { clothMarks } from './curtain/drawCurtain';
+import { fork } from './randomness/rng';
+import { windowSceneMarks } from './window';
 import { CENTRE_EYE } from '@/motion/projection';
 
 class RecordingPen extends Pen {
@@ -85,14 +92,15 @@ describe('drawWindow', () => {
   it('borders its panes and never draws a handle', () => {
     for (let i = 0; i < 300; i++) {
       const seed = 15000 + i * 104729;
-      const pen = new RecordingPen(seed);
-      drawWindow(NOOP_CTX, pen, PALETTE, CENTRE_EYE);
-      const { archetype } = expandShell(seed);
-      const prefix = archetype === 'picture' ? 'picture-' : archetype === 'sliding' ? 'slide-' : 'leaf-';
-      const paneTrace = pen.traces.find((t) => t.startsWith(prefix));
+      const plan = expandShell(seed);
+      const traces = shellMarks(plan)
+        .filter((m) => m.kind === 'stroke')
+        .map((m) => m.name);
+      const prefix = plan.archetype === 'picture' ? 'picture-' : plan.archetype === 'sliding' ? 'slide-' : 'leaf-';
+      const paneTrace = traces.find((t) => t.startsWith(prefix));
       expect(paneTrace).toBeDefined();
       expect(paneTrace).toMatch(/-(top|bottom|left|right)$/);
-      expect(pen.traces.some((t) => t.includes('handle'))).toBe(false);
+      expect(traces.some((t) => t.includes('handle'))).toBe(false);
     }
   });
 
@@ -123,18 +131,17 @@ describe('drawWindow', () => {
   // Same invariant for the glass: the panes' fills are emitted from the wall
   // plane (or a hair off it, on a slider's front track) and must land there —
   // a SHELL_Z sort key reaching the points would flip a pane through the
-  // origin and crush its span.
+  // origin and crush its span. The jars' glass-role fill sorts off the wall
+  // and is not a pane; the panes carry SHELL_Z.glass.
   it('draws the glass at wall-plane scale', () => {
     for (let i = 0; i < 100; i++) {
       const seed = 27000 + i * 104729;
-      const pen = new RecordingPen(seed);
-      drawWindow(NOOP_CTX, pen, PALETTE, CENTRE_EYE);
-      // Panes are the only fills drawn at exactly the glass wash — the cloth
-      // fills land strictly between the glass and cloth strengths.
-      const washes = pen.fills.filter((f) => f.alpha === PALETTE('glass').alpha);
-      expect(washes.length).toBeGreaterThanOrEqual(1);
-      for (const wash of washes) {
-        const xs = wash.pts.map((p) => p.x);
+      const panes = windowSceneMarks(seed, expandShell(seed)).filter(
+        (m): m is FillMark => m.kind === 'fill' && m.role === 'glass' && m.z >= SHELL_Z.glass,
+      );
+      expect(panes.length).toBeGreaterThanOrEqual(1);
+      for (const pane of panes) {
+        const xs = pane.pts.map((p) => p.x);
         // The narrowest pane at wall scale: a swung one-two casement leaf,
         // foreshortened by the swing's cosine (~0.30).
         expect(Math.max(...xs) - Math.min(...xs)).toBeGreaterThan(0.2);
@@ -235,7 +242,7 @@ describe('the sliding panels', () => {
   it('fills the frame face in four strips on its own mullion role', () => {
     const seed = 4200;
     const plan = expandShell(seed);
-    const face = windowMarks(plan).filter(
+    const face = shellMarks(plan).filter(
       (m): m is FillMark => m.kind === 'fill' && m.role === 'mullion',
     );
     expect(face.length).toBe(4);
@@ -263,22 +270,38 @@ describe('the sliding panels', () => {
 });
 
 describe('the tenant behind the glass', () => {
+  const CLOTH_ROLES = ['fabric', 'shade', 'blind'] as const;
+
   it('draws the curtain when the DNA stream rolls one, never when bare', () => {
     for (let i = 0; i < 300; i++) {
       const seed = 31000 + i * 104729;
-      const pen = new RecordingPen(seed);
-      drawWindow(NOOP_CTX, pen, PALETTE, CENTRE_EYE);
-      const cloth = pen.fills.filter((f) => isCloth(f.alpha));
-      expect(cloth.length > 0).toBe(expandCurtain(seed).present);
+      const curtain = expandCurtain(fork(seed, 'dna'));
+      const cloth = clothMarks(curtain, innerRect(expandShell(seed).faceWidth)).filter(
+        (m): m is FillMark => m.kind === 'fill' && (CLOTH_ROLES as readonly string[]).includes(m.role),
+      );
+      expect(cloth.length > 0).toBe(curtain.present);
     }
   });
 
-  it('leaves the shell-only assembly bare: windowMarks draws no cloth', () => {
+  it('leaves the shell-only assembly bare: shellMarks draws no cloth', () => {
     for (let i = 0; i < 100; i++) {
       const seed = 35000 + i * 104729;
       const pen = new RecordingPen(seed);
-      execute(windowMarks(expandShell(seed)), pen, NOOP_CTX, PALETTE, makeProjection(CENTRE_EYE));
+      execute(shellMarks(expandShell(seed)), pen, NOOP_CTX, PALETTE, makeProjection(CENTRE_EYE));
       expect(pen.fills.some((f) => isCloth(f.alpha))).toBe(false);
+    }
+  });
+
+  it('sets the sill item on the ledge iff the stream rolls one, sorting under the wash', () => {
+    for (let i = 0; i < 300; i++) {
+      const seed = 41000 + i * 104729;
+      const rng = fork(seed, 'dna');
+      expandCurtain(rng);
+      const present = expandSill(rng).present;
+      const marks = windowSceneMarks(seed, expandShell(seed));
+      const onLedge = marks.filter((m) => m.z === SILL_ITEM_Z);
+      expect(onLedge.length > 0, `seed ${seed}`).toBe(present);
+      expect(onLedge.every((m) => m.pts.every((p) => p.z < 0)), `seed ${seed} behind the wall`).toBe(true);
     }
   });
 });

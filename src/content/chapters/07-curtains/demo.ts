@@ -12,8 +12,11 @@ import { windowPalette } from '@/styling/colourway';
 import { windowSeed } from '@/core/randomness/rng';
 import { execute } from '@/core/scene';
 import { CENTRE_EYE, makeProjection } from '@/motion/projection';
-import { windowMarks, innerRect, type ShellPlan } from '@/core/window-shell';
-import { curtainMarks, pinnedCurtain, type CurtainPlan } from '@/core/curtain';
+import { shellMarks, type ShellPlan } from '@/core/window-shell';
+import { innerRect } from '@/core/window-shell/shell';
+import { pinnedCurtain } from '@/core/curtain/curtain';
+import { clothMarks } from '@/core/curtain/drawCurtain';
+import type { CurtainPlan } from '@/core/curtain';
 
 const UNIT_PLATE_PITCH_Y = 2.25;
 const UNIT_PITCH_X = 2.3;
@@ -64,7 +67,7 @@ function mountPlates(canvas: HTMLCanvasElement, plans: CurtainPlan[]): TuningHan
           (Math.floor(i / cols) - (rows - 1) / 2) * UNIT_PLATE_PITCH_Y,
         );
         execute(
-          [...windowMarks(SHELL), ...curtainMarks(plan, OPENING)],
+          [...shellMarks(SHELL), ...clothMarks(plan, OPENING)],
           pen,
           ctx,
           windowPalette(pen.seed, colors),

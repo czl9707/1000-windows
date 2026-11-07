@@ -18,6 +18,9 @@ The single most readable thing in a window scene (an occupant silhouette, a cat 
 ## Curtain
 The window covering — cloth or blind hung behind the glass. A tenant trait: some windows carry one, some stand bare. Four kinds — panels, drapes, venetian, roman — each a named construction with its own ceiling on how much of the opening it may cover; coverage rolls in discrete levels — bare, lightly dressed, half, full — mostly bare or light, a rare window full. Its dense line work obeys the hand rule, and the hanging cloth (panels, drapes) hangs on verticals alone. The curtain's density is curtain identity, not a light trait.
 
+## Sill layer
+The tenant layer between the curtain and the insider layer: at most one small prop on the inside ledge. One roll decides presence and corner — half of all sills stand empty, and a present item anchors into its rolled corner. Sill items draw in front of the curtain cloth and behind the pane wash, so even a fully closed curtain never hides them. The sill-sized potted plant belongs here; larger greenery belongs to the insider layer's plants.
+
 ## Colourway
 The finished colour one of a tenant's coloured surfaces wears — curtain cloth, awning canvas, sill ledge, window box, and the painted frame face each roll their own off the window seed, from one weighted list; the curtain's three constructions roll together as one cloth. Two surfaces land on the same colour only by chance. A colourway is tenant identity, not state — it never changes with the page theme. Most rolls land on quiet, pale families; louder ones exist and stay rare.
 

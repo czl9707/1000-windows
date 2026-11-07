@@ -8,7 +8,7 @@ import { DEFAULT_TUNING } from '@/pen/tuning';
 import { type ThemeColors } from '@/styling/roles';
 import { windowPalette } from '@/styling/colourway';
 import { windowSeed } from '@/core/randomness/rng';
-import { windowMarks, expandShell } from '@/core/window-shell';
+import { shellMarks, expandShell } from '@/core/window-shell';
 import { execute } from '@/core/scene';
 import { makeProjection, type Eye } from '@/motion/projection';
 
@@ -59,7 +59,7 @@ function mountParallaxStrip(canvas: HTMLCanvasElement): TuningHandle {
         // so it builds its projection with that focal instead of going
         // through drawWindow.
         execute(
-          windowMarks(expandShell(pen.seed)),
+          shellMarks(expandShell(pen.seed)),
           pen,
           ctx,
           windowPalette(pen.seed, colors),

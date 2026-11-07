@@ -128,8 +128,7 @@ and the lightest roll is the closed blind, its rows joined into one
 opaque face.
 
 ```ts
-export function expandCurtain(seed: number): CurtainPlan {
-  const rng = fork(seed, 'dna');
+export function expandCurtain(rng: Rng): CurtainPlan {
   const level = rng.weighted(COVERAGE_LEVELS);
   if (level === 0) return { present: false };
   const kind = rng.weighted(KINDS);

@@ -2,7 +2,7 @@
 title: Land the curtain layer
 labels: [wayfinder:task]
 assignee: zane
-state: open
+state: closed
 blocked-by: []
 ---
 
@@ -21,3 +21,5 @@ The build, in dependency order:
 7. **Verify**: `npx tsc --noEmit && npx astro build`; the wall still renders identically where its tenants roll the zero level, and the new kinds read at wall scale in the home wall.
 
 ## Resolution
+
+Landed on `colour-layer`'s history: commit `41d9fa9` brought the curtain layer — the `CurtainPlan` catalogue stream in `src/core/curtain/`, the four cloth constructions wired behind the glass wash through `src/core/window.ts`, and chapter `07-curtains` with its catalogue-plate demo — and the follow-up tuning commits refined the cloth before the colour layer landed over it. Stream purity and the zero-level early exit hold as decided in [Curtains — fabric on the pane](014-curtain.md).

@@ -33,15 +33,15 @@ describe('curtain catalogue', () => {
 
 describe('expandCurtain', () => {
   function sweep(count: number): CurtainPlan[] {
-    return Array.from({ length: count }, (_, i) => expandCurtain(2000 + i * 7919));
+    return Array.from({ length: count }, (_, i) => expandCurtain(fork(2000 + i * 7919, 'dna')));
   }
 
   it('returns the same plan for the same seed', () => {
-    expect(expandCurtain(1335613256)).toEqual(expandCurtain(1335613256));
+    expect(expandCurtain(fork(1335613256, 'dna'))).toEqual(expandCurtain(fork(1335613256, 'dna')));
   });
 
   it('returns independent plans for different seeds', () => {
-    expect(expandCurtain(1)).not.toEqual(expandCurtain(2));
+    expect(expandCurtain(fork(1, 'dna'))).not.toEqual(expandCurtain(fork(2, 'dna')));
   });
 
   it('rolls bare windows at the zero-level weight — about two in five', () => {
@@ -82,7 +82,7 @@ describe('expandCurtain', () => {
 
   it('reads the stream in catalogue order, leaving later draws in step for appended layers', () => {
     for (const seed of [1, 42, 2000, 1335613256]) {
-      const plan = expandCurtain(seed);
+      const plan = expandCurtain(fork(seed, 'dna'));
       const rng = fork(seed, 'dna');
       const level = rng.weighted(COVERAGE_LEVELS);
       expect(plan.present, `seed ${seed}`).toBe(level !== 0);
@@ -106,7 +106,7 @@ describe('expandCurtain', () => {
     };
     for (const seed of [1, 42, 1335613256]) {
       const before = drawn(seed);
-      expandCurtain(seed);
+      expandCurtain(fork(seed, 'dna'));
       expect(drawn(seed)).toEqual(before);
     }
   });

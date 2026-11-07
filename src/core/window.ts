@@ -1,12 +1,15 @@
-// The per-window entry: seed → marks → pen. The shell rolls from the seed's
-// own stream, the tenant hangs behind the glass on the DNA stream, and the
-// assembled scene draws through the scene's execute. Consumers reach the
-// shell, the curtain, and the scene only through their module entries.
+// The per-window entry: seed → marks → pen. The shell draws from its own
+// stream; the tenant layers read one live DNA stream in append order —
+// appending a layer never shifts an earlier layer's rolls. The assembled
+// scene draws through the scene's execute.
 import type { Pen } from '@/pen/pen';
 import type { Palette } from '@/styling/roles';
 import { execute, type Mark } from './scene';
-import { expandCurtain, curtainMarks } from './curtain';
-import { windowMarks, expandShell, innerRect, type ShellPlan } from './window-shell';
+import { fork } from './randomness/rng';
+import { curtainMarks } from './curtain';
+import { sillMarks } from './sill';
+import { shellMarks, expandShell, type ShellPlan } from './window-shell';
+import { innerRect } from './window-shell/shell';
 import { makeProjection, type Eye } from '@/motion/projection';
 
 // One seed drives both the shell plan and the tremor — the pen is its only
@@ -16,7 +19,9 @@ import { makeProjection, type Eye } from '@/motion/projection';
 // expandShell(seed) (or a pinned variant of the same window), never another
 // window's shell.
 export function windowSceneMarks(seed: number, plan: ShellPlan): Mark[] {
-  return [...windowMarks(plan), ...curtainMarks(expandCurtain(seed), innerRect(plan.faceWidth))];
+  const rng = fork(seed, 'dna');
+  const opening = innerRect(plan.faceWidth);
+  return [...shellMarks(plan), ...curtainMarks(rng, opening), ...sillMarks(rng, opening)];
 }
 
 export function drawWindow(

@@ -2,7 +2,7 @@
 title: Land the colour layer
 labels: [wayfinder:task]
 assignee: zane
-state: open
+state: closed
 blocked-by: []
 ---
 
@@ -17,3 +17,7 @@ Build what [Per-window colour roles — colourways and role-resolved tints](013-
 - The two-pass fill (second pass +0.05 L, half coverage) on the coloured washes; night verified as the paper mix — every tinted colour resolved as nine parts theme paper, one part day colour, inside the palette resolution — over the dark theme, both themes eyeballed in the browser.
 
 `npx tsc --noEmit && npx astro build` green, then ship the chapter per the map's execution note.
+
+## Resolution
+
+Landed on `colour-layer`: commit `e3d20a6` brought the hand-rolled OKLCH conversion, the weighted colourway catalogue with per-role constants in `src/styling/`, the per-group forks off the window seed, and the role-resolution throw guard; commit `d49f350` retuned the roles (sill in its own paint, shutters under the frame colour, the two-wear awning stripe); commit `506adec` shipped chapter `08-colourways` with the day/night compare benches and the feelings knobs over the street. Night resolves as the paper mix inside the palette resolvers; both themes eyeballed in the browser during the bench work.

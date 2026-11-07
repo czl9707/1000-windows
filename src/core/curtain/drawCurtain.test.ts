@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { curtainMarks } from './index';
+import { clothMarks } from './drawCurtain';
 import { KINDS, ZONE_CEILING, type CurtainKind } from './catalogue';
 import type { CoveredCurtain, CurtainPlan } from './curtain';
 import { windowPalette } from '@/styling/colourway';
 import { cssToOklch } from '@/styling/oklch';
-import { innerRect, SHELL_Z } from '@/core/window-shell';
+import { innerRect, SHELL_Z } from '@/core/window-shell/shell';
 import { ROD_CLEARANCE } from './catalogue';
 import { FOLD_BANDS, HEM_CLEARANCE } from './drawCurtain';
 import type { FillMark, StrokeMark } from '@/core/scene';
@@ -27,15 +27,15 @@ function covered(kind: CurtainKind, coverage: number, overrides: Partial<Covered
   return { present: true, kind, coverage, rodY: 0, widthJitter: 1, drapeSide: 'left', slatShare: 0, ...overrides };
 }
 
-function fills(marks: ReturnType<typeof curtainMarks>): FillMark[] {
+function fills(marks: ReturnType<typeof clothMarks>): FillMark[] {
   return marks.filter((m): m is FillMark => m.kind === 'fill');
 }
 
-function clothFills(marks: ReturnType<typeof curtainMarks>, role?: ClothRole): FillMark[] {
+function clothFills(marks: ReturnType<typeof clothMarks>, role?: ClothRole): FillMark[] {
   return fills(marks).filter((f) => (role ? f.role === role : (CLOTH_ROLES as readonly string[]).includes(f.role)));
 }
 
-function strokes(marks: ReturnType<typeof curtainMarks>): StrokeMark[] {
+function strokes(marks: ReturnType<typeof clothMarks>): StrokeMark[] {
   return marks.filter((m): m is StrokeMark => m.kind === 'stroke');
 }
 
@@ -58,16 +58,16 @@ describe('the cloth roles', () => {
   });
 });
 
-describe('curtainMarks', () => {
+describe('clothMarks', () => {
   it('draws nothing behind a bare window', () => {
     const bare: CurtainPlan = { present: false };
-    expect(curtainMarks(bare, OPENING)).toEqual([]);
+    expect(clothMarks(bare, OPENING)).toEqual([]);
   });
 
   it('gives every kind a cloth fill in its construction role, plus line work', () => {
     for (const { value: kind } of KINDS) {
       for (const coverage of [0.12, 0.3, ZONE_CEILING[kind]]) {
-        const marks = curtainMarks(covered(kind, coverage), OPENING);
+        const marks = clothMarks(covered(kind, coverage), OPENING);
         expect(clothFills(marks, KIND_ROLE[kind]).length, `${kind} cloth`).toBeGreaterThan(0);
         expect(strokes(marks).length, `${kind} lines`).toBeGreaterThan(0);
       }
@@ -76,7 +76,7 @@ describe('curtainMarks', () => {
 
   it('hangs all cloth inside the opening and behind the wall plane', () => {
     for (const { value: kind } of KINDS) {
-      const marks = curtainMarks(covered(kind, ZONE_CEILING[kind]), OPENING);
+      const marks = clothMarks(covered(kind, ZONE_CEILING[kind]), OPENING);
       for (const mark of marks) {
         expect(mark.z, `${kind} sort bucket`).toBeLessThan(SHELL_Z.glass);
         for (const p of mark.pts) {
@@ -92,7 +92,7 @@ describe('curtainMarks', () => {
 
   it('never repeats a trace name within one window', () => {
     for (const { value: kind } of KINDS) {
-      const names = strokes(curtainMarks(covered(kind, ZONE_CEILING[kind]), OPENING)).map((s) => s.name);
+      const names = strokes(clothMarks(covered(kind, ZONE_CEILING[kind]), OPENING)).map((s) => s.name);
       expect(new Set(names).size, kind).toBe(names.length);
     }
   });
@@ -105,7 +105,7 @@ describe('curtainMarks', () => {
     ] as const) {
       const reach = coverage * halfW * widthJitter;
       const cloth = fills(
-        curtainMarks({ present: true, kind: 'panels', coverage, rodY: 0, widthJitter, drapeSide: 'left', slatShare: 0 }, OPENING),
+        clothMarks({ present: true, kind: 'panels', coverage, rodY: 0, widthJitter, drapeSide: 'left', slatShare: 0 }, OPENING),
       ).filter((f) => f.role === 'fabric');
       for (const fill of cloth) {
         for (const p of fill.pts) {
@@ -123,7 +123,7 @@ describe('curtainMarks', () => {
   it('hangs the panels and the drapes on verticals alone — no line across the top', () => {
     const top = OPENING.top + ROD_CLEARANCE;
     for (const kind of ['panels', 'drapes'] as const) {
-      for (const s of strokes(curtainMarks(covered(kind, 0.5), OPENING))) {
+      for (const s of strokes(clothMarks(covered(kind, 0.5), OPENING))) {
         const [a, b] = s.pts;
         if (Math.abs(a.y - b.y) < 1e-9) {
           expect(a.y, `${kind} horizontal line`).not.toBeCloseTo(top, 9);
@@ -134,7 +134,7 @@ describe('curtainMarks', () => {
 
   it('runs the hanging cloth all the way to the opening head', () => {
     for (const kind of ['panels', 'drapes'] as const) {
-      const cloth = clothFills(curtainMarks(covered(kind, 0.5), OPENING));
+      const cloth = clothFills(clothMarks(covered(kind, 0.5), OPENING));
       expect(cloth.length).toBeGreaterThan(0);
       const top = Math.min(...cloth.flatMap((f) => f.pts.map((p) => p.y)));
       expect(top).toBeCloseTo(OPENING.top, 9);
@@ -147,11 +147,11 @@ describe('curtainMarks', () => {
       ['drapes', FOLD_BANDS.drapes - 1],
       ['roman', FOLD_BANDS.roman],
     ] as const) {
-      const folds = strokes(curtainMarks(covered(kind, 0.5), OPENING)).filter((s) => s.name.includes('-fold-'));
+      const folds = strokes(clothMarks(covered(kind, 0.5), OPENING)).filter((s) => s.name.includes('-fold-'));
       expect(folds.length, `${kind} folds kept`).toBeGreaterThan(0);
       expect(folds.length).toBeLessThan(totalFolds);
     }
-    const venetian = curtainMarks(covered('venetian', 0.7), OPENING);
+    const venetian = clothMarks(covered('venetian', 0.7), OPENING);
     const rows = clothFills(venetian, 'blind').length;
     const slats = strokes(venetian).filter((s) => s.name.startsWith('venetian-slat'));
     expect(slats.length, 'slat lines kept').toBeGreaterThan(0);
@@ -163,7 +163,7 @@ describe('curtainMarks', () => {
     const clothBottom = OPENING.bottom - HEM_CLEARANCE;
     const drop = clothBottom - clothTop;
     for (const kind of ['panels', 'drapes'] as const) {
-      const folds = strokes(curtainMarks(covered(kind, 0.5), OPENING)).filter((s) => s.name.includes('-fold-'));
+      const folds = strokes(clothMarks(covered(kind, 0.5), OPENING)).filter((s) => s.name.includes('-fold-'));
       expect(folds.length, `${kind} folds kept`).toBeGreaterThan(0);
       for (const s of folds) {
         const ys = s.pts.map((p) => p.y);
@@ -175,7 +175,7 @@ describe('curtainMarks', () => {
       ['roman', 'roman-fold'],
       ['venetian', 'venetian-slat'],
     ] as const) {
-      const lines = strokes(curtainMarks(covered(kind, 0.7), OPENING)).filter((s) => s.name.startsWith(prefix));
+      const lines = strokes(clothMarks(covered(kind, 0.7), OPENING)).filter((s) => s.name.startsWith(prefix));
       expect(lines.length, `${prefix} kept`).toBeGreaterThan(0);
       for (const s of lines) {
         const xs = s.pts.map((p) => p.x);
@@ -188,10 +188,10 @@ describe('curtainMarks', () => {
     const width = OPENING.right - OPENING.left;
     const span = 0.5 * width;
     const left = clothFills(
-      curtainMarks({ present: true, kind: 'drapes', coverage: 0.5, rodY: 0, widthJitter: 1, drapeSide: 'left', slatShare: 0 }, OPENING),
+      clothMarks({ present: true, kind: 'drapes', coverage: 0.5, rodY: 0, widthJitter: 1, drapeSide: 'left', slatShare: 0 }, OPENING),
     );
     const right = clothFills(
-      curtainMarks({ present: true, kind: 'drapes', coverage: 0.5, rodY: 0, widthJitter: 1, drapeSide: 'right', slatShare: 0 }, OPENING),
+      clothMarks({ present: true, kind: 'drapes', coverage: 0.5, rodY: 0, widthJitter: 1, drapeSide: 'right', slatShare: 0 }, OPENING),
     );
     for (const [cloth, side] of [
       [left, 'left'],
@@ -208,7 +208,7 @@ describe('curtainMarks', () => {
   it('spans the drapes no wider than the rolled coverage', () => {
     const width = OPENING.right - OPENING.left;
     for (const coverage of [0.2, 0.6]) {
-      const cloth = fills(curtainMarks(covered('drapes', coverage), OPENING)).filter((f) => f.role === 'fabric');
+      const cloth = fills(clothMarks(covered('drapes', coverage), OPENING)).filter((f) => f.role === 'fabric');
       expect(cloth.length).toBeGreaterThanOrEqual(1);
       const xs = cloth.flatMap((f) => f.pts.map((p) => p.x));
       expect(Math.max(...xs) - Math.min(...xs)).toBeLessThanOrEqual(coverage * width + 1e-9);
@@ -219,7 +219,7 @@ describe('curtainMarks', () => {
     const height = OPENING.bottom - OPENING.top;
     for (const kind of ['venetian', 'roman'] as const) {
       for (const coverage of [0.2, 0.6]) {
-        const cloth = clothFills(curtainMarks(covered(kind, coverage), OPENING));
+        const cloth = clothFills(clothMarks(covered(kind, coverage), OPENING));
         expect(cloth.length).toBeGreaterThanOrEqual(1);
         const ys = cloth.flatMap((f) => f.pts.map((p) => p.y));
         expect(Math.max(...ys) - Math.min(...ys), `${kind} drop`).toBeLessThanOrEqual(coverage * height + 1e-9);
@@ -228,8 +228,8 @@ describe('curtainMarks', () => {
   });
 
   it('spaces the venetian slats down the covered band, more where it reaches lower', () => {
-    const shallow = strokes(curtainMarks(covered('venetian', 0.2), OPENING)).filter((s) => s.name.startsWith('venetian-slat'));
-    const deep = strokes(curtainMarks(covered('venetian', 0.7), OPENING)).filter((s) => s.name.startsWith('venetian-slat'));
+    const shallow = strokes(clothMarks(covered('venetian', 0.2), OPENING)).filter((s) => s.name.startsWith('venetian-slat'));
+    const deep = strokes(clothMarks(covered('venetian', 0.7), OPENING)).filter((s) => s.name.startsWith('venetian-slat'));
     expect(deep.length).toBeGreaterThan(shallow.length);
     for (const slat of shallow) {
       expect(slat.pts[0].y).toBeGreaterThanOrEqual(OPENING.top - 1e-9);
@@ -242,18 +242,18 @@ describe('curtainMarks', () => {
     // The cloth hangs from the rod, a clearance below the opening's head.
     const clothTop = OPENING.top + ROD_CLEARANCE;
     const coveredDrop = OPENING.top + 0.5 * height - clothTop;
-    const spanOf = (marks: ReturnType<typeof curtainMarks>) => {
+    const spanOf = (marks: ReturnType<typeof clothMarks>) => {
       const xs = clothFills(marks, 'blind').flatMap((f) => f.pts.map((p) => p.x));
       return Math.max(...xs) - Math.min(...xs);
     };
-    const closed = curtainMarks(covered('venetian', 0.5, { slatShare: 0 }), OPENING);
+    const closed = clothMarks(covered('venetian', 0.5, { slatShare: 0 }), OPENING);
     // Closed: the rows join into one opaque blind — full width, full drop.
     expect(spanOf(closed)).toBeCloseTo(OPENING.right - OPENING.left, 9);
     const closedYs = clothFills(closed, 'blind').flatMap((f) => f.pts.map((p) => p.y));
     expect(Math.max(...closedYs) - Math.min(...closedYs)).toBeCloseTo(coveredDrop, 9);
     // Open: every slat keeps the jambs hard to its edge — no padding — and
     // each opaque face runs down the rolled share of the row.
-    const open = curtainMarks(covered('venetian', 0.5, { slatShare: 0.8 }), OPENING);
+    const open = clothMarks(covered('venetian', 0.5, { slatShare: 0.8 }), OPENING);
     expect(spanOf(open)).toBeCloseTo(OPENING.right - OPENING.left, 9);
     const faces = clothFills(open, 'blind');
     const rowH = coveredDrop / faces.length;

@@ -74,7 +74,7 @@ export function expandShell(seed: number): ShellPlan {
 // archetype constant; the face width — the run between the frame's outer and
 // inner lines — rolls in this band.
 const JITTER_RANGE = { min: 0.85, max: 1.15 } as const;
-const FACE_WIDTH_RANGE = { min: 0.05, max: 0.09 } as const;
+const FACE_WIDTH_RANGE = { min: 0.03, max: 0.06 } as const;
 
 export const BOX = { halfW: 0.8, halfH: 0.5 };
 

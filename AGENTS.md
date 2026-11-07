@@ -38,6 +38,12 @@ src/
 
 ## Rules that hold the structure together
 
+- **Module entries:** each engine layer module (`core/window-shell/`,
+  `core/curtain/`, `core/sill/`) exports one base shape from its `index.ts`:
+  the roll (`expand<Layer>`), the draw (`shellMarks` / `curtainMarks` /
+  `sillMarks`), and the plan type. Anything beyond the base shape — catalogue
+  constants, pinned-plan drawers, geometry helpers — is imported from the
+  child module that owns it, never re-exported through the entry.
 - **Import direction:** chapters sit on top of the engine folders
   (`core/`, `pen/`, `motion/`, `styling/`); within the engine, calls only
   go toward leaf modules — core uses `pen/`, `motion/`, `styling/`, and

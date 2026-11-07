@@ -12,7 +12,8 @@ import { windowSeed } from '@/core/randomness/rng';
 import { drawWindow } from '@/core/window';
 import { execute } from '@/core/scene';
 import { CENTRE_EYE, makeProjection } from '@/motion/projection';
-import { windowMarks, type CasementPlan, type PicturePlan, type ShellPlan, type SlidingPlan } from '@/core/window-shell';
+import { shellMarks, type ShellPlan } from '@/core/window-shell';
+import type { CasementPlan, PicturePlan, SlidingPlan } from '@/core/window-shell/archetypes';
 
 const COLS = 3;
 const ROWS = 2;
@@ -137,7 +138,7 @@ function mountPlates(canvas: HTMLCanvasElement, plans: ShellPlan[]): TuningHandl
           ((i % cols) - (cols - 1) / 2) * UNIT_PITCH_X,
           (Math.floor(i / cols) - (rows - 1) / 2) * UNIT_PLATE_PITCH_Y,
         );
-        execute(windowMarks(plan), pen, ctx, windowPalette(pen.seed, colors), makeProjection(CENTRE_EYE));
+        execute(shellMarks(plan), pen, ctx, windowPalette(pen.seed, colors), makeProjection(CENTRE_EYE));
         ctx.restore();
       });
     },

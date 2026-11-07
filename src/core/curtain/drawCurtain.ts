@@ -12,7 +12,7 @@
 import type { Mark } from '@/core/scene';
 import { WEIGHTS } from '@/styling/weights';
 import type { ColorRole } from '@/styling/roles';
-import { line, rectPts, type PaneRect } from '@/core/window-shell';
+import { line, rectPts, type PaneRect } from '@/core/window-shell/shell';
 import { CURTAIN_DEPTH, CURTAIN_Z, ROD_CLEARANCE } from './catalogue';
 import type { CoveredCurtain, CurtainPlan } from './curtain';
 
@@ -165,4 +165,9 @@ function roman(plan: CoveredCurtain, o: PaneRect): Mark[] {
 }
 
 const DRAWERS = { panels, drapes, venetian, roman } as const;
-export { DRAWERS };
+
+// The pinned-plan seam: a hand-built CurtainPlan (demo plates) drawn as-is.
+export function clothMarks(plan: CurtainPlan, opening: PaneRect): Mark[] {
+  if (!plan.present) return [];
+  return DRAWERS[plan.kind](plan, opening);
+}

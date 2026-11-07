@@ -1,8 +1,7 @@
-// The tenant's first layer: the window covering hung behind the glass. The
-// curtain rolls on the DNA stream (fork 'dna'), of which it is the first
-// layer — the shell keeps its own fork, so the vocabularies grow without
-// re-randomizing each other. Roll order lives in catalogue.ts.
-import { fork } from '@/core/randomness/rng';
+// The tenant's first layer: the window covering hung behind the glass —
+// the shell keeps its own fork, so the vocabularies grow without
+// re-randomizing each other.
+import type { Rng } from '@/core/randomness/rng';
 import {
   COVERAGE_LEVELS,
   DRAPE_SIDES,
@@ -32,8 +31,10 @@ export interface CoveredCurtain {
 
 export type CurtainPlan = BareCurtain | CoveredCurtain;
 
-export function expandCurtain(seed: number): CurtainPlan {
-  const rng = fork(seed, 'dna');
+// The curtain rolls on the caller's DNA stream: the tenant walk hands the
+// live generator, so the layers appended after this one keep their draw
+// order. Roll order lives in catalogue.ts.
+export function expandCurtain(rng: Rng): CurtainPlan {
   const level = rng.weighted(COVERAGE_LEVELS);
   if (level === 0) return { present: false };
   const kind = rng.weighted(KINDS);

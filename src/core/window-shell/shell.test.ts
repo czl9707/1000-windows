@@ -87,8 +87,8 @@ describe('shell plans', () => {
 
   it('keeps the face width within its decided range', () => {
     for (const plan of sweep(300)) {
-      expect(plan.faceWidth).toBeGreaterThanOrEqual(0.05);
-      expect(plan.faceWidth).toBeLessThanOrEqual(0.09);
+      expect(plan.faceWidth).toBeGreaterThanOrEqual(0.03);
+      expect(plan.faceWidth).toBeLessThanOrEqual(0.06);
     }
   });
 
