@@ -33,6 +33,14 @@ export interface ResolvedColor {
   alpha: number;
 }
 
+// Verdict from the page: 0.5 was for eyeballing, the wash
+// settles at 0.05 — visible, never louder than the lines.
+export const GLASS_WASH = 0.05;
+
+// Occluding fills go down opaque: they exist to hide the wall and the layers
+// behind an add-on, so anything less lets lines ghost through.
+export const OCCLUDE = 1;
+
 // Rebuilt each frame from the theme's colours and the window's colourway, so
 // a theme switch re-renders the same scene in the new colours.
 export type Palette = (role: ColorRole) => ResolvedColor;

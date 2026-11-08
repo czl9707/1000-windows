@@ -6,7 +6,7 @@ import { Pen } from '@/pen/pen';
 import { registerDemo, type TuningHandle } from '@/components/mount';
 import { DEFAULT_TUNING } from '@/pen/tuning';
 import { type ThemeColors } from '@/styling/roles';
-import { windowPalette } from '@/styling/colourway';
+import { mockPalette } from '@/content/chapters/mock/palette';
 import { windowSeed } from '@/core/randomness/rng';
 import { shellMarks, expandShell } from '@/core/window-shell';
 import { execute } from '@/core/scene';
@@ -62,7 +62,7 @@ function mountParallaxStrip(canvas: HTMLCanvasElement): TuningHandle {
           shellMarks(expandShell(pen.seed)),
           pen,
           ctx,
-          windowPalette(pen.seed, colors),
+          mockPalette(colors),
           makeProjection({ x: eye.x + wx, y: eye.y + wy }, focal),
         );
         ctx.restore();

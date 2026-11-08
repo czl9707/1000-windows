@@ -45,8 +45,8 @@ mutating a field changes every later stroke. `seed` is the window's seed:
 the pen hashes it into every trace's warp and rolls the window's beat
 offset from it, so one pen serves one window — without the per-window
 seed, every window on a wall would boil in lockstep, which reads as a
-display fault. The seed is also the one fact `drawWindow` reads off the
-pen (`pen.seed`), so the shell plan and the tremor can never disagree.
+display fault. The seed is also the one fact the scene reads off the
+pen (`pen.seed`), so the scene and the tremor can never disagree.
 
 The pen is colour-blind. Every call names its colour; the pen owns only
 the hand.
@@ -78,7 +78,7 @@ A stroke's options, all required beside the last three:
   never the beat.
 
 Stroke widths themselves are not tuning: they are hand-set constants in
-the scene, because a frame rail and a sill front should not share one knob.
+the scene, because a frame rail and a mullion should not share one knob.
 
 ## Tuning
 
@@ -109,9 +109,9 @@ The hand stream reads the field directly; the frame stream reads the
 same field shifted by the beat, so it re-rolls a few times a second
 while nothing else moves. The two mix by the stroke's length:
 
-- below `kochHand` — hand only: sill details, inner splitters.
+- below `kochHand` — hand only: dots, short ticks.
 - `kochHand` to `kochFrame` — mixed, sliding with length: mullions.
-- from `kochFrame` — fully on the beat: frame lines, sill top.
+- from `kochFrame` — fully on the beat: frame lines.
 
 Closed shapes always sit on the beat: a scene shape that holds still while
 its neighbours boil looks broken. Below `kochHand` the warp is also capped

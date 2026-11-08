@@ -8,7 +8,7 @@ import { Pen } from '@/pen/pen';
 import { registerDemo, plateCols, type TuningHandle } from '@/components/mount';
 import { DEFAULT_TUNING } from '@/pen/tuning';
 import { type ThemeColors } from '@/styling/roles';
-import { windowPalette } from '@/styling/colourway';
+import { mockPalette } from '@/content/chapters/mock/palette';
 import { windowSeed } from '@/core/randomness/rng';
 import { execute } from '@/core/scene';
 import { CENTRE_EYE, makeProjection } from '@/motion/projection';
@@ -70,7 +70,7 @@ function mountPlates(canvas: HTMLCanvasElement, plans: CurtainPlan[]): TuningHan
           [...shellMarks(SHELL), ...clothMarks(plan, OPENING)],
           pen,
           ctx,
-          windowPalette(pen.seed, colors),
+          mockPalette(colors),
           makeProjection(CENTRE_EYE),
         );
         ctx.restore();

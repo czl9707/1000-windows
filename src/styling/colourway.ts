@@ -15,15 +15,9 @@ import {
   type Palette,
   type ResolvedColor,
   type ThemeColors,
+  GLASS_WASH,
+  OCCLUDE,
 } from "./roles";
-
-// Verdict from the page: 0.5 was for eyeballing, the wash
-// settles at 0.05 — visible, never louder than the lines.
-const GLASS_WASH = 0.05;
-
-// Occluding fills go down opaque: they exist to hide the wall and the layers
-// behind an add-on, so anything less lets lines ghost through.
-const OCCLUDE = 1;
 
 export interface Colourway {
   name: string;

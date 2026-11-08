@@ -7,12 +7,11 @@ import { Pen } from '@/pen/pen';
 import { registerDemo, plateCols, type TuningHandle } from '@/components/mount';
 import { DEFAULT_TUNING } from '@/pen/tuning';
 import { type ThemeColors } from '@/styling/roles';
-import { windowPalette } from '@/styling/colourway';
+import { mockPalette } from '@/content/chapters/mock/palette';
 import { windowSeed } from '@/core/randomness/rng';
-import { drawWindow } from '@/core/window';
 import { execute } from '@/core/scene';
 import { CENTRE_EYE, makeProjection } from '@/motion/projection';
-import { shellMarks, type ShellPlan } from '@/core/window-shell';
+import { shellMarks, expandShell, type ShellPlan } from '@/core/window-shell';
 import type { CasementPlan, PicturePlan, SlidingPlan } from '@/core/window-shell/archetypes';
 
 const COLS = 3;
@@ -32,7 +31,7 @@ function mountShellStrip(canvas: HTMLCanvasElement): TuningHandle {
   let baseSeed = DEFAULT_SEED;
   // One pen per window, kept across frames: the pen caches each trace's warp
   // field, and rebuilding them per frame throws the cache away. Colours ride
-  // with the window's own palette, so a theme switch never rebuilds a pen.
+  // with the frame's theme colours, so a theme switch never rebuilds a pen.
   let pens: { seed: number; pen: Pen }[] = [];
 
   const rebuild = () => {
@@ -55,7 +54,7 @@ function mountShellStrip(canvas: HTMLCanvasElement): TuningHandle {
           (SLOTS[i].col - (COLS - 1) / 2) * UNIT_PITCH_X,
           (SLOTS[i].row - (ROWS - 1) / 2) * UNIT_PITCH_Y,
         );
-        drawWindow(ctx, pen, windowPalette(pen.seed, colors), CENTRE_EYE);
+        execute(shellMarks(expandShell(pen.seed)), pen, ctx, mockPalette(colors), makeProjection(CENTRE_EYE));
         ctx.restore();
       });
     },
@@ -138,7 +137,7 @@ function mountPlates(canvas: HTMLCanvasElement, plans: ShellPlan[]): TuningHandl
           ((i % cols) - (cols - 1) / 2) * UNIT_PITCH_X,
           (Math.floor(i / cols) - (rows - 1) / 2) * UNIT_PLATE_PITCH_Y,
         );
-        execute(shellMarks(plan), pen, ctx, windowPalette(pen.seed, colors), makeProjection(CENTRE_EYE));
+        execute(shellMarks(plan), pen, ctx, mockPalette(colors), makeProjection(CENTRE_EYE));
         ctx.restore();
       });
     },

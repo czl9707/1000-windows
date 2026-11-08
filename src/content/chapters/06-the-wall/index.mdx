@@ -108,7 +108,7 @@ the engine entrypoint that owns the meta-seed, the camera, and both layers'
 pens; reseed, glide, and the pan gestures go through the same object. Inside
 that frame, the wall composites windows through one call —
 `drawWindow(ctx, pen, palette, eye)` — and that is the whole contract. It
-knows nothing of shells, tenants, curtains, or light. Everything that
+knows nothing of shells or tenants. Everything that
 happens inside a window lands behind that entry, and the home page holds
 nothing but the wiring around the engine: the frame's view and real eye,
 and the shuffle seat.
