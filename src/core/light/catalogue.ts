@@ -17,8 +17,8 @@ export type LampKind =
   | 'pendant'
   | 'bulbPendant';
 
-// Six home constructions from the prototype sheet's picked ten: four stand
-// on the floor line, two hang from the ceiling line.
+// Six home constructions from the prototype sheet's picked ten: two stand
+// on the floor line, two on desks, two hang from the ceiling line.
 export const LAMP_KINDS: readonly { value: LampKind; weight: number }[] = [
   { value: 'floorLamp', weight: 3 },
   { value: 'arcLamp', weight: 2 },
@@ -46,13 +46,17 @@ export const FACINGS: readonly { value: Facing; weight: number }[] = [
 // kept off the frame's edges.
 export const ANCHOR_X: Record<Anchor, number> = { left: 0.28, centre: 0.5, right: 0.72 };
 
+// The desked lamps stand on furniture drawn under them: the desk top's
+// height above the floor line, as a share of the opening's height. The
+// table lamp is the bigger lamp on a lower desk; the bedside lamp the
+// smaller one on a taller nightstand.
+export const DESK_TOP: Record<'tableLamp' | 'bedsideLamp', number> = {
+  tableLamp: 0.3,
+  bedsideLamp: 0.4,
+};
+
 // The interior sits deeper than the curtain (the room behind the cloth) and
 // sorts under it, so the veil and the aura lay over the interior and the
 // cloth reads them through its own wash.
 export const LIGHT_DEPTH = -0.12;
 export const LIGHT_Z = -7;
-
-// The room's floor line, as a share of the opening's height up from the
-// opening's bottom — the floor stands behind the sill ledge, so the four
-// standing constructions plant their feet on it, clear of the frame's edge.
-export const ROOM_FLOOR = 0.06;

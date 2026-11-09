@@ -5,12 +5,13 @@ import { expandCurtain, curtainMarks } from '@/core/curtain';
 import { expandSill, sillMarks } from '@/core/sill';
 import { windowSceneMarks } from '@/core/window';
 import { expandShell, shellMarks, type ShellPlan } from '@/core/window-shell';
-import { ANCHORS, FACINGS, LAMP_KINDS, LIGHT_DEPTH, LIGHT_Z, ROOM_FLOOR, type LampKind } from './catalogue';
+import { ANCHORS, DESK_TOP, FACINGS, LAMP_KINDS, LIGHT_Z, type LampKind } from './catalogue';
 import { expandLight, type LampPlan } from './light';
 import { lampMarks } from './drawLamp';
 
 const OPENING = innerRect(0.07);
-const FLOOR_SHADE_KINDS: LampKind[] = ['floorLamp', 'arcLamp', 'tableLamp', 'bedsideLamp'];
+const FLOOR_KINDS: LampKind[] = ['floorLamp', 'arcLamp'];
+const DESKED_KINDS: ('tableLamp' | 'bedsideLamp')[] = ['tableLamp', 'bedsideLamp'];
 const HANGING_KINDS: LampKind[] = ['pendant', 'bulbPendant'];
 const INTERIOR_ROLES = ['lamp', 'light', 'ambient', 'aura', 'veil'] as const;
 
@@ -130,33 +131,36 @@ describe('lampMarks', () => {
     }
   });
 
-  it('stands the four standing lamps on the room-floor line, clear of the bottom edge', () => {
-    const floor = OPENING.bottom - ROOM_FLOOR * (OPENING.bottom - OPENING.top);
-    for (const kind of FLOOR_SHADE_KINDS) {
-      const marks = lampMarks({ on: true, kind, location: 'centre', facing: 'right' }, OPENING, false);
-      const furniture = marks.filter((m) => m.role === 'lamp');
-      for (const mark of furniture) {
-        for (const p of mark.pts) expect(p.y).toBeLessThanOrEqual(floor + 1e-9);
-      }
-      expect(furniture.some((m) => m.pts.some((p) => Math.abs(p.y - floor) < 1e-9))).toBe(true);
-    }
-  });
-
-  it('runs the floorLamp shade ink along the shade fill edges', () => {
-    const w = OPENING.right - OPENING.left;
+  it('stands the desked lamps on a desk at the designed height, the floor lamps on the floor line', () => {
     const h = OPENING.bottom - OPENING.top;
-    const x = OPENING.left + 0.5 * w;
-    const shadeTop = OPENING.top + 0.16 * h;
-    const shadeBottom = shadeTop + 0.14 * h;
-    const marks = lampMarks(plan, OPENING, false);
-    const left = marks.find((m) => m.kind === 'stroke' && m.name === 'lamp-shade-left');
-    const right = marks.find((m) => m.kind === 'stroke' && m.name === 'lamp-shade-right');
-    expect(left).toBeDefined();
-    expect(right).toBeDefined();
-    expect(left!.pts[0]).toEqual({ x: x - 0.05 * w, y: shadeTop, z: LIGHT_DEPTH });
-    expect(left!.pts.at(-1)).toEqual({ x: x - 0.08 * w, y: shadeBottom, z: LIGHT_DEPTH });
-    expect(right!.pts[0]).toEqual({ x: x + 0.05 * w, y: shadeTop, z: LIGHT_DEPTH });
-    expect(right!.pts.at(-1)).toEqual({ x: x + 0.08 * w, y: shadeBottom, z: LIGHT_DEPTH });
+    for (const kind of DESKED_KINDS) {
+      const marks = lampMarks(
+        { on: false, kind, location: 'centre', facing: 'right' },
+        OPENING,
+        false,
+      );
+      const bottoms = [
+        ...new Set(
+          marks
+            .filter((m) => m.role === 'lamp')
+            .map((m) => Math.max(...m.pts.map((p) => p.y))),
+        ),
+      ].sort((a, b) => b - a);
+      expect(bottoms[0]).toBeCloseTo(OPENING.bottom, 9);
+      expect(bottoms.length).toBeGreaterThan(2);
+      expect((OPENING.bottom - bottoms[1]) / h).toBeCloseTo(DESK_TOP[kind], 9);
+    }
+    for (const kind of FLOOR_KINDS) {
+      const marks = lampMarks(
+        { on: false, kind, location: 'centre', facing: 'right' },
+        OPENING,
+        false,
+      );
+      const lowest = Math.max(
+        ...marks.filter((m) => m.role === 'lamp').flatMap((m) => m.pts.map((p) => p.y)),
+      );
+      expect(lowest).toBeCloseTo(OPENING.bottom, 9);
+    }
   });
 });
 

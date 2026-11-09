@@ -13,7 +13,7 @@ import type { Mark } from '@/core/scene';
 import type { Pt3 } from '@/motion/projection';
 import { WEIGHTS } from '@/styling/weights';
 import { line, rectPts, type PaneRect } from '@/core/window-shell/shell';
-import { ANCHOR_X, LIGHT_DEPTH, LIGHT_Z, ROOM_FLOOR, type LampKind } from './catalogue';
+import { ANCHOR_X, DESK_TOP, LIGHT_DEPTH, LIGHT_Z, type LampKind } from './catalogue';
 import type { LampPlan } from './light';
 
 const atDepth = () => LIGHT_DEPTH;
@@ -35,6 +35,17 @@ function ink(name: string, x0: number, y0: number, x1: number, y1: number): Mark
 
 function rect(x0: number, y0: number, x1: number, y1: number): Pt3[] {
   return rectPts(x0, y0, x1, y1, atDepth);
+}
+
+// A rectangular desk silhouette: furniture paint down to the floor line
+// plus a top edge and two sides of ink.
+function desk(x: number, halfW: number, topY: number, floorY: number): Mark[] {
+  return [
+    fill('lamp', rect(x - halfW, topY, x + halfW, floorY)),
+    ink('lamp-desk-top', x - halfW, topY, x + halfW, topY),
+    ink('lamp-desk-left', x - halfW, topY, x - halfW, floorY),
+    ink('lamp-desk-right', x + halfW, topY, x + halfW, floorY),
+  ];
 }
 
 function circle(cx: number, cy: number, r: number, n = 14): Pt3[] {
@@ -102,85 +113,84 @@ function emit(kind: LampKind, f: Frame, lit: boolean): { marks: Mark[]; auras: P
   const emitterRole = lit ? 'light' : 'lamp';
   switch (kind) {
     case 'floorLamp': {
-      const floor = o.bottom - ROOM_FLOOR * h;
       const shadeTop = o.top + 0.16 * h;
       const shadeBottom = shadeTop + 0.14 * h;
       return {
         marks: [
-          fill('lamp', rect(x - 0.04 * w, floor - 0.02 * h, x + 0.04 * w, floor)),
-          fill('lamp', rect(x - 0.008 * w, shadeBottom, x + 0.008 * w, floor - 0.02 * h)),
-          ink('lamp-base-left', x - 0.04 * w, floor - 0.02 * h, x - 0.04 * w, floor),
-          ink('lamp-base-right', x + 0.04 * w, floor - 0.02 * h, x + 0.04 * w, floor),
-          ink('lamp-base-bottom', x - 0.04 * w, floor, x + 0.04 * w, floor),
-          ink('lamp-pole', x, shadeBottom, x, floor - 0.02 * h),
+          fill('lamp', rect(x - 0.04 * w, o.bottom - 0.02 * h, x + 0.04 * w, o.bottom)),
+          fill('lamp', rect(x - 0.008 * w, shadeBottom, x + 0.008 * w, o.bottom - 0.02 * h)),
+          ink('lamp-base-left', x - 0.04 * w, o.bottom - 0.02 * h, x - 0.04 * w, o.bottom),
+          ink('lamp-base-right', x + 0.04 * w, o.bottom - 0.02 * h, x + 0.04 * w, o.bottom),
+          ink('lamp-base-bottom', x - 0.04 * w, o.bottom, x + 0.04 * w, o.bottom),
+          ink('lamp-pole', x, shadeBottom, x, o.bottom - 0.02 * h),
           fill(emitterRole, trapezoid(x, shadeTop, 0.1 * w, shadeBottom, 0.16 * w)),
           ink('lamp-shade-left', x - 0.05 * w, shadeTop, x - 0.08 * w, shadeBottom),
           ink('lamp-shade-right', x + 0.05 * w, shadeTop, x + 0.08 * w, shadeBottom),
         ],
         auras: [
-          trapezoid(x + skew * w, shadeBottom, 0.16 * w, floor, 0.5 * w),
-          rect(x - 0.05 * w, shadeTop - 0.08 * h, x + 0.05 * w, shadeTop),
+          trapezoid(x + skew * w, shadeBottom, 0.16 * w, o.bottom, 0.5 * w),
+          rect(x - 0.06 * w, shadeTop - 0.06 * h, x + 0.06 * w, shadeTop + 0.02 * h),
         ],
       };
     }
     case 'arcLamp': {
-      const floor = o.bottom - ROOM_FLOOR * h;
       const headX = x + skew * 1.6 * w;
       const headY = o.top + 0.3 * h;
       return {
         marks: [
-          fill('lamp', rect(x - 0.04 * w, floor - 0.02 * h, x + 0.04 * w, floor)),
-          fill('lamp', rect(x - 0.006 * w, headY, x + 0.006 * w, floor - 0.02 * h)),
-          ink('lamp-base-left', x - 0.04 * w, floor - 0.02 * h, x - 0.04 * w, floor),
-          ink('lamp-base-right', x + 0.04 * w, floor - 0.02 * h, x + 0.04 * w, floor),
-          ink('lamp-base-bottom', x - 0.04 * w, floor, x + 0.04 * w, floor),
-          ink('lamp-pole', x, headY, x, floor - 0.02 * h),
+          fill('lamp', rect(x - 0.04 * w, o.bottom - 0.02 * h, x + 0.04 * w, o.bottom)),
+          fill('lamp', rect(x - 0.006 * w, headY, x + 0.006 * w, o.bottom - 0.02 * h)),
+          ink('lamp-base-left', x - 0.04 * w, o.bottom - 0.02 * h, x - 0.04 * w, o.bottom),
+          ink('lamp-base-right', x + 0.04 * w, o.bottom - 0.02 * h, x + 0.04 * w, o.bottom),
+          ink('lamp-base-bottom', x - 0.04 * w, o.bottom, x + 0.04 * w, o.bottom),
+          ink('lamp-pole', x, headY, x, o.bottom - 0.02 * h),
           ink('lamp-arm', x, headY, headX, headY),
           fill(emitterRole, circle(headX, headY, 0.035 * w)),
         ],
-        auras: [circle(headX, headY, 0.16 * w)],
+        auras: [circle(headX, headY + 0.1 * h, 0.16 * w)],
       };
     }
     case 'tableLamp': {
-      const floor = o.bottom - ROOM_FLOOR * h;
-      const shadeTop = o.top + 0.3 * h;
+      const deskTop = o.bottom - DESK_TOP.tableLamp * h;
+      const shadeTop = o.top + 0.34 * h;
       const shadeBottom = shadeTop + 0.1 * h;
       return {
         marks: [
-          fill('lamp', rect(x - 0.05 * w, floor - 0.03 * h, x + 0.05 * w, floor)),
-          fill('lamp', rect(x - 0.006 * w, shadeBottom, x + 0.006 * w, floor - 0.03 * h)),
-          ink('lamp-base-left', x - 0.05 * w, floor - 0.03 * h, x - 0.05 * w, floor),
-          ink('lamp-base-right', x + 0.05 * w, floor - 0.03 * h, x + 0.05 * w, floor),
-          ink('lamp-base-bottom', x - 0.05 * w, floor, x + 0.05 * w, floor),
-          ink('lamp-stem', x, shadeBottom, x, floor - 0.03 * h),
+          ...desk(x, 0.16 * w, deskTop, o.bottom),
+          fill('lamp', rect(x - 0.05 * w, deskTop - 0.03 * h, x + 0.05 * w, deskTop)),
+          fill('lamp', rect(x - 0.006 * w, shadeBottom, x + 0.006 * w, deskTop - 0.03 * h)),
+          ink('lamp-base-left', x - 0.05 * w, deskTop - 0.03 * h, x - 0.05 * w, deskTop),
+          ink('lamp-base-right', x + 0.05 * w, deskTop - 0.03 * h, x + 0.05 * w, deskTop),
+          ink('lamp-base-bottom', x - 0.05 * w, deskTop, x + 0.05 * w, deskTop),
+          ink('lamp-stem', x, shadeBottom, x, deskTop - 0.03 * h),
           fill(emitterRole, rect(x - 0.07 * w, shadeTop, x + 0.07 * w, shadeBottom)),
           ink('lamp-drum-top', x - 0.07 * w, shadeTop, x + 0.07 * w, shadeTop),
           ink('lamp-drum-bottom', x - 0.07 * w, shadeBottom, x + 0.07 * w, shadeBottom),
         ],
-        auras: [rect(x - 0.22 * w, shadeTop - 0.1 * h, x + 0.22 * w, shadeBottom + 0.1 * h)],
+        auras: [rect(x - 0.22 * w, shadeTop - 0.04 * h, x + 0.22 * w, shadeBottom + 0.04 * h)],
       };
     }
     case 'bedsideLamp': {
-      const floor = o.bottom - ROOM_FLOOR * h;
-      const shadeTop = o.top + 0.42 * h;
+      const deskTop = o.bottom - DESK_TOP.bedsideLamp * h;
+      const shadeTop = o.top + 0.4 * h;
       const shadeBottom = shadeTop + 0.08 * h;
       return {
         marks: [
-          fill('lamp', rect(x - 0.04 * w, floor - 0.02 * h, x + 0.04 * w, floor)),
-          fill('lamp', rect(x - 0.005 * w, shadeBottom, x + 0.005 * w, floor - 0.02 * h)),
-          ink('lamp-base-left', x - 0.04 * w, floor - 0.02 * h, x - 0.04 * w, floor),
-          ink('lamp-base-right', x + 0.04 * w, floor - 0.02 * h, x + 0.04 * w, floor),
-          ink('lamp-base-bottom', x - 0.04 * w, floor, x + 0.04 * w, floor),
-          ink('lamp-stem', x, shadeBottom, x, floor - 0.02 * h),
+          ...desk(x, 0.12 * w, deskTop, o.bottom),
+          fill('lamp', rect(x - 0.04 * w, deskTop - 0.02 * h, x + 0.04 * w, deskTop)),
+          fill('lamp', rect(x - 0.005 * w, shadeBottom, x + 0.005 * w, deskTop - 0.02 * h)),
+          ink('lamp-base-left', x - 0.04 * w, deskTop - 0.02 * h, x - 0.04 * w, deskTop),
+          ink('lamp-base-right', x + 0.04 * w, deskTop - 0.02 * h, x + 0.04 * w, deskTop),
+          ink('lamp-base-bottom', x - 0.04 * w, deskTop, x + 0.04 * w, deskTop),
+          ink('lamp-stem', x, shadeBottom, x, deskTop - 0.02 * h),
           fill(emitterRole, trapezoid(x, shadeTop, 0.08 * w, shadeBottom, 0.12 * w)),
           ink('lamp-shade-left', x - 0.04 * w, shadeTop, x - 0.06 * w, shadeBottom),
           ink('lamp-shade-right', x + 0.04 * w, shadeTop, x + 0.06 * w, shadeBottom),
         ],
-        auras: [circle(x, shadeBottom, 0.12 * w)],
+        auras: [circle(x, (shadeTop + shadeBottom) / 2, 0.12 * w)],
       };
     }
     case 'pendant': {
-      const floor = o.bottom - ROOM_FLOOR * h;
       const shadeTop = o.top + 0.22 * h;
       const shadeBottom = shadeTop + 0.1 * h;
       return {
@@ -191,8 +201,8 @@ function emit(kind: LampKind, f: Frame, lit: boolean): { marks: Mark[]; auras: P
           ink('lamp-shade-right', x + 0.03 * w, shadeTop, x + 0.09 * w, shadeBottom),
         ],
         auras: [
-          trapezoid(x + skew * w, shadeBottom, 0.18 * w, floor, 0.5 * w),
-          rect(x - 0.03 * w, shadeTop - 0.05 * h, x + 0.03 * w, shadeTop),
+          trapezoid(x + skew * w, shadeBottom, 0.18 * w, o.bottom, 0.5 * w),
+          rect(x - 0.05 * w, shadeTop - 0.04 * h, x + 0.05 * w, shadeTop + 0.02 * h),
         ],
       };
     }
