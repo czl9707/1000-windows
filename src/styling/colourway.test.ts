@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { fork } from '@/core/randomness/rng';
 import { type ResolvedColor } from './roles';
-import { COLOURWAYS, LIGHTWAYS, DEFAULT_COLOURWAY_TUNING, windowPalette, type Colourway } from './colourway';
+import { COLOURWAYS, windowPalette, type Colourway } from './colourway';
 import { cssToOklch, type Oklch } from './oklch';
 
 // The grounds match the page's two themes; the ink values are whatever the
@@ -103,8 +103,7 @@ describe('windowPalette', () => {
     expect(Number.isFinite(measured.h)).toBe(true);
   });
 
-  const STREET = ['mullion', 'awning', 'awningThin', 'box'] as const;
-  it.each(STREET)('mixes %s into the ground at night', (role) => {
+  it.each([...TINTED, 'awningThin'] as const)('mixes %s into the ground at night', (role) => {
     const day = windowPalette(42, LIGHT)(role).color;
     const night = windowPalette(42, DARK)(role).color;
     const ch = (css: string) => css.match(/\d+/g)!.map(Number);
@@ -113,15 +112,6 @@ describe('windowPalette', () => {
     expect(nr).toBe(Math.round(0.3 * dr));
     expect(ng).toBe(Math.round(0.3 * dg));
     expect(nb).toBe(Math.round(0.3 * db));
-  });
-
-  // The veil covers the street only: the room's interior is its own space —
-  // its surfaces keep their day colour over the interior ground, which holds
-  // the theme's ground in both themes.
-  const INTERIOR = ['fabric', 'shade', 'blind', 'sill'] as const;
-  it.each(INTERIOR)('keeps %s on its day colour at night', (role) => {
-    expect(windowPalette(42, DARK)(role).color).toBe(windowPalette(42, LIGHT)(role).color);
-    expect(windowPalette(42, DARK)(role).alpha).toBe(windowPalette(42, LIGHT)(role).alpha);
   });
 
   it.each(PAINTED)('paints %s opaque', (role) => {
@@ -177,55 +167,5 @@ describe('windowPalette', () => {
   it('throws on a role with no registered resolution', () => {
     const palette = windowPalette(42, LIGHT) as unknown as (role: string) => ResolvedColor;
     expect(() => palette('nonsense')).toThrow();
-  });
-});
-
-describe('the light palette', () => {
-  it('registers every light role', () => {
-    for (const role of ['lamp', 'emitter', 'ambient', 'aura'] as const) {
-      expect(() => windowPalette(42, LIGHT)(role)).not.toThrow();
-    }
-  });
-
-  // The emitter resolves its warm row whole — no chroma cap, no night sink:
-  // the bulb is the one surface allowed to shout, and it is furniture colour
-  // in both themes.
-  it('reads the emitter straight off the light fork', () => {
-    for (const seed of [1, 42, 2000, 1335613256, 7, 99]) {
-      const exp = fork(seed, 'light');
-      const row = exp.weighted(LIGHTWAYS.map((w) => ({ value: w, weight: w.weight })));
-      const hue = exp.float(
-        row.hue - DEFAULT_COLOURWAY_TUNING.hueJitter,
-        row.hue + DEFAULT_COLOURWAY_TUNING.hueJitter,
-      );
-      const emitter = cssToOklch(windowPalette(seed, LIGHT)('emitter').color);
-      expect(emitter.l, `seed ${seed}`).toBeCloseTo(row.lightness, 2);
-      expect(emitter.c, `seed ${seed}`).toBeCloseTo(row.chroma, 2);
-      expect(emitter.h, `seed ${seed}`).toBeCloseTo(hue, 0);
-    }
-  });
-
-  it('stays in the warm band over a seed sweep', () => {
-    for (let i = 0; i < 200; i++) {
-      const h = cssToOklch(windowPalette(3000 + i * 7919, LIGHT)('emitter').color).h;
-      expect(h).toBeGreaterThanOrEqual(25);
-      expect(h).toBeLessThanOrEqual(100);
-    }
-  });
-
-  it('keeps every light role on its day colour at night', () => {
-    for (const role of ['lamp', 'emitter', 'ambient', 'aura'] as const) {
-      expect(windowPalette(42, DARK)(role).color).toBe(windowPalette(42, LIGHT)(role).color);
-    }
-  });
-
-  // The washes the room reads by: the aura louder than the ambient, both
-  // whispers against the emitter's opaque fill.
-  it('washes the room at the aura and ambient dials', () => {
-    const p = windowPalette(42, LIGHT);
-    expect(p('emitter').alpha).toBe(1);
-    expect(p('ambient').alpha).toBeGreaterThan(0);
-    expect(p('ambient').alpha).toBeLessThan(p('aura').alpha);
-    expect(p('aura').alpha).toBeLessThan(0.5);
   });
 });

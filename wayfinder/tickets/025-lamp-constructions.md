@@ -23,4 +23,4 @@ Picked for the first pass (user, 2026-11-08), sheet positions 1, 3, 4, 5, 7, 8:
 5. pendant with shade — wide cone down from the shade
 6. bare-bulb pendant — round pool radiating from the bulb itself
 
-Two constructions hang from the ceiling line, four stand on the floor line. The warmth hue follows the sheet's amber family. The round also revised ticket 017's colour model — the aura lays directly over the layers behind it, plus a room-wide ambient fill — recorded as the addendum there. Auras run stronger than the sheet showed. The sheet itself was cleaned out of `scratch/` with the rejected light runs.
+Two constructions hang from the ceiling line, four stand on the floor line. The warmth hue follows the sheet's amber family. The round also revised ticket 017's colour model — the aura lays directly over the layers behind it, plus a room-wide ambient fill — recorded as the addendum there. Auras run stronger than the sheet showed.

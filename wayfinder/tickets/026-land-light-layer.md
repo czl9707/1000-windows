@@ -8,13 +8,35 @@ blocked-by: []
 
 ## Question
 
-Build the light layer fresh per ticket 017's resolution and addendum, with the six lamp constructions picked in ticket 025. Two earlier runs lived as branches (`light-layer`, `light-layer-2`, both stacked on `colour-layer`); both were deleted by user decision and this is a restart, not a continuation. The plan:
+Build the light layer per ticket 017's resolution and both addenda, with the six lamp constructions picked in ticket 025, and ship chapter 09.
 
-1. **Clean slate.** Done 2026-11-08: both rejected branches deleted, the half-torn-out working tree discarded, fresh branch `light-layer` cut from `colour-layer` (the accepted base — `main` predates the colour and sill milestones).
-2. **Styling — the veil narrows.** The night mix keeps sinking the street-side painted roles only (mullion, awning, box). Interior roles — cloth/shade/blind, sill ledge, sill-item fills, the lamp — resolve without it; their night look comes from the interior background holding the ground colour in both themes. New light palette on its own colour fork: a warm table of rows varying tone and strength in the amber family (rare strong rows above a threshold, the reference's pattern), the bulb resolving its row whole, the ambient sunk to its low-opacity dial, the aura at its dial alpha.
-3. **DNA.** The light block appends after the sill block, never ending early: on (`2 dark : 1 lit`) → kind (six constructions from the picked sheet) → seat (floor line or ceiling line by kind, a slot along the room) → facing (left/right where the construction supports it). The warmth row rolls on the light colour fork, never the dna stream.
-4. **The module.** `src/core/light/` on the established entry pattern: `index.ts` exports the base shape only (`expandLight`, `lightMarks`, the plan type); `catalogue.ts` holds the six constructions (the hanging line drives the hangers); `light.ts` expands the genes into the state table (day / night-unlit / night-lit); `drawLight.ts` emits structure marks (fill + ink like any object), emitter marks (ink + light fill at night, ink + ordinary fill otherwise), ambient (one low-opacity warm fill over the room, lit nights), and aura rings (anchored at the emitting part, layered flat washes, `Still`, clipped to the opening, stronger than the sheet). Depth band: interior → light marks → curtain cloth → sill items → pane wash → frame.
-5. **Assembly.** `window.ts` appends the light block after the sill stream-side; the night flip derives from the theme paper's lightness, one authority handed down per window.
-6. **Tests.** Stream purity and append-only order; roll weights; catalogue invariants (hanging kinds hang, seats in bounds); the state table per theme × lit; aura clipping and depth order; interior roles resolving veil-free; sill items and street roles unchanged.
-7. **Chapter 09.** Maker's-log prose per the chapter rules, DemoCanvas with the tuning handle (aura alpha, ambient alpha, warmth strength dials), the six lamp plates as the exhibit.
-8. **Verification.** `npx tsc --noEmit`, vitest, `npx astro build`; both review rounds in loop.
+### The drawing sequence the build implements
+
+- Night, light off: paper background → interior at full colour (no night mix) → night veil (one dark fill right behind the curtain, darkening the interior) → curtain cloth (no night mix — it relies on the colour behind) → sill items (unchanged) → pane wash.
+- Night, light on: no veil; interior at full colour → lamp structure (dark silhouette, fill + ink) → emitting part (ink + warm light fill) → ambient (one low-opacity warm fill over the room) → aura (lamp-shaped flat washes, laid over the interior ink lines, under the curtain cloth) → curtain cloth → sill items → pane wash.
+- Day: everything at full colour; no veil, no lit bulb, no ambient, no aura; the bulb part draws as a normal object.
+
+### Implementation plan
+
+1. **Styling — roles and the selective night mix** (`src/styling/roles.ts`, `colourway.ts`):
+   - New roles: `light` (the warmth colour — emitting fill, ambient, aura), `veil` (the theme paper at a veil alpha — the night veil), `lamp` (the lamp structure's dark fill, no night mix).
+   - The night mix becomes per-role: cloth roles (`fabric` / `shade` / `blind`) and the interior roles (`lamp`, `light`) skip it; shell/exterior roles keep it. The `veil` role resolves as the paper colour and only draws at night.
+   - The warmth table: rows in the amber family varying tone and strength, stronger than the prototype sheet (higher lightness/chroma); rolled on the `colourway:light` fork — colour never rides the DNA stream.
+2. **Engine — the light layer** (`src/core/light/`, mirroring curtain/sill):
+   - `index.ts` entry: `expandLight` (rolls the plan), `lightMarks` (draws it off the live DNA stream), `LightPlan`.
+   - `catalogue.ts`: the six constructions — tapered-shade floor lamp, arc floor lamp, drum-shade table lamp, small bedside lamp, pendant with shade, bare-bulb pendant — each with structure paths, its emitting region, and the aura shape it casts; two hang from the ceiling line, four stand on the floor line.
+   - `drawLamp.ts`: composes structure + emitting + ambient + aura fills per state (night/day, lit/unlit), auras as layered flat washes kept inside the opening, aura fills still (never boil).
+   - DNA stream appends after the sill block, fixed order: on/off (2 dark : 1 lit) → lamp kind → location (left : centre : right) → facing (left : right; mirrors the construction and skews the aura). Appending never shifts earlier rolls.
+3. **Assembly** (`src/core/window.ts` and its callers):
+   - `windowSceneMarks` gains a night flag (callers already derive night from the theme paper); the light block composes between the interior and the curtain cloth. Wall, home page, and demo loops thread the flag.
+4. **Tests** (vitest, TDD at the seams):
+   - Stream order: appending the light block never re-randomizes existing tenants.
+   - Palette: cloth roles skip the night mix; `veil`/`ambient`-strength alphas resolve per the warmth row; unregistered-role guard still throws.
+   - Constructions: six kinds roll, location and facing mirror correctly, auras stay inside the opening.
+   - Draw order: aura under cloth, veil behind cloth, sill above cloth.
+   - Theme gate: day emits no veil, no lit fill, no ambient, no aura.
+5. **Chapter 09** (`src/content/chapters/09-light/`): maker's-log prose per the chapter rules, a demo bench with the shared controls (force lit/unlit, lamp kind, location, facing, warmth row, theme), and the demo painter registered via `registerDemo`.
+
+### Verification
+
+`npx vitest run`, `npx tsc --noEmit`, `npx astro build`; both reviews in loop; human eyeball on the wall before close.

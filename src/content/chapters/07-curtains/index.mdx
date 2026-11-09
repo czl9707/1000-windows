@@ -146,9 +146,9 @@ export function expandCurtain(rng: Rng): CurtainPlan {
 `expandCurtain` is the only place that rolls. The drawers are pure
 emitters (`panels`, `drapes`, `venetian`, `roman` in
 `drawCurtain.ts`): each turns a `CurtainPlan` into
-[marks](/docs/the-layers), and `windowSceneMarks(seed, plan, night)`
-appends them behind the shell's — every consumer of `drawWindow` gains
-tenants without knowing the layer exists.
+[marks](/docs/the-layers), and `windowSceneMarks(seed, plan)` appends
+them behind the shell's — every consumer of `drawWindow` gains tenants
+without knowing the layer exists.
 
 ## What may change later
 

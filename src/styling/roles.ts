@@ -6,9 +6,7 @@
 // wears ('awning' full, 'awningThin' laid thin), the sill ledge, the
 // window-box wood. The curtain cloth resolves by
 // construction: 'fabric' is hanging cloth (panels, drapes), 'shade' the
-// roman's flat cloth, and 'blind' the venetian's opaque slat rows. The
-// light roles dress the room's lamp: 'lamp' its body, 'emitter' the part
-// that lights, 'ambient' and 'aura' the washes a lit room reads by.
+// roman's flat cloth, and 'blind' the venetian's opaque slat rows.
 export type ColorRole =
   | "ink"
   | "glass"
@@ -20,11 +18,7 @@ export type ColorRole =
   | "box"
   | "fabric"
   | "shade"
-  | "blind"
-  | "lamp"
-  | "emitter"
-  | "ambient"
-  | "aura";
+  | "blind";
 
 // The theme's two colours, read off the page (demoLoop reads the CSS tokens
 // and hands them down with every frame; the painter builds the palette).
