@@ -24,3 +24,9 @@ export function expandLight(rng: Rng): LampPlan {
   const facing = rng.weighted(FACINGS);
   return { on, kind, location, facing };
 }
+
+// A hand-pinned plan for the demo plates: the drawers are pure, so a plate
+// hands its plan directly.
+export function pinnedLamp(overrides: Partial<LampPlan> = {}): LampPlan {
+  return { on: true, kind: 'floorLamp', location: 'centre', facing: 'right', ...overrides };
+}

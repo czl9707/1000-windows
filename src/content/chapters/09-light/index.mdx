@@ -1,0 +1,78 @@
+---
+title: The light layer
+status: landed
+---
+
+import DemoCanvas from '@/components/DemoCanvas.astro';
+import DemoReseedButton from '@/components/DemoReseedButton.astro';
+import DemoCanvasControls from '@/components/DemoCanvasControls';
+import { KIND_PARAMS, STREET_PARAMS } from './params';
+
+## Why the street goes dark
+
+A street where every window burns at the same brightness reads as one office block. Light
+enters as a tenant trait, off the [window seed](/docs/randomness) like everything else a
+house owns: whether the lamp is on, what warmth it carries, where in the room it stands
+and which way it leans. The roll is identity, never state — the same house is lit on
+every visit — and most rooms sit dark, so a lit window stays an event on the street.
+Every room owns a lamp; the gene decides whether it lights at night, never whether it
+exists, so the furniture is always there and only the flame changes.
+
+## The night mix gets selective
+
+[The colour chapter](/docs/colourways) sank every coloured surface into the dark ground
+by one mix. Light breaks that apart, because darkness and lamplight are different
+mechanisms pretending to be one. The cloth now takes no night mix at all — it relies on
+the colour behind it, so a lit room glows through the weave and a dark one goes muddy on
+its own. The interior keeps its colours too, and the room's background stays the paper
+at all hours. What darkens an unlit room is a veil: one darkening wash drawn right
+behind the curtain, over everything the room owns. The darkening moved out of the
+palette and into the drawing — a layer a lit room simply does not draw — because a
+tenant that reads what is behind it cannot also pre-darken for a lamp it does not know
+about.
+
+A lit room runs the other way: the lamp's warmth lays over the interior as the ambient,
+one quiet wash covering the room, with the aura — the glow whose shape the construction
+casts — on top of that. Both pass directly over what is behind them, ink lines included;
+light in a room falls on the furniture, and the drawing should say so. The cloth then
+reads the whole lit room through its own wash, which is why the curtain needed its night
+mix dropped: the light arrives beneath it, and the weave picks it up.
+
+## The lamp's three parts
+
+Every construction carries the same three parts. The structure is a normal object —
+furniture paint and ink line, a dark silhouette in both themes. The emitting part is the
+structure's brightest piece: the shade, the bulb, the dome — furniture paint whenever
+the lamp is off, the lamp's warmth when it burns, in either state drawn with its ink
+edges. By day the lamp is that furniture and nothing more: no veil, no glow, the room
+readable in whatever light the sky brings. And the aura, whose shape no catalogue
+shares: a shade throws its cone down and
+a whisper above, a bare bulb radiates its pool, a drum lights a band and spills from
+both rims. Six home constructions ship — four standing on the floor line, two hanging
+from the ceiling line — picked from a wider prototype sheet, with the list open for
+appends. Where the lamp stands and which way it leans rolls like any other gene, and
+the lean carries into the glow, so a room lights the corner it lives in.
+
+<DemoCanvas demo="light-kinds" label="Demo canvas — the six constructions, one pinned plan across all six; the night knob flips the bench to the page's own daylight">
+  <DemoCanvasControls client:load params={KIND_PARAMS} />
+  <DemoReseedButton />
+</DemoCanvas>
+
+## Night, the whole street
+
+The wall's night is the full vocabulary at once: most rooms veiled, a few wearing their
+warmth, the cloth reading whichever room it hangs in. The benches below pin the night
+look so the lamps draw whatever the page theme is doing.
+
+<DemoCanvas demo="light-night" label="Demo canvas — a night street, every window on its own light gene">
+  <DemoCanvasControls client:load params={STREET_PARAMS} />
+  <DemoReseedButton />
+</DemoCanvas>
+
+## What may change later
+
+The insider layers land behind the light block — occupants, greenery, everything the
+room will own besides its lamp — and they draw into the same sequence, under the veil
+and under the aura, no new mechanism. The warmth table appends rows the way the
+colourway list does; more constructions append to the catalogue; the aura's strength
+and the veil's depth are tuning dials, and the benches above drive them live.
