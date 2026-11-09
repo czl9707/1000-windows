@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { fork } from '@/core/randomness/rng';
 import { type ResolvedColor } from './roles';
-import { COLOURWAYS, windowPalette, type Colourway } from './colourway';
+import { COLOURWAYS, WARMTH, windowPalette, type Colourway } from './colourway';
 import { cssToOklch, type Oklch } from './oklch';
 
 // The grounds match the page's two themes; the ink values are whatever the
@@ -46,16 +46,21 @@ describe('the colourway catalogue', () => {
 });
 
 // A roll picks the row whole: chroma comes straight from the family, only
-// the hue moves. Families match on chroma first — chalk's is unique — then
-// nearest hue, since butter and chalk share a hue neighbourhood. The hue
-// slop absorbs the encoded rounding, loudest at chalk's whisper chroma.
-function familyOf({ c, h }: Oklch): Colourway {
-  const candidates = COLOURWAYS.filter((row) => Math.abs(row.chroma - c) <= 0.003);
+// the hue moves. Both tables match on chroma first — chalk's is unique on
+// the street, the warmth rows crowd a step apart — then nearest hue, since
+// neighbours can share a hue neighbourhood. The slop absorbs the encoded
+// rounding; the street window is tighter because the street chromas sit
+// further apart.
+function rowOf(table: readonly Colourway[], chromaSlop: number, { c, h }: Oklch): Colourway {
+  const candidates = table.filter((row) => Math.abs(row.chroma - c) <= chromaSlop);
   expect(candidates.length).toBeGreaterThan(0);
   return candidates.reduce((best, row) =>
     Math.abs(row.hue - h) < Math.abs(best.hue - h) ? row : best,
   );
 }
+
+const familyOf = (o: Oklch) => rowOf(COLOURWAYS, 0.003, o);
+const warmthOf = (o: Oklch) => rowOf(WARMTH, 0.01, o);
 
 describe('the roll behind windowPalette', () => {
   it('picks a family row whole and jitters only its hue', () => {
@@ -86,6 +91,90 @@ describe('the roll behind windowPalette', () => {
   });
 });
 
+describe('the warmth table', () => {
+  it('weights sum to one and names its rows uniquely', () => {
+    const total = WARMTH.reduce((sum, row) => sum + row.weight, 0);
+    expect(total).toBeCloseTo(1, 10);
+    const names = WARMTH.map((row) => row.name);
+    expect(new Set(names).size).toBe(names.length);
+  });
+
+  it('stays in the warm band and outshines the street rows', () => {
+    for (const row of WARMTH) {
+      expect(row.hue).toBeGreaterThanOrEqual(35);
+      expect(row.hue).toBeLessThan(95);
+      expect(row.chroma).toBeGreaterThan(0.05);
+    }
+  });
+
+  it('reaches every row across a seed sweep', () => {
+    const seen = new Set<string>();
+    for (let i = 0; i < 400; i++) {
+      seen.add(warmthOf(cssToOklch(windowPalette(7000 + i * 7919, LIGHT)('light').color)).name);
+    }
+    for (const row of WARMTH) expect(seen).toContain(row.name);
+  });
+});
+
+describe('the interior roles', () => {
+  it('lights the emitter opaque from the warmth roll', () => {
+    const dress = windowPalette(42, LIGHT)('light');
+    expect(dress.alpha).toBe(1);
+    const o = cssToOklch(dress.color);
+    expect(WARMTH).toContainEqual(warmthOf(o));
+  });
+
+  it('shares one warmth across the room: ambient and aura wear the emitter colour', () => {
+    const palette = windowPalette(42, LIGHT);
+    expect(palette('ambient').color).toBe(palette('light').color);
+    expect(palette('aura').color).toBe(palette('light').color);
+  });
+
+  it('lays the warmth in graded strengths: emitter opaque, aura beneath, ambient the quietest', () => {
+    const palette = windowPalette(42, LIGHT);
+    const ambient = palette('ambient').alpha;
+    const aura = palette('aura').alpha;
+    expect(ambient).toBeGreaterThan(0);
+    expect(aura).toBeGreaterThan(ambient);
+    expect(aura).toBeLessThan(1);
+  });
+
+  it('furnishes the lamp structure from its own roll, opaque and dark', () => {
+    const palette = windowPalette(42, LIGHT);
+    expect(palette('lamp').alpha).toBe(1);
+    // A dark silhouette in both themes: the roll lands on a street family
+    // and the resolution sinks it well below the street lightness.
+    for (let i = 0; i < 200; i++) {
+      const o = cssToOklch(windowPalette(8000 + i * 7919, LIGHT)('lamp').color);
+      expect(o.l).toBeLessThan(0.6);
+    }
+    // Its own group: over a sweep the lamp's body colour mostly differs
+    // from the cloth's, matching only by chance.
+    let matching = 0;
+    for (let i = 0; i < 200; i++) {
+      const p = windowPalette(8000 + i * 7919, LIGHT);
+      const lamp = cssToOklch(p('lamp').color);
+      const cloth = cssToOklch(p('fabric').color);
+      if (Math.abs(lamp.h - cloth.h) <= 12 && Math.abs(lamp.c - cloth.c) <= 0.001) matching++;
+    }
+    expect(matching).toBeLessThan(100);
+  });
+
+  it('veils in the ground colour', () => {
+    const palette = windowPalette(42, LIGHT);
+    const veil = palette('veil');
+    expect(veil.color).toBe(LIGHT.paper);
+    expect(veil.alpha).toBeGreaterThan(0);
+    expect(veil.alpha).toBeLessThan(1);
+  });
+
+  it('keeps the interior off the night mix — the veil darkens instead', () => {
+    for (const role of ['lamp', 'light', 'ambient', 'aura'] as const) {
+      expect(windowPalette(42, DARK)(role).color).toBe(windowPalette(42, LIGHT)(role).color);
+    }
+  });
+});
+
 describe('windowPalette', () => {
   it('keeps the theme-bound roles on the theme', () => {
     const palette = windowPalette(42, LIGHT);
@@ -103,7 +192,7 @@ describe('windowPalette', () => {
     expect(Number.isFinite(measured.h)).toBe(true);
   });
 
-  it.each([...TINTED, 'awningThin'] as const)('mixes %s into the ground at night', (role) => {
+  it.each([...PAINTED, 'awningThin'] as const)('mixes %s into the ground at night', (role) => {
     const day = windowPalette(42, LIGHT)(role).color;
     const night = windowPalette(42, DARK)(role).color;
     const ch = (css: string) => css.match(/\d+/g)!.map(Number);
@@ -112,6 +201,15 @@ describe('windowPalette', () => {
     expect(nr).toBe(Math.round(0.3 * dr));
     expect(ng).toBe(Math.round(0.3 * dg));
     expect(nb).toBe(Math.round(0.3 * db));
+  });
+
+  it('keeps the cloth off the night mix — it relies on the colour behind', () => {
+    for (const role of ['fabric', 'shade', 'blind'] as const) {
+      const day = windowPalette(42, LIGHT)(role);
+      const night = windowPalette(42, DARK)(role);
+      expect(night.color).toBe(day.color);
+      expect(night.alpha).toBe(day.alpha);
+    }
   });
 
   it.each(PAINTED)('paints %s opaque', (role) => {

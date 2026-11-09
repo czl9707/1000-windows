@@ -7,6 +7,11 @@
 // window-box wood. The curtain cloth resolves by
 // construction: 'fabric' is hanging cloth (panels, drapes), 'shade' the
 // roman's flat cloth, and 'blind' the venetian's opaque slat rows.
+// The interior roles carry the light layer: 'lamp' is the lamp structure's
+// own furniture paint, 'light' the emitter's warmth, 'ambient' the room's
+// low wash of it, 'aura' the lamp's local glow — all three warmth roles
+// resolve from one roll, so a room wears a single light colour — and
+// 'veil' is the darkening wash an unlit room draws over its interior.
 export type ColorRole =
   | "ink"
   | "glass"
@@ -18,7 +23,12 @@ export type ColorRole =
   | "box"
   | "fabric"
   | "shade"
-  | "blind";
+  | "blind"
+  | "lamp"
+  | "light"
+  | "ambient"
+  | "aura"
+  | "veil";
 
 // The theme's two colours, read off the page (demoLoop reads the CSS tokens
 // and hands them down with every frame; the painter builds the palette).
