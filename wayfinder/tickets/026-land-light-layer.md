@@ -2,7 +2,7 @@
 title: Land the light layer
 labels: [wayfinder:task]
 assignee: zane
-state: open
+state: closed
 blocked-by: []
 ---
 
@@ -40,3 +40,13 @@ Build the light layer per ticket 017's resolution and both addenda, with the six
 ### Verification
 
 `npx vitest run`, `npx tsc --noEmit`, `npx astro build`; both reviews in loop; human eyeball on the wall before close.
+
+## Resolution
+
+Built on `light-layer` across four TDD steps, each through both reviews (2026-11-08, commits `19d02ed` → `a5b8098`):
+
+- **Styling** (`34d328d`): the warmth table on the `colourway:light` fork, the interior roles (`lamp`, `light`, `ambient`, `aura`) and `veil` in the role ledger, the night mix selective (`skipsNightMix` on the cloth and interior roles), the lamp body rolled off its own group and sunk dark by `lampLightnessShift`, `nightOf` as the flip's one authority.
+- **Engine** (`92c8443`): `src/core/light/` beside curtain and sill — catalogue, roll (on → kind → location → facing, appended after the sill block, all rolls always read), the drawer with the three-state gate, the block drawing deepest of the tenant layers; the appended-stream test pins that no earlier tenant re-randomizes.
+- **Chapter 09** (`a5b8098`): two benches — the six constructions on pinned plans (night, location, facing, lights knobs; the night knob flips to the page's daylight so the day furniture is observable) and the night street on real genes (the light dials: veil, ambient, aura, warmth ceiling, lamp body dark). Prose verified claim-by-claim against the engine by the spec review.
+
+Deviations from the ticket's own bench list, judged at review: no warmth-row control — forcing the rolled row would need a styling override knob with no production caller, against the gene's identity rule; reseeding shows the rows. The theme control became the kinds bench's night knob, which is what makes the day branch observable. Both code-review and quality-review rounds ran per step; 180 tests, typecheck, and build green at close. The human eyeball on the wall remains before this branch merges.
