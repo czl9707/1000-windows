@@ -128,9 +128,9 @@ export const DEFAULT_COLOURWAY_TUNING: ColourwayTuning = {
   awningChromaScale: 0.6,
   awningLightnessShift: 0.05,
   nightMix: 0.7,
-  lightChromaCap: 0.18,
+  lightChromaCap: 0.1,
   veilAlpha: 0.55,
-  ambientAlpha: 0.1,
+  ambientAlpha: 0.4,
   auraAlpha: 0.14,
   lampLightnessShift: -0.35,
 };

@@ -51,3 +51,8 @@ export const ANCHOR_X: Record<Anchor, number> = { left: 0.28, centre: 0.5, right
 // cloth reads them through its own wash.
 export const LIGHT_DEPTH = -0.12;
 export const LIGHT_Z = -7;
+
+// The room's floor line, as a share of the opening's height up from the
+// opening's bottom — the floor stands behind the sill ledge, so the four
+// standing constructions plant their feet on it, clear of the frame's edge.
+export const ROOM_FLOOR = 0.06;
