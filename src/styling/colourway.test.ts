@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { fork } from '@/core/randomness/rng';
 import { type ResolvedColor } from './roles';
-import { COLOURWAYS, DEFAULT_COLOURWAY_TUNING, WARMTH, windowPalette, type Colourway } from './colourway';
+import { COLOURWAYS, WARMTH, windowPalette, type Colourway } from './colourway';
 import { cssToOklch, type Oklch } from './oklch';
 
 // The grounds match the page's two themes; the ink values are whatever the
@@ -50,7 +50,9 @@ describe('the colourway catalogue', () => {
 // the street, the warmth rows crowd a step apart — then nearest hue, since
 // neighbours can share a hue neighbourhood. The slop absorbs the encoded
 // rounding; the street window is tighter because the street chromas sit
-// further apart.
+// further apart. The warmth slop also absorbs the warmth ceiling: the
+// palette caps the emitted chroma, squashing the loud rows toward it, so
+// the encoded chroma alone no longer identifies them and the hue decides.
 function rowOf(table: readonly Colourway[], chromaSlop: number, { c, h }: Oklch): Colourway {
   const candidates = table.filter((row) => Math.abs(row.chroma - c) <= chromaSlop);
   expect(candidates.length).toBeGreaterThan(0);
@@ -60,13 +62,7 @@ function rowOf(table: readonly Colourway[], chromaSlop: number, { c, h }: Oklch)
 }
 
 const familyOf = (o: Oklch) => rowOf(COLOURWAYS, 0.003, o);
-// The warmth rows crowd together and the strongest ride over the shipped
-// warmth ceiling, so each row competes at its capped chroma.
-const warmthOf = (o: Oklch) => {
-  const cap = DEFAULT_COLOURWAY_TUNING.lightChromaCap;
-  const capped = WARMTH.map((row) => ({ ...row, chroma: Math.min(row.chroma, cap) }));
-  return rowOf(capped, 0.005, o);
-};
+const warmthOf = (o: Oklch) => rowOf(WARMTH, 0.065, o);
 
 describe('the roll behind windowPalette', () => {
   it('picks a family row whole and jitters only its hue', () => {
@@ -127,7 +123,7 @@ describe('the interior roles', () => {
     const dress = windowPalette(42, LIGHT)('light');
     expect(dress.alpha).toBe(1);
     const o = cssToOklch(dress.color);
-    expect(WARMTH.map((row) => row.name)).toContain(warmthOf(o).name);
+    expect(WARMTH).toContainEqual(warmthOf(o));
   });
 
   it('shares one warmth across the room: ambient and aura wear the emitter colour', () => {
@@ -136,15 +132,14 @@ describe('the interior roles', () => {
     expect(palette('aura').color).toBe(palette('light').color);
   });
 
-  it('lays the warmth in real strengths: emitter opaque, the ambient washes the room', () => {
+  it('lays the warmth in layered strengths: emitter opaque, ambient and aura translucent', () => {
     const palette = windowPalette(42, LIGHT);
+    expect(palette('light').alpha).toBe(1);
     const ambient = palette('ambient').alpha;
     const aura = palette('aura').alpha;
     expect(ambient).toBeGreaterThan(0);
-    expect(aura).toBeGreaterThan(0);
     expect(ambient).toBeLessThan(1);
-    // The aura is nested passes of one alpha, so its core builds well past
-    // its single-pass value where the passes overlap.
+    expect(aura).toBeGreaterThan(0);
     expect(aura).toBeLessThan(1);
   });
 
