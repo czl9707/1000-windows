@@ -67,7 +67,7 @@ describe('drawWindow', () => {
   it('draws without throwing across a seed sweep', () => {
     for (let i = 0; i < 300; i++) {
       const pen = new RecordingPen(5000 + i * 104729);
-      expect(() => drawWindow(NOOP_CTX, pen, PALETTE, CENTRE_EYE)).not.toThrow();
+      expect(() => drawWindow(NOOP_CTX, pen, PALETTE, CENTRE_EYE, false)).not.toThrow();
     }
   });
 
@@ -75,7 +75,7 @@ describe('drawWindow', () => {
     for (let i = 0; i < 300; i++) {
       const seed = 9000 + i * 7919;
       const pen = new RecordingPen(seed);
-      drawWindow(NOOP_CTX, pen, PALETTE, CENTRE_EYE);
+      drawWindow(NOOP_CTX, pen, PALETTE, CENTRE_EYE, false);
       expect(pen.traces.length).toBeGreaterThan(0);
     }
   });
@@ -84,7 +84,7 @@ describe('drawWindow', () => {
     for (let i = 0; i < 300; i++) {
       const seed = 12000 + i * 104729;
       const pen = new RecordingPen(seed);
-      drawWindow(NOOP_CTX, pen, PALETTE, CENTRE_EYE);
+      drawWindow(NOOP_CTX, pen, PALETTE, CENTRE_EYE, false);
       expect(new Set(pen.traces).size).toBe(pen.traces.length);
     }
   });
@@ -108,7 +108,7 @@ describe('drawWindow', () => {
     for (let i = 0; i < 300; i++) {
       const seed = 17000 + i * 104729;
       const pen = new RecordingPen(seed);
-      drawWindow(NOOP_CTX, pen, PALETTE, CENTRE_EYE);
+      drawWindow(NOOP_CTX, pen, PALETTE, CENTRE_EYE, false);
       expect(pen.washes.length).toBeGreaterThanOrEqual(1);
     }
   });
@@ -120,7 +120,7 @@ describe('drawWindow', () => {
     for (let i = 0; i < 100; i++) {
       const seed = 21000 + i * 104729;
       const pen = new RecordingPen(seed);
-      drawWindow(NOOP_CTX, pen, PALETTE, CENTRE_EYE);
+      drawWindow(NOOP_CTX, pen, PALETTE, CENTRE_EYE, false);
       const top = pen.strokes.find((s) => s.name === 'frame-outer-top');
       expect(top).toBeDefined();
       const extent = Math.max(...top!.pts.map((p) => Math.abs(p.x)));
@@ -136,7 +136,7 @@ describe('drawWindow', () => {
   it('draws the glass at wall-plane scale', () => {
     for (let i = 0; i < 100; i++) {
       const seed = 27000 + i * 104729;
-      const panes = windowSceneMarks(seed, expandShell(seed)).filter(
+      const panes = windowSceneMarks(seed, expandShell(seed), false).filter(
         (m): m is FillMark => m.kind === 'fill' && m.role === 'glass' && m.z >= SHELL_Z.glass,
       );
       expect(panes.length).toBeGreaterThanOrEqual(1);
@@ -298,7 +298,7 @@ describe('the tenant behind the glass', () => {
       const rng = fork(seed, 'dna');
       expandCurtain(rng);
       const present = expandSill(rng).present;
-      const marks = windowSceneMarks(seed, expandShell(seed));
+      const marks = windowSceneMarks(seed, expandShell(seed), false);
       const onLedge = marks.filter((m) => m.z === SILL_ITEM_Z);
       expect(onLedge.length > 0, `seed ${seed}`).toBe(present);
       expect(onLedge.every((m) => m.pts.every((p) => p.z < 0)), `seed ${seed} behind the wall`).toBe(true);
@@ -311,7 +311,7 @@ describe('tuning immutability', () => {
     const tuning: Tuning = { ...DEFAULT_TUNING };
     const snapshot = { ...tuning };
     const pen = new RecordingPen(42, tuning);
-    drawWindow(NOOP_CTX, pen, PALETTE, CENTRE_EYE);
+    drawWindow(NOOP_CTX, pen, PALETTE, CENTRE_EYE, false);
     expect(tuning).toEqual(snapshot);
   });
 });

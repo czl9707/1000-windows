@@ -14,6 +14,7 @@ import {
   DEFAULT_COLOURWAY_TUNING,
   tunedWindowPalette,
   windowPalette,
+  nightOf,
   type ColourwayTuning,
 } from '@/styling/colourway';
 import { windowSeed } from '@/core/randomness/rng';
@@ -54,7 +55,7 @@ function drawStreet(
       ((i % cols) - (cols - 1) / 2) * UNIT_PITCH_X,
       (Math.floor(i / cols) - (rows - 1) / 2) * UNIT_PITCH_Y,
     );
-    drawWindow(ctx, pen, paletteFor(pen, colors), CENTRE_EYE);
+    drawWindow(ctx, pen, paletteFor(pen, colors), CENTRE_EYE, nightOf(colors));
     ctx.restore();
   });
 }
@@ -108,13 +109,13 @@ function mountCompare(canvas: HTMLCanvasElement): TuningHandle {
     pens.forEach((pen, i) => {
       pen.setTime(time);
       const columns = [
-        { x: -colX, palette: windowPalette(pen.seed, day) },
-        { x: colX, palette: tunedWindowPalette(pen.seed, dark, nightTuning) },
+        { x: -colX, palette: windowPalette(pen.seed, day), night: nightOf(day) },
+        { x: colX, palette: tunedWindowPalette(pen.seed, dark, nightTuning), night: nightOf(dark) },
       ];
-      for (const { x, palette } of columns) {
+      for (const { x, palette, night } of columns) {
         ctx.save();
         ctx.translate(x, (i - (COMPARE_COUNT - 1) / 2) * UNIT_PITCH_Y);
-        drawWindow(ctx, pen, palette, CENTRE_EYE);
+        drawWindow(ctx, pen, palette, CENTRE_EYE, night);
         ctx.restore();
       }
     });

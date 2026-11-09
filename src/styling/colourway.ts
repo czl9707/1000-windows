@@ -140,6 +140,13 @@ const NIGHT_PAPER_L = 0.5;
 // constraint beside their contrast with the ink: a paper moved across this
 // lightness silently flips night for the whole wall.
 
+// The one authority on the night flip: everything that needs to know the
+// theme means night — the palette's mix, the light layer's gate — reads it
+// here.
+export function nightOf(colors: ThemeColors): boolean {
+  return cssToOklch(colors.paper).l < NIGHT_PAPER_L;
+}
+
 interface RoleContext {
   colors: ThemeColors;
   night: boolean;
@@ -289,7 +296,7 @@ function buildPalette(
 ): Palette {
   const ctx: RoleContext = {
     colors,
-    night: cssToOklch(colors.paper).l < NIGHT_PAPER_L,
+    night: nightOf(colors),
     wayFor,
     tuning,
   };

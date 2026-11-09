@@ -7,7 +7,7 @@
 import { Pen } from "@/pen/pen";
 import { DEFAULT_TUNING } from "@/pen/tuning";
 import type { ThemeColors } from "@/styling/roles";
-import { windowPalette } from "@/styling/colourway";
+import { windowPalette, nightOf } from "@/styling/colourway";
 import { windowSeed } from "@/core/randomness/rng";
 import { drawWindow } from "@/core/window";
 import type { Eye } from "@/motion/projection";
@@ -135,7 +135,7 @@ export class Wall {
       drawWindow(ctx, pen, windowPalette(pen.seed, colors), {
         x: frame.eye.x + col * PITCH_X - this.camera.x,
         y: frame.eye.y + row * PITCH_Y - this.camera.y,
-      });
+      }, nightOf(colors));
       ctx.restore();
     }
     ctx.restore();
