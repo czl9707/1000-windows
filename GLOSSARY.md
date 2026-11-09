@@ -25,13 +25,19 @@ The tenant layer between the curtain and the insider layer: at most one small pr
 The finished colour one of a tenant's coloured surfaces wears — curtain cloth, awning canvas, sill ledge, window box, and the painted frame face each roll their own off the window seed, from one weighted list; the curtain's three constructions roll together as one cloth. Two surfaces land on the same colour only by chance. A colourway is tenant identity, not state — it never changes with the page theme. Most rolls land on quiet, pale families; louder ones exist and stay rare.
 
 ## Night
-What the site's dark theme means for the wall: the same tenants and the same scene re-read under darkness, never a different scene. Every coloured surface sinks most of the way into the dark ground — the same mix for every surface — so night is the day palette mixed into the paper, hue kept, and no separate night palette exists.
+What the site's dark theme means for the wall: the same tenants and the same scene re-read under darkness, never a different scene. The street-side painted surfaces — frame face, awning, window box — sink most of the way into the dark ground, one mix for all of them, so night is the day palette mixed into the paper, hue kept, and no separate night palette exists. The room's interior is its own space: its surfaces keep their colours over the interior background, which holds the ground colour in both themes, and a lit room reads through the light laid on top.
 
 ## Hand rule
 How dense line work is drawn on paper: a run of dense lines is never fully drawn — some are omitted outright, and a kept line runs over only part of its span, the fill carrying the texture instead. Picked by the golden-angle sine, deterministic, no stream draw. Object edges (hems, bars, rails, the roman's rod) are not dense line work and draw full.
 
 ## Light gene
-A per-window inherited trait describing the apartment's lighting: whether lights are on, their warmth (amber lamp, cool ceiling, TV-blue flicker). Identity, not global state.
+A per-window inherited trait describing the apartment's lighting: whether a lamp is on, and the warm tone and strength of its colour. Identity, not global state — the gene rolls off the window seed regardless of theme. The lamp is the one light source a window can carry and takes the dominant-element slot when lit; the sill items stand in front of it, so they keep their unlit faces. The lamp itself is furniture, drawn in both themes; its light draws only under the night theme.
+
+## Aura
+The lamp's local light in a lit room: a glow whose shape follows the lamp construction — a shade throws its cone, a bare bulb radiates its pool. Drawn as flat low-alpha washes laid directly over the layers behind it, ink lines included, and kept inside the opening. A `Still` mark: it never boils.
+
+## Ambient
+The room-wide light of a lit room: one simple low-opacity warm fill covering the whole interior, beneath the aura, so the room reads lit before the eye finds the lamp.
 
 ## Trace
 A named drawing path (for example a window frame, a curtain edge). The line tremor is derived from the window seed and the trace's name, so the same window shows the same tremor every frame and across re-renders while panning.

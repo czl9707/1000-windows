@@ -15,6 +15,9 @@ import { expandSill } from './sill';
 import { SILL_ITEM_Z } from './sill/catalogue';
 import { expandCurtain } from './curtain';
 import { clothMarks } from './curtain/drawCurtain';
+import { expandLight } from './light';
+import { lightMarks } from './light/drawLight';
+import { LIGHT_Z } from './light/catalogue';
 import { fork } from './randomness/rng';
 import { windowSceneMarks } from './window';
 import { CENTRE_EYE } from '@/motion/projection';
@@ -136,7 +139,7 @@ describe('drawWindow', () => {
   it('draws the glass at wall-plane scale', () => {
     for (let i = 0; i < 100; i++) {
       const seed = 27000 + i * 104729;
-      const panes = windowSceneMarks(seed, expandShell(seed)).filter(
+      const panes = windowSceneMarks(seed, expandShell(seed), false).filter(
         (m): m is FillMark => m.kind === 'fill' && m.role === 'glass' && m.z >= SHELL_Z.glass,
       );
       expect(panes.length).toBeGreaterThanOrEqual(1);
@@ -298,11 +301,61 @@ describe('the tenant behind the glass', () => {
       const rng = fork(seed, 'dna');
       expandCurtain(rng);
       const present = expandSill(rng).present;
-      const marks = windowSceneMarks(seed, expandShell(seed));
+      const marks = windowSceneMarks(seed, expandShell(seed), false);
       const onLedge = marks.filter((m) => m.z === SILL_ITEM_Z);
       expect(onLedge.length > 0, `seed ${seed}`).toBe(present);
       expect(onLedge.every((m) => m.pts.every((p) => p.z < 0)), `seed ${seed} behind the wall`).toBe(true);
     }
+  });
+});
+
+describe('the light in the room', () => {
+  it('stands a lamp in every room and lights it iff the stream rolls one on', () => {
+    for (let i = 0; i < 300; i++) {
+      const seed = 45000 + i * 104729;
+      const rng = fork(seed, 'dna');
+      expandCurtain(rng);
+      expandSill(rng);
+      const light = expandLight(rng);
+      const opening = innerRect(expandShell(seed).faceWidth);
+      const dayLayer = windowSceneMarks(seed, expandShell(seed), false).filter((m) => m.z === LIGHT_Z);
+      const nightLayer = windowSceneMarks(seed, expandShell(seed), true).filter((m) => m.z === LIGHT_Z);
+      const litRoles = (marks: typeof dayLayer) =>
+        marks.some((m) => m.role === 'emitter' || m.role === 'ambient' || m.role === 'aura');
+      expect(dayLayer.length > 0, `seed ${seed} furniture`).toBe(true);
+      expect(litRoles(dayLayer), `seed ${seed} day`).toBe(false);
+      expect(litRoles(nightLayer), `seed ${seed} night`).toBe(light.on);
+    }
+  });
+
+  it('replays the light marks off the live stream exactly, in either theme', () => {
+    for (let i = 0; i < 100; i++) {
+      const seed = 49000 + i * 104729;
+      const opening = innerRect(expandShell(seed).faceWidth);
+      const rng = fork(seed, 'dna');
+      expandCurtain(rng);
+      expandSill(rng);
+      const plan = expandLight(rng);
+      for (const night of [false, true]) {
+        const marks = windowSceneMarks(seed, expandShell(seed), night);
+        const layer = marks.filter((m) => m.z === LIGHT_Z);
+        expect(layer, `seed ${seed} night=${night}`).toEqual(lightMarks(plan, opening, night));
+      }
+    }
+  });
+
+  it('lays the washes only at night, and the night wall does light up', () => {
+    let litWindows = 0;
+    for (let i = 0; i < 100; i++) {
+      const seed = 53000 + i * 104729;
+      const day = windowSceneMarks(seed, expandShell(seed), false);
+      const night = windowSceneMarks(seed, expandShell(seed), true);
+      const litRoles = (marks: ReturnType<typeof windowSceneMarks>) =>
+        marks.some((m) => m.role === 'ambient' || m.role === 'aura' || m.role === 'emitter');
+      expect(litRoles(day), `seed ${seed}`).toBe(false);
+      if (litRoles(night)) litWindows++;
+    }
+    expect(litWindows).toBeGreaterThan(0);
   });
 });
 

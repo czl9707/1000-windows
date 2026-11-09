@@ -35,6 +35,12 @@ export function mockPalette(colors: ThemeColors): Palette {
     fabric: { color: colors.ink, alpha: FABRIC_CLOTH },
     shade: { color: colors.ink, alpha: SHADE_CLOTH },
     blind: { color: colors.ink, alpha: BLIND_CLOTH },
+    // The light layer postdates these chapters: its roles occlude in the
+    // ground colour here, the way the painted faces do.
+    lamp: { color: colors.paper, alpha: OCCLUDE },
+    emitter: { color: colors.paper, alpha: OCCLUDE },
+    ambient: { color: colors.ink, alpha: 0 },
+    aura: { color: colors.ink, alpha: 0 },
   };
   return (role) => dresses[role];
 }
