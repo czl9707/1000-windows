@@ -5,13 +5,12 @@ import { expandCurtain, curtainMarks } from '@/core/curtain';
 import { expandSill, sillMarks } from '@/core/sill';
 import { windowSceneMarks } from '@/core/window';
 import { expandShell, shellMarks, type ShellPlan } from '@/core/window-shell';
-import { ANCHORS, DESK_TOP, FACINGS, LAMP_KINDS, LIGHT_Z, type LampKind } from './catalogue';
+import { ANCHORS, FACINGS, LAMP_KINDS, LIGHT_Z, type LampKind } from './catalogue';
 import { expandLight, type LampPlan } from './light';
 import { lampMarks } from './drawLamp';
 
 const OPENING = innerRect(0.07);
-const FLOOR_KINDS: LampKind[] = ['floorLamp', 'arcLamp'];
-const DESKED_KINDS: ('tableLamp' | 'bedsideLamp')[] = ['tableLamp', 'bedsideLamp'];
+const FLOOR_SHADE_KINDS: LampKind[] = ['floorLamp', 'arcLamp', 'tableLamp', 'bedsideLamp'];
 const HANGING_KINDS: LampKind[] = ['pendant', 'bulbPendant'];
 const INTERIOR_ROLES = ['lamp', 'light', 'ambient', 'aura', 'veil'] as const;
 
@@ -128,38 +127,6 @@ describe('lampMarks', () => {
           ).not.toThrow();
         }
       }
-    }
-  });
-
-  it('stands the desked lamps on a desk at the designed height, the floor lamps on the floor line', () => {
-    const h = OPENING.bottom - OPENING.top;
-    for (const kind of DESKED_KINDS) {
-      const marks = lampMarks(
-        { on: false, kind, location: 'centre', facing: 'right' },
-        OPENING,
-        false,
-      );
-      const bottoms = [
-        ...new Set(
-          marks
-            .filter((m) => m.role === 'lamp')
-            .map((m) => Math.max(...m.pts.map((p) => p.y))),
-        ),
-      ].sort((a, b) => b - a);
-      expect(bottoms[0]).toBeCloseTo(OPENING.bottom, 9);
-      expect(bottoms.length).toBeGreaterThan(2);
-      expect((OPENING.bottom - bottoms[1]) / h).toBeCloseTo(DESK_TOP[kind], 9);
-    }
-    for (const kind of FLOOR_KINDS) {
-      const marks = lampMarks(
-        { on: false, kind, location: 'centre', facing: 'right' },
-        OPENING,
-        false,
-      );
-      const lowest = Math.max(
-        ...marks.filter((m) => m.role === 'lamp').flatMap((m) => m.pts.map((p) => p.y)),
-      );
-      expect(lowest).toBeCloseTo(OPENING.bottom, 9);
     }
   });
 });

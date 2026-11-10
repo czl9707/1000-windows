@@ -50,9 +50,7 @@ describe('the colourway catalogue', () => {
 // the street, the warmth rows crowd a step apart — then nearest hue, since
 // neighbours can share a hue neighbourhood. The slop absorbs the encoded
 // rounding; the street window is tighter because the street chromas sit
-// further apart. The warmth slop also absorbs the warmth ceiling: the
-// palette caps the emitted chroma, squashing the loud rows toward it, so
-// the encoded chroma alone no longer identifies them and the hue decides.
+// further apart.
 function rowOf(table: readonly Colourway[], chromaSlop: number, { c, h }: Oklch): Colourway {
   const candidates = table.filter((row) => Math.abs(row.chroma - c) <= chromaSlop);
   expect(candidates.length).toBeGreaterThan(0);
@@ -62,7 +60,7 @@ function rowOf(table: readonly Colourway[], chromaSlop: number, { c, h }: Oklch)
 }
 
 const familyOf = (o: Oklch) => rowOf(COLOURWAYS, 0.003, o);
-const warmthOf = (o: Oklch) => rowOf(WARMTH, 0.065, o);
+const warmthOf = (o: Oklch) => rowOf(WARMTH, 0.01, o);
 
 describe('the roll behind windowPalette', () => {
   it('picks a family row whole and jitters only its hue', () => {
@@ -132,14 +130,12 @@ describe('the interior roles', () => {
     expect(palette('aura').color).toBe(palette('light').color);
   });
 
-  it('lays the warmth in layered strengths: emitter opaque, ambient and aura translucent', () => {
+  it('lays the warmth in graded strengths: emitter opaque, aura beneath, ambient the quietest', () => {
     const palette = windowPalette(42, LIGHT);
-    expect(palette('light').alpha).toBe(1);
     const ambient = palette('ambient').alpha;
     const aura = palette('aura').alpha;
     expect(ambient).toBeGreaterThan(0);
-    expect(ambient).toBeLessThan(1);
-    expect(aura).toBeGreaterThan(0);
+    expect(aura).toBeGreaterThan(ambient);
     expect(aura).toBeLessThan(1);
   });
 

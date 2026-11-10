@@ -13,7 +13,7 @@ import type { Mark } from '@/core/scene';
 import type { Pt3 } from '@/motion/projection';
 import { WEIGHTS } from '@/styling/weights';
 import { line, rectPts, type PaneRect } from '@/core/window-shell/shell';
-import { ANCHOR_X, DESK_TOP, LIGHT_DEPTH, LIGHT_Z, type LampKind } from './catalogue';
+import { ANCHOR_X, LIGHT_DEPTH, LIGHT_Z, type LampKind } from './catalogue';
 import type { LampPlan } from './light';
 
 const atDepth = () => LIGHT_DEPTH;
@@ -35,17 +35,6 @@ function ink(name: string, x0: number, y0: number, x1: number, y1: number): Mark
 
 function rect(x0: number, y0: number, x1: number, y1: number): Pt3[] {
   return rectPts(x0, y0, x1, y1, atDepth);
-}
-
-// A rectangular desk silhouette: furniture paint down to the floor line
-// plus a top edge and two sides of ink.
-function desk(x: number, halfW: number, topY: number, floorY: number): Mark[] {
-  return [
-    fill('lamp', rect(x - halfW, topY, x + halfW, floorY)),
-    ink('lamp-desk-top', x - halfW, topY, x + halfW, topY),
-    ink('lamp-desk-left', x - halfW, topY, x - halfW, floorY),
-    ink('lamp-desk-right', x + halfW, topY, x + halfW, floorY),
-  ];
 }
 
 function circle(cx: number, cy: number, r: number, n = 14): Pt3[] {
@@ -124,12 +113,12 @@ function emit(kind: LampKind, f: Frame, lit: boolean): { marks: Mark[]; auras: P
           ink('lamp-base-bottom', x - 0.04 * w, o.bottom, x + 0.04 * w, o.bottom),
           ink('lamp-pole', x, shadeBottom, x, o.bottom - 0.02 * h),
           fill(emitterRole, trapezoid(x, shadeTop, 0.1 * w, shadeBottom, 0.16 * w)),
-          ink('lamp-shade-left', x - 0.05 * w, shadeTop, x - 0.08 * w, shadeBottom),
-          ink('lamp-shade-right', x + 0.05 * w, shadeTop, x + 0.08 * w, shadeBottom),
+          ink('lamp-shade-left', x - 0.08 * w, shadeTop, x - 0.05 * w, shadeBottom),
+          ink('lamp-shade-right', x + 0.08 * w, shadeTop, x + 0.05 * w, shadeBottom),
         ],
         auras: [
           trapezoid(x + skew * w, shadeBottom, 0.16 * w, o.bottom, 0.5 * w),
-          rect(x - 0.06 * w, shadeTop - 0.06 * h, x + 0.06 * w, shadeTop + 0.02 * h),
+          rect(x - 0.08 * w, shadeTop - 0.08 * h, x + 0.08 * w, shadeTop),
         ],
       };
     }
@@ -151,43 +140,39 @@ function emit(kind: LampKind, f: Frame, lit: boolean): { marks: Mark[]; auras: P
       };
     }
     case 'tableLamp': {
-      const deskTop = o.bottom - DESK_TOP.tableLamp * h;
-      const shadeTop = o.top + 0.34 * h;
+      const shadeTop = o.top + 0.3 * h;
       const shadeBottom = shadeTop + 0.1 * h;
       return {
         marks: [
-          ...desk(x, 0.16 * w, deskTop, o.bottom),
-          fill('lamp', rect(x - 0.05 * w, deskTop - 0.03 * h, x + 0.05 * w, deskTop)),
-          fill('lamp', rect(x - 0.006 * w, shadeBottom, x + 0.006 * w, deskTop - 0.03 * h)),
-          ink('lamp-base-left', x - 0.05 * w, deskTop - 0.03 * h, x - 0.05 * w, deskTop),
-          ink('lamp-base-right', x + 0.05 * w, deskTop - 0.03 * h, x + 0.05 * w, deskTop),
-          ink('lamp-base-bottom', x - 0.05 * w, deskTop, x + 0.05 * w, deskTop),
-          ink('lamp-stem', x, shadeBottom, x, deskTop - 0.03 * h),
+          fill('lamp', rect(x - 0.05 * w, o.bottom - 0.03 * h, x + 0.05 * w, o.bottom)),
+          fill('lamp', rect(x - 0.006 * w, shadeBottom, x + 0.006 * w, o.bottom - 0.03 * h)),
+          ink('lamp-base-left', x - 0.05 * w, o.bottom - 0.03 * h, x - 0.05 * w, o.bottom),
+          ink('lamp-base-right', x + 0.05 * w, o.bottom - 0.03 * h, x + 0.05 * w, o.bottom),
+          ink('lamp-base-bottom', x - 0.05 * w, o.bottom, x + 0.05 * w, o.bottom),
+          ink('lamp-stem', x, shadeBottom, x, o.bottom - 0.03 * h),
           fill(emitterRole, rect(x - 0.07 * w, shadeTop, x + 0.07 * w, shadeBottom)),
           ink('lamp-drum-top', x - 0.07 * w, shadeTop, x + 0.07 * w, shadeTop),
           ink('lamp-drum-bottom', x - 0.07 * w, shadeBottom, x + 0.07 * w, shadeBottom),
         ],
-        auras: [rect(x - 0.22 * w, shadeTop - 0.04 * h, x + 0.22 * w, shadeBottom + 0.04 * h)],
+        auras: [rect(x - 0.22 * w, shadeTop - 0.05 * h, x + 0.22 * w, shadeBottom + 0.14 * h)],
       };
     }
     case 'bedsideLamp': {
-      const deskTop = o.bottom - DESK_TOP.bedsideLamp * h;
-      const shadeTop = o.top + 0.4 * h;
+      const shadeTop = o.top + 0.42 * h;
       const shadeBottom = shadeTop + 0.08 * h;
       return {
         marks: [
-          ...desk(x, 0.12 * w, deskTop, o.bottom),
-          fill('lamp', rect(x - 0.04 * w, deskTop - 0.02 * h, x + 0.04 * w, deskTop)),
-          fill('lamp', rect(x - 0.005 * w, shadeBottom, x + 0.005 * w, deskTop - 0.02 * h)),
-          ink('lamp-base-left', x - 0.04 * w, deskTop - 0.02 * h, x - 0.04 * w, deskTop),
-          ink('lamp-base-right', x + 0.04 * w, deskTop - 0.02 * h, x + 0.04 * w, deskTop),
-          ink('lamp-base-bottom', x - 0.04 * w, deskTop, x + 0.04 * w, deskTop),
-          ink('lamp-stem', x, shadeBottom, x, deskTop - 0.02 * h),
+          fill('lamp', rect(x - 0.04 * w, o.bottom - 0.02 * h, x + 0.04 * w, o.bottom)),
+          fill('lamp', rect(x - 0.005 * w, shadeBottom, x + 0.005 * w, o.bottom - 0.02 * h)),
+          ink('lamp-base-left', x - 0.04 * w, o.bottom - 0.02 * h, x - 0.04 * w, o.bottom),
+          ink('lamp-base-right', x + 0.04 * w, o.bottom - 0.02 * h, x + 0.04 * w, o.bottom),
+          ink('lamp-base-bottom', x - 0.04 * w, o.bottom, x + 0.04 * w, o.bottom),
+          ink('lamp-stem', x, shadeBottom, x, o.bottom - 0.02 * h),
           fill(emitterRole, trapezoid(x, shadeTop, 0.08 * w, shadeBottom, 0.12 * w)),
           ink('lamp-shade-left', x - 0.04 * w, shadeTop, x - 0.06 * w, shadeBottom),
           ink('lamp-shade-right', x + 0.04 * w, shadeTop, x + 0.06 * w, shadeBottom),
         ],
-        auras: [circle(x, (shadeTop + shadeBottom) / 2, 0.12 * w)],
+        auras: [circle(x, shadeBottom, 0.12 * w)],
       };
     }
     case 'pendant': {
@@ -202,7 +187,7 @@ function emit(kind: LampKind, f: Frame, lit: boolean): { marks: Mark[]; auras: P
         ],
         auras: [
           trapezoid(x + skew * w, shadeBottom, 0.18 * w, o.bottom, 0.5 * w),
-          rect(x - 0.05 * w, shadeTop - 0.04 * h, x + 0.05 * w, shadeTop + 0.02 * h),
+          rect(x - 0.06 * w, shadeTop - 0.05 * h, x + 0.06 * w, shadeTop),
         ],
       };
     }
