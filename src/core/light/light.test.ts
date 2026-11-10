@@ -6,6 +6,7 @@ import { expandSill, sillMarks } from '@/core/sill';
 import { windowSceneMarks } from '@/core/window';
 import { expandShell, shellMarks, type ShellPlan } from '@/core/window-shell';
 import { ANCHORS, FACINGS, LAMP_KINDS, LIGHT_Z, type LampKind } from './catalogue';
+
 import { expandLight, type LampPlan } from './light';
 import { lampMarks } from './drawLamp';
 
@@ -106,16 +107,34 @@ describe('lampMarks', () => {
     }
   });
 
-  it('mirrors the aura with the facing', () => {
-    const left = lampMarks({ ...plan, facing: 'left' }, OPENING, true);
-    const right = lampMarks({ ...plan, facing: 'right' }, OPENING, true);
+  it('mirrors the arc aura with the facing: the pool follows the arm', () => {
+    const arc: LampPlan = { on: true, kind: 'arcLamp', location: 'centre', facing: 'right' };
     const centreX = (marks: ReturnType<typeof lampMarks>) => {
       const aura = marks.filter((m) => m.role === 'aura');
       return aura.reduce((sum, m) => sum + m.pts.reduce((s, p) => s + p.x, 0) / m.pts.length, 0) / aura.length;
     };
     const anchor = OPENING.left + 0.5 * (OPENING.right - OPENING.left);
-    expect(centreX(left)).toBeLessThan(anchor);
-    expect(centreX(right)).toBeGreaterThan(anchor);
+    expect(centreX(lampMarks({ ...arc, facing: 'left' }, OPENING, true))).toBeLessThan(anchor);
+    expect(centreX(lampMarks({ ...arc, facing: 'right' }, OPENING, true))).toBeGreaterThan(anchor);
+  });
+
+  it('centres the symmetric auras on the lamp axis, facing or not', () => {
+    const centreX = (marks: ReturnType<typeof lampMarks>) => {
+      const aura = marks.filter((m) => m.role === 'aura');
+      return aura.reduce((sum, m) => sum + m.pts.reduce((s, p) => s + p.x, 0) / m.pts.length, 0) / aura.length;
+    };
+    const axis = OPENING.left + 0.5 * (OPENING.right - OPENING.left);
+    for (const kind of LAMP_KINDS) {
+      if (kind.value === 'arcLamp') continue;
+      const left = centreX(
+        lampMarks({ on: true, kind: kind.value, location: 'centre', facing: 'left' }, OPENING, true),
+      );
+      const right = centreX(
+        lampMarks({ on: true, kind: kind.value, location: 'centre', facing: 'right' }, OPENING, true),
+      );
+      expect(Math.abs(left - axis)).toBeLessThan(1e-9);
+      expect(Math.abs(right - axis)).toBeLessThan(1e-9);
+    }
   });
 
   it('constructs every kind at every state without throwing', () => {

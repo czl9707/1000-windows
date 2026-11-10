@@ -108,11 +108,17 @@ describe('the warmth table', () => {
   });
 
   it('reaches every row across a seed sweep', () => {
-    const seen = new Set<string>();
-    for (let i = 0; i < 400; i++) {
-      seen.add(warmthOf(cssToOklch(windowPalette(7000 + i * 7919, LIGHT)('light').color)).name);
+    // Matched by hue: the shipped warmth ceiling clips the hot rows' chroma
+    // onto one band, so chroma no longer identifies a row — the hue does.
+    // The window is the jitter band plus the encoded rounding's drift.
+    const hues: number[] = [];
+    for (let i = 0; i < 600; i++) {
+      hues.push(cssToOklch(windowPalette(7000 + i * 7919, LIGHT)('light').color).h);
     }
-    for (const row of WARMTH) expect(seen).toContain(row.name);
+    for (const row of WARMTH) {
+      const hit = hues.some((hue) => Math.abs(hue - row.hue) <= 8);
+      expect(hit, `${row.name} unreached`).toBe(true);
+    }
   });
 });
 
@@ -130,12 +136,13 @@ describe('the interior roles', () => {
     expect(palette('aura').color).toBe(palette('light').color);
   });
 
-  it('lays the warmth in graded strengths: emitter opaque, aura beneath, ambient the quietest', () => {
+  it('lays the warmth in graded strengths: emitter opaque, ambient the louder wash, aura the local one', () => {
     const palette = windowPalette(42, LIGHT);
     const ambient = palette('ambient').alpha;
     const aura = palette('aura').alpha;
     expect(ambient).toBeGreaterThan(0);
-    expect(aura).toBeGreaterThan(ambient);
+    expect(aura).toBeGreaterThan(0);
+    expect(ambient).toBeGreaterThan(aura);
     expect(aura).toBeLessThan(1);
   });
 

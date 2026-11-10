@@ -17,8 +17,9 @@ export type LampKind =
   | 'pendant'
   | 'bulbPendant';
 
-// Six home constructions from the prototype sheet's picked ten: four stand
-// on the floor line, two hang from the ceiling line.
+// Six home constructions from the prototype sheet's picked ten: two stand on
+// the room's floor line, two on furniture lines, two hang from the ceiling
+// line.
 export const LAMP_KINDS: readonly { value: LampKind; weight: number }[] = [
   { value: 'floorLamp', weight: 3 },
   { value: 'arcLamp', weight: 2 },
@@ -45,6 +46,15 @@ export const FACINGS: readonly { value: Facing; weight: number }[] = [
 // Where in the opening the lamp stands, as a share of the opening's width —
 // kept off the frame's edges.
 export const ANCHOR_X: Record<Anchor, number> = { left: 0.28, centre: 0.5, right: 0.72 };
+
+// The standing lines, as offsets below the opening's bottom edge (the sill
+// sightline) in unit measure. The sill sits roughly three-quarters of an
+// opening height above the room floor, so a floor-standing base never clears
+// the sightline; a desk surface sits a hand lower than the sightline, a
+// bedside table lower still.
+export const FLOOR_DROP = 0.64;
+export const DESK_DROP = 0.1;
+export const BEDSIDE_DROP = 0.2;
 
 // The interior sits deeper than the curtain (the room behind the cloth) and
 // sorts under it, so the veil and the aura lay over the interior and the
