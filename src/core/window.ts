@@ -6,9 +6,9 @@ import type { Pen } from '@/pen/pen';
 import type { Palette } from '@/styling/roles';
 import { execute, type Mark } from './scene';
 import { fork } from './randomness/rng';
-import { curtainMarks } from './curtain';
-import { sillMarks } from './sill';
-import { lightMarks } from './light';
+import { curtainMarks, expandCurtain } from './curtain';
+import { sillMarks, expandSill } from './sill';
+import { lightMarks, expandLight } from './light';
 import { shellMarks, expandShell, type ShellPlan } from './window-shell';
 import { innerRect } from './window-shell/shell';
 import { makeProjection, type Eye } from '@/motion/projection';
@@ -48,4 +48,16 @@ export function drawWindow(
     palette,
     makeProjection(eye),
   );
+}
+
+// Whether this window's room burns — the lamp gene the tenant walk rolls.
+// The colour model reads it for the backlit cloth, so the caller hands it
+// to the palette beside the seed; the walk here is its own fork, consumed
+// by the same pure roll picks the scene makes, in the same order.
+export function lampLit(seed: number): boolean {
+  const rng = fork(seed, 'dna');
+  expandCurtain(rng);
+  expandSill(rng);
+  const lamp = expandLight(rng);
+  return lamp.present && lamp.on;
 }
