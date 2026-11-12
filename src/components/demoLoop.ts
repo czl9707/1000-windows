@@ -20,13 +20,14 @@ const CENTRE: EyeOffset = { x: 0, y: 0 };
 
 export function createDemoLoop(
   canvas: HTMLCanvasElement,
-  // The theme's two colours arrive with every frame: a theme switch
+  // The theme arrives with every frame — its two colours and its night
+  // flag, read off the page's own theme attribute. A theme switch
   // re-renders the same scene in the new colours — nothing downstream keeps
   // a palette. The eye arrives resolved; the painter draws it as given.
   paint: (
     ctx: CanvasRenderingContext2D,
     time: number,
-    colors: { ink: string; paper: string },
+    theme: { ink: string; paper: string; isNight: boolean },
     eye: EyeOffset,
   ) => void,
   // A demo maps its own input to the eye — the motion strip its pointer,
@@ -37,20 +38,24 @@ export function createDemoLoop(
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('demo canvas: 2d context unavailable');
 
-  let colors = { ink: '', paper: '' };
-  const readColors = () => {
+  let theme = { ink: '', paper: '', isNight: false };
+  const readTheme = () => {
     const style = getComputedStyle(document.body);
     const bg = style.getPropertyValue('--color-primary-background').trim();
     const fg = style.getPropertyValue('--color-primary-foreground').trim();
     if (!bg || !fg) throw new Error('demo canvas: background/foreground tokens missing');
-    colors = { ink: `rgb(${fg})`, paper: `rgb(${bg})` };
+    theme = {
+      ink: `rgb(${fg})`,
+      paper: `rgb(${bg})`,
+      isNight: document.body.getAttribute('data-theme') === 'dark',
+    };
   };
 
   const frame = (time: number) => {
     ctx.save();
-    ctx.fillStyle = colors.paper;
+    ctx.fillStyle = theme.paper;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    paint(ctx, time, colors, resolveEye(canvas));
+    paint(ctx, time, theme, resolveEye(canvas));
     ctx.restore();
   };
 
@@ -93,12 +98,12 @@ export function createDemoLoop(
   });
   observer.observe(canvas);
   const themeObserver = new MutationObserver(() => {
-    readColors();
+    readTheme();
     if (!running) repaint();
   });
   themeObserver.observe(document.body, { attributes: true, attributeFilter: ['data-theme'] });
 
-  readColors();
+  readTheme();
   repaint();
   start();
 

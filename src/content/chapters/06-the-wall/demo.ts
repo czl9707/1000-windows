@@ -11,7 +11,7 @@ import { createDemoLoop, cssBox, trackPointerEye } from '@/components/demoLoop';
 import { registerDemo, type ReseedHandle } from '@/components/mount';
 import { Pen } from '@/pen/pen';
 import { DEFAULT_TUNING } from '@/pen/tuning';
-import type { ThemeColors } from '@/styling/roles';
+import type { Theme } from '@/styling/roles';
 import { mockPalette } from '@/content/chapters/mock/palette';
 import { windowSeed } from '@/core/randomness/rng';
 import { execute } from '@/core/scene';
@@ -45,7 +45,7 @@ function mountWallStrip(canvas: HTMLCanvasElement): ReseedHandle {
 
   const loop = createDemoLoop(
     canvas,
-    (ctx, time, colors: ThemeColors, eye) => {
+    (ctx, time, theme: Theme, eye) => {
       const box = cssBox(canvas);
       // The camera sits still, so the extent spills over into wall wherever
       // the canvas is not exactly 9 × 4 units.
@@ -68,7 +68,7 @@ function mountWallStrip(canvas: HTMLCanvasElement): ReseedHandle {
       for (const { si, ti } of slots) {
         const pen = slotPens.get(pairKey(si, ti));
         pen.setTime(time);
-        drawPatchSlot(ctx, pen, metaSeed, si, ti, colors.ink);
+        drawPatchSlot(ctx, pen, metaSeed, si, ti, theme.ink);
       }
 
       for (const { col, row } of cells) {
@@ -87,7 +87,7 @@ function mountWallStrip(canvas: HTMLCanvasElement): ReseedHandle {
           shellMarks(expandShell(windowSeed(metaSeed, col, row))),
           pen,
           ctx,
-          mockPalette(colors),
+          mockPalette(theme),
           makeProjection(cellEye),
         );
         ctx.restore();

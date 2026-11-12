@@ -6,7 +6,7 @@
 // knows nothing of what happens inside one.
 import { Pen } from "@/pen/pen";
 import { DEFAULT_TUNING } from "@/pen/tuning";
-import type { ThemeColors } from "@/styling/roles";
+import type { Theme } from "@/styling/roles";
 import { windowPalette } from "@/styling/colourway";
 import { windowSeed } from "@/core/randomness/rng";
 import { drawWindow } from "@/core/window";
@@ -95,7 +95,7 @@ export class Wall {
     box: WallBox,
     frame: WallFrame,
     time: number,
-    colors: ThemeColors,
+    theme: Theme,
   ): void {
     const extentW = box.width / frame.unit;
     const extentH = box.height / frame.unit;
@@ -118,7 +118,7 @@ export class Wall {
     for (const { si, ti } of slots) {
       const pen = this.slotPens.get(pairKey(si, ti));
       pen.setTime(time);
-      drawPatchSlot(ctx, pen, this.metaSeed, si, ti, colors.ink);
+      drawPatchSlot(ctx, pen, this.metaSeed, si, ti, theme.ink);
     }
 
     this.cellPens.sync(frame.cells.map((c) => pairKey(c.col, c.row)));
@@ -132,10 +132,10 @@ export class Wall {
       // nearer layers drift by depth while the camera pans.
       // Each tenant resolves its own colourway; the theme-bound roles come
       // along inside the same palette.
-      drawWindow(ctx, pen, windowPalette(pen.seed, colors), {
+      drawWindow(ctx, pen, windowPalette(pen.seed, theme), {
         x: frame.eye.x + col * PITCH_X - this.camera.x,
         y: frame.eye.y + row * PITCH_Y - this.camera.y,
-      });
+      }, theme.isNight);
       ctx.restore();
     }
     ctx.restore();

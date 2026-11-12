@@ -7,7 +7,7 @@ import { centreUnit, createDemoLoop, cssBox } from '@/components/demoLoop';
 import { Pen } from '@/pen/pen';
 import { registerDemo, plateCols, type TuningHandle } from '@/components/mount';
 import { DEFAULT_TUNING } from '@/pen/tuning';
-import { type ThemeColors } from '@/styling/roles';
+import { type Theme } from '@/styling/roles';
 import { mockPalette } from '@/content/chapters/mock/palette';
 import { windowSeed } from '@/core/randomness/rng';
 import { execute } from '@/core/scene';
@@ -56,7 +56,7 @@ function mountPlates(canvas: HTMLCanvasElement, plans: CurtainPlan[]): TuningHan
   const rows = Math.ceil(plans.length / cols);
   const loop = createDemoLoop(
     canvas,
-    (ctx, time, colors: ThemeColors) => {
+    (ctx, time, theme: Theme) => {
       const box = cssBox(canvas);
       centreUnit(ctx, box, cols * UNIT_PITCH_X, rows * UNIT_PLATE_PITCH_Y);
       plates.forEach(({ plan, pen }, i) => {
@@ -70,7 +70,7 @@ function mountPlates(canvas: HTMLCanvasElement, plans: CurtainPlan[]): TuningHan
           [...shellMarks(SHELL), ...clothMarks(plan, OPENING)],
           pen,
           ctx,
-          mockPalette(colors),
+          mockPalette(theme),
           makeProjection(CENTRE_EYE),
         );
         ctx.restore();

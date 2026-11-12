@@ -50,14 +50,14 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
     let lastFrameTime = 0;
     const loop = createDemoLoop(
       canvas,
-      (ctx, time, colors, eye) => {
+      (ctx, time, theme, eye) => {
         const box = cssBox(canvas);
         const dt = Math.min(Math.max(time - lastFrameTime, 0), 0.1);
         lastFrameTime = time;
         wall.advance(dt);
         const unit = wallUnits(box.width, box.height);
         const cells = visibleCells(wall.camera, box.width / unit, box.height / unit, MARGIN);
-        wall.draw(ctx, box, { unit, eye, cells, margin: MARGIN }, time, colors);
+        wall.draw(ctx, box, { unit, eye, cells, margin: MARGIN }, time, theme);
       },
       // The wall's real eye: where this canvas sits relative to the screen's
       // centre, in unit measure. Filling the viewport, it sits at the centre;

@@ -7,7 +7,7 @@ import { centreUnit, createDemoLoop, cssBox } from '@/components/demoLoop';
 import { Pen } from '@/pen/pen';
 import { registerDemo, type TuningHandle } from '@/components/mount';
 import { DEFAULT_TUNING } from '@/pen/tuning';
-import { type ThemeColors } from '@/styling/roles';
+import { type Theme } from '@/styling/roles';
 import { windowPalette } from '@/styling/colourway';
 import { windowSeed } from '@/core/randomness/rng';
 import { execute } from '@/core/scene';
@@ -39,7 +39,7 @@ function mountLayersGrid(canvas: HTMLCanvasElement): TuningHandle {
 
   const loop = createDemoLoop(
     canvas,
-    (ctx, time, colors: ThemeColors) => {
+    (ctx, time, theme: Theme) => {
       const box = cssBox(canvas);
       centreUnit(ctx, box, COLS * UNIT_PITCH_X, ROWS * UNIT_PITCH_Y, -0.1);
       pens.forEach(({ seed, pen }, i) => {
@@ -49,7 +49,7 @@ function mountLayersGrid(canvas: HTMLCanvasElement): TuningHandle {
           (SLOTS[i].col - (COLS - 1) / 2) * UNIT_PITCH_X,
           (SLOTS[i].row - (ROWS - 1) / 2) * UNIT_PITCH_Y,
         );
-        execute(shellMarks(expandShell(pen.seed)), pen, ctx, windowPalette(seed, colors), makeProjection(CENTRE_EYE));
+        execute(shellMarks(expandShell(pen.seed)), pen, ctx, windowPalette(seed, theme), makeProjection(CENTRE_EYE));
         ctx.restore();
       });
     },

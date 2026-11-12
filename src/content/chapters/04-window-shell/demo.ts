@@ -6,7 +6,7 @@ import { centreUnit, createDemoLoop, cssBox } from '@/components/demoLoop';
 import { Pen } from '@/pen/pen';
 import { registerDemo, plateCols, type TuningHandle } from '@/components/mount';
 import { DEFAULT_TUNING } from '@/pen/tuning';
-import { type ThemeColors } from '@/styling/roles';
+import { type Theme } from '@/styling/roles';
 import { mockPalette } from '@/content/chapters/mock/palette';
 import { windowSeed } from '@/core/randomness/rng';
 import { execute } from '@/core/scene';
@@ -44,7 +44,7 @@ function mountShellStrip(canvas: HTMLCanvasElement): TuningHandle {
 
   const loop = createDemoLoop(
     canvas,
-    (ctx, time, colors: ThemeColors) => {
+    (ctx, time, theme: Theme) => {
       const box = cssBox(canvas);
       centreUnit(ctx, box, COLS * UNIT_PITCH_X, ROWS * UNIT_PITCH_Y, -0.1);
       pens.forEach(({ seed, pen }, i) => {
@@ -54,7 +54,7 @@ function mountShellStrip(canvas: HTMLCanvasElement): TuningHandle {
           (SLOTS[i].col - (COLS - 1) / 2) * UNIT_PITCH_X,
           (SLOTS[i].row - (ROWS - 1) / 2) * UNIT_PITCH_Y,
         );
-        execute(shellMarks(expandShell(pen.seed)), pen, ctx, mockPalette(colors), makeProjection(CENTRE_EYE));
+        execute(shellMarks(expandShell(pen.seed)), pen, ctx, mockPalette(theme), makeProjection(CENTRE_EYE));
         ctx.restore();
       });
     },
@@ -127,7 +127,7 @@ function mountPlates(canvas: HTMLCanvasElement, plans: ShellPlan[]): TuningHandl
   const rows = Math.ceil(plans.length / cols);
   const loop = createDemoLoop(
     canvas,
-    (ctx, time, colors: ThemeColors) => {
+    (ctx, time, theme: Theme) => {
       const box = cssBox(canvas);
       centreUnit(ctx, box, cols * UNIT_PITCH_X, rows * UNIT_PLATE_PITCH_Y);
       plates.forEach(({ plan, pen }, i) => {
@@ -137,7 +137,7 @@ function mountPlates(canvas: HTMLCanvasElement, plans: ShellPlan[]): TuningHandl
           ((i % cols) - (cols - 1) / 2) * UNIT_PITCH_X,
           (Math.floor(i / cols) - (rows - 1) / 2) * UNIT_PLATE_PITCH_Y,
         );
-        execute(shellMarks(plan), pen, ctx, mockPalette(colors), makeProjection(CENTRE_EYE));
+        execute(shellMarks(plan), pen, ctx, mockPalette(theme), makeProjection(CENTRE_EYE));
         ctx.restore();
       });
     },

@@ -31,10 +31,10 @@ What the site's dark theme means for the wall: the same tenants and the same sce
 How dense line work is drawn on paper: a run of dense lines is never fully drawn — some are omitted outright, and a kept line runs over only part of its span, the fill carrying the texture instead. Picked by the golden-angle sine, deterministic, no stream draw. Object edges (hems, bars, rails, the roman's rod) are not dense line work and draw full.
 
 ## Light gene
-A per-window inherited trait describing the apartment's lighting: whether a lamp is on, and the warm tone and strength of its colour. Identity, not global state — the gene rolls off the window seed regardless of theme, and draws only under the night theme: nobody turns a lamp on in daylight. The lamp is the one light source a window can carry and takes the dominant-element slot when lit; the sill items stand in front of it, so they keep their unlit faces.
+A per-window inherited trait describing the apartment's lighting: whether the room owns a lamp (two rooms in three do), whether it burns (even odds among owned lamps), and the warm tone and strength of its colour. Identity, not global state — the gene rolls off the window seed regardless of theme, and draws only under the night theme: nobody turns a lamp on in daylight. A lit room's lamp takes the dominant-element slot; a lampless room is simply a dark one. The lamp's emitting part keeps its own colour whenever off; the sill items stand in front of a lit lamp, so they keep their unlit faces.
 
 ## Aura
-The lamp's local light in a lit room: a glow whose shape follows the lamp construction — a shade throws its cone, a bare bulb radiates its pool. Drawn as flat low-alpha washes laid directly over the layers behind it, ink lines included, and kept inside the opening. A `Still` mark: it never boils.
+The lamp's local light in a lit room: a glow whose shape follows the lamp construction — a shade throws its cone, a bare bulb radiates its pool. Drawn as flat low-alpha washes laid directly over the layers behind it, ink lines included, and kept inside the opening. The falloff is nested passes anchored on the emitting part, so the glow fades away from the lamp and never drifts off it when the opening clips the shape. A `Still` mark: it never boils.
 
 ## Ambient
 The room-wide light of a lit room: one simple low-opacity warm fill covering the whole interior, beneath the aura, so the room reads lit before the eye finds the lamp.

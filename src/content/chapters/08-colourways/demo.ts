@@ -9,7 +9,7 @@ import { centreUnit, createDemoLoop, cssBox } from '@/components/demoLoop';
 import { Pen } from '@/pen/pen';
 import { registerDemo, plateCols, type ReseedHandle, type TuningHandle } from '@/components/mount';
 import { DEFAULT_TUNING } from '@/pen/tuning';
-import { type Palette, type ThemeColors } from '@/styling/roles';
+import { type Palette, type Theme } from '@/styling/roles';
 import {
   DEFAULT_COLOURWAY_TUNING,
   tunedWindowPalette,
@@ -26,8 +26,8 @@ const STREET_SEED = 1335613256;
 const STREET_COUNT = 6;
 const COMPARE_COUNT = 3;
 
-const DAY = { ink: 'rgb(33 37 41)', paper: 'rgb(229 222 214)' } as const;
-const DARK = { ink: 'rgb(233 236 239)', paper: 'rgb(0 0 0)' } as const;
+const DAY = { ink: 'rgb(33 37 41)', paper: 'rgb(229 222 214)', isNight: false } as const;
+const DARK = { ink: 'rgb(233 236 239)', paper: 'rgb(0 0 0)', isNight: true } as const;
 
 function buildStreet(seed: number, count: number = STREET_COUNT): Pen[] {
   return Array.from(
@@ -41,8 +41,8 @@ function drawStreet(
   box: { width: number; height: number; dpr: number },
   time: number,
   pens: Pen[],
-  paletteFor: (pen: Pen, colors: ThemeColors) => Palette,
-  colors: ThemeColors,
+  paletteFor: (pen: Pen, theme: Theme) => Palette,
+  theme: Theme,
 ): void {
   const cols = plateCols(STREET_COUNT);
   const rows = Math.ceil(STREET_COUNT / cols);
@@ -54,7 +54,7 @@ function drawStreet(
       ((i % cols) - (cols - 1) / 2) * UNIT_PITCH_X,
       (Math.floor(i / cols) - (rows - 1) / 2) * UNIT_PITCH_Y,
     );
-    drawWindow(ctx, pen, paletteFor(pen, colors), CENTRE_EYE);
+    drawWindow(ctx, pen, paletteFor(pen, theme), CENTRE_EYE, theme.isNight);
     ctx.restore();
   });
 }
@@ -63,8 +63,8 @@ function mountStreet(canvas: HTMLCanvasElement): ReseedHandle {
   let baseSeed = STREET_SEED;
   let pens = buildStreet(baseSeed);
 
-  const loop = createDemoLoop(canvas, (ctx, time, colors: ThemeColors) => {
-    drawStreet(ctx, cssBox(canvas), time, pens, (pen) => windowPalette(pen.seed, colors), colors);
+  const loop = createDemoLoop(canvas, (ctx, time, theme: Theme) => {
+    drawStreet(ctx, cssBox(canvas), time, pens, (pen) => windowPalette(pen.seed, theme), theme);
   });
 
   return {
@@ -102,19 +102,19 @@ function mountCompare(canvas: HTMLCanvasElement): TuningHandle {
     ctx.scale(box.dpr * scale, box.dpr * scale);
     ctx.translate(box.width / (2 * scale), box.height / (2 * scale));
     const colX = box.width / (4 * scale);
-    const day = { ink: DAY.ink, paper: DAY.paper };
-    const dark = { ink: DARK.ink, paper: DARK.paper };
+    const day = { ...DAY };
+    const dark = { ...DARK };
     const nightTuning: ColourwayTuning = { ...DEFAULT_COLOURWAY_TUNING, nightMix: veil };
     pens.forEach((pen, i) => {
       pen.setTime(time);
       const columns = [
-        { x: -colX, palette: windowPalette(pen.seed, day) },
-        { x: colX, palette: tunedWindowPalette(pen.seed, dark, nightTuning) },
+        { x: -colX, palette: windowPalette(pen.seed, day), night: day.isNight },
+        { x: colX, palette: tunedWindowPalette(pen.seed, dark, nightTuning), night: dark.isNight },
       ];
-      for (const { x, palette } of columns) {
+      for (const { x, palette, night } of columns) {
         ctx.save();
         ctx.translate(x, (i - (COMPARE_COUNT - 1) / 2) * UNIT_PITCH_Y);
-        drawWindow(ctx, pen, palette, CENTRE_EYE);
+        drawWindow(ctx, pen, palette, CENTRE_EYE, night);
         ctx.restore();
       }
     });
@@ -154,14 +154,14 @@ function mountBench(canvas: HTMLCanvasElement): TuningHandle {
   const tuning: ColourwayTuning = { ...DEFAULT_COLOURWAY_TUNING };
   let pens = buildStreet(baseSeed);
 
-  const loop = createDemoLoop(canvas, (ctx, time, colors: ThemeColors) => {
+  const loop = createDemoLoop(canvas, (ctx, time, theme: Theme) => {
     drawStreet(
       ctx,
       cssBox(canvas),
       time,
       pens,
-      (pen) => tunedWindowPalette(pen.seed, colors, tuning),
-      colors,
+      (pen) => tunedWindowPalette(pen.seed, theme, tuning),
+      theme,
     );
   });
 

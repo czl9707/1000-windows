@@ -5,7 +5,7 @@ import { centreUnit, createDemoLoop, cssBox, trackPointerEye } from '@/component
 import { Pen } from '@/pen/pen';
 import { registerDemo, type TuningHandle } from '@/components/mount';
 import { DEFAULT_TUNING } from '@/pen/tuning';
-import { type ThemeColors } from '@/styling/roles';
+import { type Theme } from '@/styling/roles';
 import { mockPalette } from '@/content/chapters/mock/palette';
 import { windowSeed } from '@/core/randomness/rng';
 import { shellMarks, expandShell } from '@/core/window-shell';
@@ -45,7 +45,7 @@ function mountParallaxStrip(canvas: HTMLCanvasElement): TuningHandle {
 
   const loop = createDemoLoop(
     canvas,
-    (ctx, time, colors: ThemeColors, eye: Eye) => {
+    (ctx, time, theme: Theme, eye: Eye) => {
       const box = cssBox(canvas);
       centreUnit(ctx, box, COLS * UNIT_PITCH_X, ROWS * UNIT_PITCH_Y, -0.1);
       pens.forEach(({ pen }, i) => {
@@ -62,7 +62,7 @@ function mountParallaxStrip(canvas: HTMLCanvasElement): TuningHandle {
           shellMarks(expandShell(pen.seed)),
           pen,
           ctx,
-          mockPalette(colors),
+          mockPalette(theme),
           makeProjection({ x: eye.x + wx, y: eye.y + wy }, focal),
         );
         ctx.restore();

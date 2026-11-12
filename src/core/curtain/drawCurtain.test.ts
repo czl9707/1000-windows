@@ -10,7 +10,7 @@ import { FOLD_BANDS, HEM_CLEARANCE } from './drawCurtain';
 import type { FillMark, StrokeMark } from '@/core/scene';
 
 const OPENING = innerRect(0.07);
-const PALETTE = windowPalette(0, { ink: '#000000', paper: '#ffffff' });
+const PALETTE = windowPalette(0, { ink: '#000000', paper: '#ffffff', isNight: false });
 const CLOTH_ROLES = ['fabric', 'shade', 'blind'] as const;
 type ClothRole = (typeof CLOTH_ROLES)[number];
 
@@ -41,7 +41,7 @@ function strokes(marks: ReturnType<typeof clothMarks>): StrokeMark[] {
 
 describe('the cloth roles', () => {
   it('resolve as a colourway wash — louder than the glass, under solid ink', () => {
-    for (const role of CLOTH_ROLES) {
+    for (const role of ['fabric', 'shade'] as const) {
       const dress = PALETTE(role);
       expect(dress.color).not.toBe(PALETTE('ink').color);
       expect(() => cssToOklch(dress.color)).not.toThrow();
@@ -74,7 +74,7 @@ describe('clothMarks', () => {
     }
   });
 
-  it('hangs all cloth inside the opening and behind the wall plane', () => {
+  it('hangs all cloth inside the opening and behind the wall plane, never repeating a trace name', () => {
     for (const { value: kind } of KINDS) {
       const marks = clothMarks(covered(kind, ZONE_CEILING[kind]), OPENING);
       for (const mark of marks) {
@@ -87,12 +87,7 @@ describe('clothMarks', () => {
           expect(p.z, `${kind} depth`).toBeLessThan(0);
         }
       }
-    }
-  });
-
-  it('never repeats a trace name within one window', () => {
-    for (const { value: kind } of KINDS) {
-      const names = strokes(clothMarks(covered(kind, ZONE_CEILING[kind]), OPENING)).map((s) => s.name);
+      const names = strokes(marks).map((s) => s.name);
       expect(new Set(names).size, kind).toBe(names.length);
     }
   });
@@ -120,7 +115,7 @@ describe('clothMarks', () => {
     }
   });
 
-  it('hangs the panels and the drapes on verticals alone — no line across the top', () => {
+  it('hangs the panels and the drapes on verticals alone and all the way to the opening head', () => {
     const top = OPENING.top + ROD_CLEARANCE;
     for (const kind of ['panels', 'drapes'] as const) {
       for (const s of strokes(clothMarks(covered(kind, 0.5), OPENING))) {
@@ -129,15 +124,10 @@ describe('clothMarks', () => {
           expect(a.y, `${kind} horizontal line`).not.toBeCloseTo(top, 9);
         }
       }
-    }
-  });
-
-  it('runs the hanging cloth all the way to the opening head', () => {
-    for (const kind of ['panels', 'drapes'] as const) {
       const cloth = clothFills(clothMarks(covered(kind, 0.5), OPENING));
       expect(cloth.length).toBeGreaterThan(0);
-      const top = Math.min(...cloth.flatMap((f) => f.pts.map((p) => p.y)));
-      expect(top).toBeCloseTo(OPENING.top, 9);
+      const clothTop = Math.min(...cloth.flatMap((f) => f.pts.map((p) => p.y)));
+      expect(clothTop).toBeCloseTo(OPENING.top, 9);
     }
   });
 

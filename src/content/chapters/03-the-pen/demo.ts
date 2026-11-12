@@ -7,7 +7,7 @@ import { Pen } from '@/pen/pen';
 import { registerDemo, type TuningHandle } from '@/components/mount';
 import type { NumericTuningKey } from '@/pen/tuning';
 import { DEFAULT_TUNING } from '@/pen/tuning';
-import { type ThemeColors } from '@/styling/roles';
+import { type Theme } from '@/styling/roles';
 import { mockPalette } from '@/content/chapters/mock/palette';
 
 const DEFAULT_SEED = 1335613256;
@@ -33,9 +33,9 @@ function mountPenPrototype(canvas: HTMLCanvasElement): TuningHandle {
   // baked into the warp field cache at construction.
   let pen = new Pen(tuning, seed);
 
-  const loop = createDemoLoop(canvas, (ctx, time, colors: ThemeColors) => {
+  const loop = createDemoLoop(canvas, (ctx, time, theme: Theme) => {
     pen.setTime(time);
-    const palette = mockPalette(colors);
+    const palette = mockPalette(theme);
     const ink = palette('ink');
     const glass = palette('glass');
 

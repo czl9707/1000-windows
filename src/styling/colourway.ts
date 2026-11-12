@@ -9,12 +9,12 @@
 // happens inside the palette resolution: night is a property of a colour,
 // never a layer drawn over the wall.
 import { fork } from "@/core/randomness/rng";
-import { cssToOklch, mixCss, oklchToCss } from "./oklch";
+import { mixCss, oklchToCss } from "./oklch";
 import {
   type ColorRole,
   type Palette,
   type ResolvedColor,
-  type ThemeColors,
+  type Theme,
   GLASS_WASH,
   OCCLUDE,
 } from "./roles";
@@ -27,7 +27,7 @@ export interface Colourway {
   weight: number;
 }
 
-type ColourGroup = "mullion" | "awning" | "sill" | "box" | "cloth";
+type ColourGroup = "mullion" | "awning" | "sill" | "box" | "cloth" | "lamp" | "light";
 
 // Rarity lives in the character: the quiet families dominate, the dyed-looking
 // ones are rare rows, not a separate gate. Each row is a finished colour —
@@ -41,6 +41,17 @@ export const COLOURWAYS: readonly Colourway[] = [
   { name: "chalk", hue: 90, chroma: 0.011, lightness: 0.8, weight: 0.26 },
 ];
 
+// The light's own table: rows of one warm family, varying in tone and
+// strength — never a cool row. Stronger chroma than the street rows: the
+// light reads over the interior, not beside it.
+export const WARMTH: readonly Colourway[] = [
+  { name: "firelight", hue: 40, chroma: 0.15, lightness: 0.62, weight: 0.1 },
+  { name: "candle", hue: 55, chroma: 0.16, lightness: 0.66, weight: 0.15 },
+  { name: "amber", hue: 65, chroma: 0.13, lightness: 0.72, weight: 0.3 },
+  { name: "honey", hue: 80, chroma: 0.11, lightness: 0.78, weight: 0.25 },
+  { name: "lamplight", hue: 90, chroma: 0.06, lightness: 0.85, weight: 0.2 },
+];
+
 const ECHO_L = 0.05;
 
 // Each coloured surface rolls its own family off the window seed, on a fork
@@ -49,13 +60,12 @@ const ECHO_L = 0.05;
 // construction per window, so they roll together as one group.
 function rollColourway(
   seed: number,
-  group: string,
+  group: ColourGroup,
   hueJitter: number,
 ): Omit<Colourway, "weight"> {
   const rng = fork(seed, `colourway:${group}`);
-  const row = rng.weighted(
-    COLOURWAYS.map((way) => ({ value: way, weight: way.weight })),
-  );
+  const table = group === "light" ? WARMTH : COLOURWAYS;
+  const row = rng.weighted(table.map((way) => ({ value: way, weight: way.weight })));
   return {
     name: row.name,
     hue: rng.float(row.hue - hueJitter, row.hue + hueJitter),
@@ -68,19 +78,33 @@ function rollColourway(
 interface RoleTint {
   alpha: number;
   echo: boolean;
+  // The street roles sink into the ground at night; the roles that read
+  // what is behind them — the cloth — and the interior roles keep their
+  // colour and let the layers on top do the darkening.
+  skipsNightMix?: boolean;
 }
 
 const ROLE_TINTS: Record<
-  "mullion" | "awning" | "sill" | "box" | "fabric" | "shade" | "blind",
+  | "mullion"
+  | "awning"
+  | "sill"
+  | "box"
+  | "fabric"
+  | "shade"
+  | "blind"
+  | "lamp"
+  | "lampShade",
   RoleTint
 > = {
   mullion: { alpha: 1, echo: false },
   awning: { alpha: 1, echo: false },
   sill: { alpha: 1, echo: false },
   box: { alpha: 1, echo: false },
-  fabric: { alpha: 0.14, echo: true },
-  shade: { alpha: 0.14, echo: true },
-  blind: { alpha: 0.16, echo: true },
+  fabric: { alpha: 0.14, echo: true, skipsNightMix: true },
+  shade: { alpha: 0.14, echo: true, skipsNightMix: true },
+  blind: { alpha: 1, echo: false },
+  lamp: { alpha: 1, echo: false, skipsNightMix: true },
+  lampShade: { alpha: 1, echo: false, skipsNightMix: true },
 };
 
 // The dials of the colour model, all in one place: the hue jitter band, the
@@ -97,6 +121,11 @@ export interface ColourwayTuning {
   awningChromaScale: number;
   awningLightnessShift: number;
   nightMix: number;
+  lightChromaCap: number;
+  veilAlpha: number;
+  ambientAlpha: number;
+  auraAlpha: number;
+  lampLightnessShift: number;
 }
 
 export const DEFAULT_COLOURWAY_TUNING: ColourwayTuning = {
@@ -108,15 +137,15 @@ export const DEFAULT_COLOURWAY_TUNING: ColourwayTuning = {
   awningChromaScale: 0.6,
   awningLightnessShift: 0.05,
   nightMix: 0.7,
+  lightChromaCap: 0.1,
+  veilAlpha: 0.55,
+  ambientAlpha: 0.4,
+  auraAlpha: 0.14,
+  lampLightnessShift: -0.35,
 };
 
-const NIGHT_PAPER_L = 0.5;
-// The flip reads the ground itself, so the theme tokens carry a second
-// constraint beside their contrast with the ink: a paper moved across this
-// lightness silently flips night for the whole wall.
-
 interface RoleContext {
-  colors: ThemeColors;
+  theme: Theme;
   night: boolean;
   wayFor: (group: ColourGroup) => Omit<Colourway, "weight">;
   tuning: ColourwayTuning;
@@ -136,7 +165,7 @@ const tintResolver =
     }),
   ) =>
   (ctx: RoleContext): ResolvedColor => {
-    const { colors, night, wayFor, tuning } = ctx;
+    const { theme, night, wayFor, tuning } = ctx;
     const way = wayFor(group);
     const wear = strength(ctx);
     const l = way.lightness + tuning.lightnessLift + wear.lightnessShift;
@@ -166,9 +195,27 @@ const tintResolver =
         alpha: compounded,
       };
     }
-    return night
-      ? { color: mixCss(dress.color, colors.paper, tuning.nightMix), alpha: dress.alpha }
+    return night && t.skipsNightMix !== true
+      ? { color: mixCss(dress.color, theme.paper, tuning.nightMix), alpha: dress.alpha }
       : dress;
+  };
+
+// The warmth roles resolve from one roll off the light table: the emitter
+// wears it opaque, the aura and the ambient lay the same colour over the
+// room at their own alphas. No pooling echo — the aura's falloff comes
+// from its nested passes — and no night mix: the light is the thing the
+// night exists to show.
+const warmthResolver =
+  (alphaOf: (tuning: ColourwayTuning) => number) =>
+  (ctx: RoleContext): ResolvedColor => {
+    const { wayFor, tuning } = ctx;
+    const way = wayFor("light");
+    const color = oklchToCss({
+      l: way.lightness + tuning.lightnessLift,
+      c: Math.min(way.chroma, tuning.lightChromaCap),
+      h: way.hue,
+    });
+    return { color, alpha: alphaOf(tuning) };
   };
 
 // One resolver per role, so a new role is one map row: theme-bound roles read
@@ -176,9 +223,9 @@ const tintResolver =
 // A role missing from the map fails the compile — and a caller casting past
 // the type still fails at the resolution site.
 const ROLE_RESOLVERS: Record<ColorRole, (ctx: RoleContext) => ResolvedColor> = {
-  ink: ({ colors }) => ({ color: colors.ink, alpha: OCCLUDE }),
-  glass: ({ colors }) => ({ color: colors.ink, alpha: GLASS_WASH }),
-  paper: ({ colors }) => ({ color: colors.paper, alpha: OCCLUDE }),
+  ink: ({ theme }) => ({ color: theme.ink, alpha: OCCLUDE }),
+  glass: ({ theme }) => ({ color: theme.ink, alpha: GLASS_WASH }),
+  paper: ({ theme }) => ({ color: theme.paper, alpha: OCCLUDE }),
   mullion: tintResolver(ROLE_TINTS.mullion, "mullion"),
   awning: tintResolver(ROLE_TINTS.awning, "awning"),
   awningThin: tintResolver(ROLE_TINTS.awning, "awning", ({ tuning }) => ({
@@ -190,6 +237,15 @@ const ROLE_RESOLVERS: Record<ColorRole, (ctx: RoleContext) => ResolvedColor> = {
   fabric: tintResolver(ROLE_TINTS.fabric, "cloth"),
   shade: tintResolver(ROLE_TINTS.shade, "cloth"),
   blind: tintResolver(ROLE_TINTS.blind, "cloth"),
+  lamp: tintResolver(ROLE_TINTS.lamp, "lamp", ({ tuning }) => ({
+    chromaScale: 1,
+    lightnessShift: tuning.lampLightnessShift,
+  })),
+  lampShade: tintResolver(ROLE_TINTS.lampShade, "lamp"),
+  light: warmthResolver(() => OCCLUDE),
+  ambient: warmthResolver((tuning) => tuning.ambientAlpha),
+  aura: warmthResolver((tuning) => tuning.auraAlpha),
+  veil: ({ theme, tuning }) => ({ color: theme.paper, alpha: tuning.veilAlpha }),
 };
 // The window's own palette: theme-bound roles resolve from the theme's two
 // colours; tinted roles resolve from the colourway. A role with no
@@ -202,12 +258,12 @@ const paletteCache = new Map<string, Palette>();
 // across a long session, and dropping a palette only costs a re-derive.
 const PALETTE_CACHE_MAX = 512;
 
-export function windowPalette(seed: number, colors: ThemeColors): Palette {
-  const key = `${seed}|${colors.ink}|${colors.paper}`;
+export function windowPalette(seed: number, theme: Theme): Palette {
+  const key = `${seed}|${theme.ink}|${theme.paper}`;
   let palette = paletteCache.get(key);
   if (!palette) {
     palette = buildPalette(
-      colors,
+      theme,
       (group) => rollColourway(seed, group, DEFAULT_COLOURWAY_TUNING.hueJitter),
       DEFAULT_COLOURWAY_TUNING,
     );
@@ -221,24 +277,24 @@ export function windowPalette(seed: number, colors: ThemeColors): Palette {
 // whatever tuning the bench's sliders hold.
 export function tunedWindowPalette(
   seed: number,
-  colors: ThemeColors,
+  theme: Theme,
   tuning: ColourwayTuning,
 ): Palette {
   return buildPalette(
-    colors,
+    theme,
     (group) => rollColourway(seed, group, tuning.hueJitter),
     tuning,
   );
 }
 
 function buildPalette(
-  colors: ThemeColors,
+  theme: Theme,
   wayFor: (group: ColourGroup) => Omit<Colourway, "weight">,
   tuning: ColourwayTuning,
 ): Palette {
   const ctx: RoleContext = {
-    colors,
-    night: cssToOklch(colors.paper).l < NIGHT_PAPER_L,
+    theme,
+    night: theme.isNight,
     wayFor,
     tuning,
   };
