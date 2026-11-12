@@ -33,19 +33,83 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
   // reaches the handle.
   import { createDemoLoop, cssBox } from '@/components/demoLoop';
   import { mount, registerDemo, rollSeed, type ReseedHandle } from '@/components/mount';
-  import { PITCH_X, PITCH_Y, visibleCells, wallUnits, dragWall, Wall } from '@/core/wall';
+  import { PITCH_X, PITCH_Y, WINDOW_SCALE, visibleCells, wallUnits, dragWall, Wall } from '@/core/wall';
+  import { BOX } from '@/core/window-shell/shell';
+  import { windowSeed } from '@/core/randomness/rng';
+  import { drawWindow, lampLit } from '@/core/window';
+  import { windowPalette } from '@/styling/colourway';
+  import { Pen } from '@/pen/pen';
+  import { DEFAULT_TUNING } from '@/pen/tuning';
 
   // At least one full cell, so a window's pen is warm before its box scrolls in.
   const MARGIN = Math.max(PITCH_X, PITCH_Y);
 
+  // The focus state is the page's own: a tapped window rides to the screen
+  // centre at FOCUS_SCALE times its wall size while everything else stops
+  // being drawn, and any click hands the wall back.
+  const FOCUS_SCALE = 1.6;
+  const FOCUS_SECONDS = 0.45;
+  const TAP_THRESHOLD_PX = 5;
+  const easeOutCubic = (t: number): number => 1 - Math.pow(1 - t, 3);
+
+  interface FocusState {
+    col: number;
+    row: number;
+    t: number;
+    releasing: boolean;
+  }
+
   function mountWall(canvas: HTMLCanvasElement): ReseedHandle {
-    const wall = new Wall(rollSeed());
+    let metaSeed = rollSeed();
+    const wall = new Wall(metaSeed);
 
     const pxPerUnit = () => {
       const box = cssBox(canvas);
       return wallUnits(box.width, box.height);
     };
-    const unbindGestures = dragWall(wall, canvas, pxPerUnit);
+    // The pan gestures come and go with the focus: a focused wall holds
+    // still, and the binding returns once the window has landed back.
+    let unbindGestures = dragWall(wall, canvas, pxPerUnit);
+    const rebindGestures = () => {
+      unbindGestures();
+      unbindGestures = dragWall(wall, canvas, pxPerUnit);
+    };
+
+    // The focused tenant draws through its own pen — the wall's ledger is
+    // its private state — keyed by cell and re-seeded with the wall.
+    const focusPens = new Map<string, Pen>();
+    const focusPen = (col: number, row: number): Pen => {
+      const key = `${col},${row}`;
+      let pen = focusPens.get(key);
+      if (!pen) {
+        pen = new Pen({ ...DEFAULT_TUNING }, windowSeed(metaSeed, col, row));
+        focusPens.set(key, pen);
+      }
+      return pen;
+    };
+
+    // The cell whose drawn box holds the pointer, in client pixels. Null
+    // when the pointer stands on bare wall.
+    const cellAt = (px: number, py: number, unit: number): { col: number; row: number } | null => {
+      const wx = wall.camera.x + (px - canvas.clientWidth / 2) / unit;
+      const wy = wall.camera.y + (py - canvas.clientHeight / 2) / unit;
+      const col = Math.round(wx / PITCH_X);
+      const row = Math.round(wy / PITCH_Y);
+      return Math.abs(wx - col * PITCH_X) <= BOX.halfW * WINDOW_SCALE &&
+        Math.abs(wy - row * PITCH_Y) <= BOX.halfH * WINDOW_SCALE
+        ? { col, row }
+        : null;
+    };
+
+    let focus: FocusState | null = null;
+    const enterFocus = (col: number, row: number) => {
+      focus = { col, row, t: 0, releasing: false };
+      wall.velocity = { x: 0, y: 0 };
+      unbindGestures();
+    };
+    const leaveFocus = () => {
+      if (focus) focus.releasing = true;
+    };
 
     // The cursor, normalized to the viewport and eased per frame — the raw
     // position reads twitchy at full-screen scale.
@@ -54,6 +118,9 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
     const onMove = (e: PointerEvent) => {
       pointer.x = e.clientX / window.innerWidth - 0.5;
       pointer.y = e.clientY / window.innerHeight - 0.5;
+      const unit = pxPerUnit();
+      canvas.style.cursor =
+        focus || cellAt(e.clientX, e.clientY, unit) ? 'pointer' : 'grab';
     };
     const onLeave = () => {
       pointer.x = 0;
@@ -61,6 +128,38 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
     };
     window.addEventListener('pointermove', onMove);
     document.documentElement.addEventListener('mouseleave', onLeave);
+
+    // Taps drive the focus; drags belong to the wall's own gestures. A tap
+    // on a window lifts it out; once focused, any tap hands the wall back.
+    let tapStart: { x: number; y: number } | null = null;
+    let tapDistance = 0;
+    const onTapDown = (e: PointerEvent) => {
+      tapStart = { x: e.clientX, y: e.clientY };
+      tapDistance = 0;
+    };
+    const onTapMove = (e: PointerEvent) => {
+      if (!tapStart) return;
+      tapDistance += Math.hypot(e.clientX - tapStart.x, e.clientY - tapStart.y);
+    };
+    const onTapUp = (e: PointerEvent) => {
+      const wasTap = tapStart !== null && tapDistance < TAP_THRESHOLD_PX;
+      tapStart = null;
+      if (!wasTap) return;
+      if (focus) {
+        leaveFocus();
+        return;
+      }
+      const unit = pxPerUnit();
+      const cell = cellAt(e.clientX, e.clientY, unit);
+      if (cell) enterFocus(cell.col, cell.row);
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') leaveFocus();
+    };
+    canvas.addEventListener('pointerdown', onTapDown);
+    canvas.addEventListener('pointermove', onTapMove);
+    canvas.addEventListener('pointerup', onTapUp);
+    window.addEventListener('keydown', onKeyDown);
 
     let lastFrameTime = 0;
     const loop = createDemoLoop(
@@ -70,6 +169,14 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
         const dt = Math.min(Math.max(time - lastFrameTime, 0), 0.1);
         lastFrameTime = time;
         wall.advance(dt);
+        if (focus) {
+          const step = dt / FOCUS_SECONDS;
+          focus.t = focus.releasing ? Math.max(focus.t - step, 0) : Math.min(focus.t + step, 1);
+          if (focus.releasing && focus.t === 0) {
+            focus = null;
+            rebindGestures();
+          }
+        }
         const unit = wallUnits(box.width, box.height);
         const cells = visibleCells(wall.camera, box.width / unit, box.height / unit, MARGIN);
         const follow = 1 - Math.exp(-dt * 8);
@@ -83,7 +190,43 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
         const cx = (eased.x * box.width) / unit;
         const cy = (eased.y * box.height) / unit;
         const eye = { x: base.x + cx, y: base.y + cy };
-        wall.draw(ctx, box, { unit, eye, cells, margin: MARGIN }, time, theme);
+        if (!focus) {
+          wall.draw(ctx, box, { unit, eye, cells, margin: MARGIN }, time, theme);
+          return;
+        }
+        // While the focus rides, the wall still paints underneath so it can
+        // fade — then the focused frame is this window alone, everything
+        // else simply is not drawn.
+        const k = easeOutCubic(focus.t);
+        if (k < 1) {
+          wall.draw(ctx, box, { unit, eye, cells, margin: MARGIN }, time, theme);
+          ctx.save();
+          ctx.setTransform(1, 0, 0, 1, 0, 0);
+          ctx.globalAlpha = 1 - k;
+          ctx.globalCompositeOperation = 'destination-in';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.restore();
+        }
+        const slotX = focus.col * PITCH_X;
+        const slotY = focus.row * PITCH_Y;
+        const x = slotX + (wall.camera.x - slotX) * k;
+        const y = slotY + (wall.camera.y - slotY) * k;
+        const s = WINDOW_SCALE * (1 + (FOCUS_SCALE - 1) * k);
+        const pen = focusPen(focus.col, focus.row);
+        pen.setTime(time);
+        ctx.save();
+        ctx.scale(box.dpr * unit, box.dpr * unit);
+        ctx.translate(
+          box.width / (2 * unit) - wall.camera.x,
+          box.height / (2 * unit) - wall.camera.y,
+        );
+        ctx.translate(x, y);
+        ctx.scale(s, s);
+        drawWindow(ctx, pen, windowPalette(pen.seed, theme, lampLit(pen.seed)), {
+          x: eye.x + x - wall.camera.x,
+          y: eye.y + y - wall.camera.y,
+        }, theme.isNight);
+        ctx.restore();
       },
       // The wall's real eye: where this canvas sits relative to the screen's
       // centre, in unit measure. Filling the viewport, it sits at the centre;
@@ -100,7 +243,9 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
 
     return {
       reseed(value) {
+        metaSeed = value;
         wall.reseed(value);
+        focusPens.clear();
         loop.repaint();
         loop.notify();
       },
@@ -108,6 +253,10 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
         unbindGestures();
         window.removeEventListener('pointermove', onMove);
         document.documentElement.removeEventListener('mouseleave', onLeave);
+        canvas.removeEventListener('pointerdown', onTapDown);
+        canvas.removeEventListener('pointermove', onTapMove);
+        canvas.removeEventListener('pointerup', onTapUp);
+        window.removeEventListener('keydown', onKeyDown);
         loop.destroy();
       },
     };

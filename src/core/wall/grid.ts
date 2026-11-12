@@ -4,8 +4,14 @@
 // same address is the same tenant no matter how the camera arrived.
 import { BOX } from '@/core/window-shell/shell';
 
-export const PITCH_X = 3;
-export const PITCH_Y = 2;
+export const PITCH_X = 3.2;
+export const PITCH_Y = 2.4;
+
+// Tenants draw larger than their shell measure — the home wall's windows
+// read a quarter again their 1.6×1.0-unit box inside the pitch cell. The
+// scale belongs to the grid because every consumer of the box measure must
+// agree on it: the wall's draw and the page's hit-testing.
+export const WINDOW_SCALE = 1.25;
 
 // A point in world space, unit measure. The camera is the world point the
 // canvas's centre stands on.

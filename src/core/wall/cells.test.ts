@@ -11,7 +11,7 @@ describe('visibleCells', () => {
   });
 
   it('sees a 3×3 neighbourhood when the extent reaches the neighbours\' boxes', () => {
-    const cells = visibleCells({ x: 0, y: 0 }, PITCH_X + 1.6, PITCH_Y + 1.0, 0);
+    const cells = visibleCells({ x: 0, y: 0 }, PITCH_X + 1.6, PITCH_Y + 1.4, 0);
     expect(cells).toHaveLength(9);
     expect(cells).toContainEqual({ col: -1, row: -1 });
     expect(cells).toContainEqual({ col: 0, row: 0 });
@@ -32,10 +32,10 @@ describe('visibleCells', () => {
   });
 
   it('counts a cell when its window box crosses the extent edge, not when it falls short', () => {
-    // Cell (1,0)'s box starts at x = 2.2. An extent ending at 2.25 counts
-    // it; one ending at 2.15 does not.
+    // Cell (1,0)'s box starts at x = 2.4. An extent ending at 2.45 counts
+    // it; one ending at 2.35 does not.
     const extentW = 4;
-    expect(visibleCells({ x: 0.25, y: 0 }, extentW, 2, 0)).toContainEqual({ col: 1, row: 0 });
-    expect(visibleCells({ x: 0.15, y: 0 }, extentW, 2, 0)).not.toContainEqual({ col: 1, row: 0 });
+    expect(visibleCells({ x: 0.45, y: 0 }, extentW, 2, 0)).toContainEqual({ col: 1, row: 0 });
+    expect(visibleCells({ x: 0.35, y: 0 }, extentW, 2, 0)).not.toContainEqual({ col: 1, row: 0 });
   });
 });

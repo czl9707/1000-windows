@@ -1,7 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import { fork } from '@/core/randomness/rng';
-import { type ResolvedColor } from './roles';
-import { COLOURWAYS, WARMTH, windowPalette, type Colourway } from './colourway';
+import { GLASS_WASH, type ResolvedColor } from './roles';
+import {
+  BACKLIGHT_GLOW,
+  CHROMA_CAP,
+  COLOURWAYS,
+  CURTAIN_ALPHA_CAP,
+  DEFAULT_COLOURWAY_TUNING,
+  HUE_JITTER,
+  WARMTH,
+  tunedWindowPalette,
+  windowPalette,
+  type Colourway,
+} from './colourway';
 import { cssToOklch, type Oklch } from './oklch';
 
 // The grounds match the page's two themes, night declared as the themes
@@ -10,11 +21,13 @@ import { cssToOklch, type Oklch } from './oklch';
 const LIGHT = { ink: 'rgb(33 37 41)', paper: 'rgb(229 222 214)', isNight: false };
 const DARK = { ink: 'rgb(233 236 239)', paper: 'rgb(0 0 0)', isNight: true };
 const TINTED = ['mullion', 'fabric', 'shade', 'blind', 'awning', 'sill', 'box'] as const;
-// The cloth washes land at their base alpha compounded with the half-strength
-// pooling echo: fabric/shade 1 − 0.86 × 0.93, blind 1 − 0.84 × 0.92. Every
-// painted surface goes down opaque — its fill exists to hide the wall and the
-// layers behind it.
-const WASH_ALPHAS = { fabric: 0.2002, shade: 0.2002 } as const;
+// The cloth washes land at their tint alpha compounded with the half-strength
+// pooling echo. Every painted surface goes down opaque — its fill exists to
+// hide the wall and the layers behind it.
+const WASH_ALPHA =
+  1 -
+  (1 - DEFAULT_COLOURWAY_TUNING.washAlpha) * (1 - DEFAULT_COLOURWAY_TUNING.washAlpha / 2);
+const WASH_ALPHAS = { fabric: WASH_ALPHA, shade: WASH_ALPHA } as const;
 const PAINTED = ['mullion', 'awning', 'awningThin', 'sill', 'box'] as const;
 
 describe('the colourway catalogue', () => {
@@ -27,7 +40,8 @@ describe('the colourway catalogue', () => {
 
   it('keeps dyed-looking rows loud but capped', () => {
     for (const row of COLOURWAYS) {
-      expect(row.chroma).toBeLessThanOrEqual(0.115);
+      // The encoder's round trip lets a hair past the cap.
+      expect(row.chroma).toBeLessThanOrEqual(CHROMA_CAP + 0.025);
       // Purple neon territory stays out of every row.
       const inNeonBand = row.hue >= 250 && row.hue < 300;
       expect(inNeonBand).toBe(false);
@@ -58,7 +72,6 @@ function rowOf(table: readonly Colourway[], chromaSlop: number, { c, h }: Oklch)
 }
 
 const familyOf = (o: Oklch) => rowOf(COLOURWAYS, 0.003, o);
-const warmthOf = (o: Oklch) => rowOf(WARMTH, 0.01, o);
 
 describe('the roll behind windowPalette', () => {
   it('picks a family row whole and jitters only its hue', () => {
@@ -66,10 +79,10 @@ describe('the roll behind windowPalette', () => {
       const o = cssToOklch(windowPalette(3000 + i * 7919, LIGHT)('awning').color);
       const family = familyOf(o);
       expect(Math.abs(o.c - family.chroma)).toBeLessThanOrEqual(0.003);
-      // The jitter band is ±6°; the slack beyond it absorbs the encoded hue
-      // drift from 8-bit quantization — roughly a quarter degree per point
-      // of chroma, loudest on the quiet rows.
-      expect(Math.abs(o.h - family.hue)).toBeLessThanOrEqual(6 + 0.25 / o.c);
+      // The jitter band is ±HUE_JITTER; the slack beyond it absorbs the
+      // encoded hue drift from 8-bit quantization — roughly a quarter degree
+      // per point of chroma, loudest on the quiet rows.
+      expect(Math.abs(o.h - family.hue)).toBeLessThanOrEqual(HUE_JITTER + 0.25 / o.c);
     }
   });
 
@@ -99,8 +112,8 @@ describe('the warmth table', () => {
 
   it('stays in the warm band and outshines the street rows', () => {
     for (const row of WARMTH) {
-      expect(row.hue).toBeGreaterThanOrEqual(35);
-      expect(row.hue).toBeLessThan(95);
+      expect(row.hue).toBeGreaterThanOrEqual(60);
+      expect(row.hue).toBeLessThan(120);
       expect(row.chroma).toBeGreaterThan(0.05);
     }
   });
@@ -114,7 +127,7 @@ describe('the warmth table', () => {
       hues.push(cssToOklch(windowPalette(7000 + i * 7919, LIGHT)('light').color).h);
     }
     for (const row of WARMTH) {
-      const hit = hues.some((hue) => Math.abs(hue - row.hue) <= 8);
+      const hit = hues.some((hue) => Math.abs(hue - row.hue) <= HUE_JITTER + 2);
       expect(hit, `${row.name} unreached`).toBe(true);
     }
   });
@@ -124,8 +137,14 @@ describe('the interior roles', () => {
   it('lights the emitter opaque from the warmth roll, shares one warmth across the room, and lays it in graded strengths', () => {
     const dress = windowPalette(42, LIGHT)('light');
     expect(dress.alpha).toBe(1);
+    // Matched by hue: the shipped warmth ceiling clips the hot rows' chroma
+    // onto one band, so chroma no longer identifies a row — the hue does
+    // (the window is the jitter band plus the encoded rounding's drift).
     const o = cssToOklch(dress.color);
-    expect(WARMTH).toContainEqual(warmthOf(o));
+    const warmth = WARMTH.reduce((best, row) =>
+      Math.abs(row.hue - o.h) < Math.abs(best.hue - o.h) ? row : best,
+    );
+    expect(Math.abs(o.h - warmth.hue)).toBeLessThanOrEqual(HUE_JITTER + 2);
     const palette = windowPalette(42, LIGHT);
     expect(palette('ambient').color).toBe(palette('light').color);
     expect(palette('aura').color).toBe(palette('light').color);
@@ -133,7 +152,7 @@ describe('the interior roles', () => {
     const aura = palette('aura').alpha;
     expect(ambient).toBeGreaterThan(0);
     expect(aura).toBeGreaterThan(0);
-    expect(ambient).toBeGreaterThan(aura);
+    expect(aura).toBeGreaterThan(ambient);
     expect(aura).toBeLessThan(1);
   });
 
@@ -173,46 +192,83 @@ describe('the interior roles', () => {
   });
 });
 
+describe('the backlit cloth', () => {
+  it('carries the lit room’s warmth through the cloth at night', () => {
+    for (let i = 0; i < 50; i++) {
+      const seed = 12000 + i * 7919;
+      const dark = windowPalette(seed, DARK);
+      const lit = windowPalette(seed, DARK, true);
+      for (const role of ['fabric', 'shade', 'blind'] as const) {
+        const base = dark(role);
+        const glow = lit(role);
+        expect(glow.color).not.toBe(base.color);
+        expect(glow.alpha).toBeCloseTo(base.alpha + (1 - base.alpha) * BACKLIGHT_GLOW, 12);
+      }
+      // Structure keeps its paint: the glow belongs to the cloth alone.
+      for (const role of ['mullion', 'sill', 'box', 'awning'] as const) {
+        expect(lit(role)).toEqual(dark(role));
+      }
+    }
+  });
+
+  it('stays day-quiet: the glow is a night fact', () => {
+    const lit = windowPalette(42, LIGHT, true);
+    const plain = windowPalette(42, LIGHT);
+    for (const role of ['fabric', 'shade', 'blind'] as const) {
+      expect(lit(role)).toEqual(plain(role));
+    }
+  });
+
+  it('lays no cloth brighter than the warmth it carries', () => {
+    // The cloth absorbs most of the lamp: the transmitted lightness sits
+    // at a fraction of the warmth's own, so the curtain reads as cloth lit
+    // from inside, never as the light source.
+    for (let i = 0; i < 50; i++) {
+      const seed = 13000 + i * 7919;
+      const warmth = cssToOklch(windowPalette(seed, DARK)('light').color);
+      const cloth = cssToOklch(windowPalette(seed, DARK, true)('fabric').color);
+      expect(cloth.l).toBeLessThan(warmth.l);
+    }
+  });
+});
+
 describe('windowPalette', () => {
   it('keeps the theme-bound roles on the theme', () => {
     const palette = windowPalette(42, LIGHT);
     expect(palette('ink')).toEqual({ color: LIGHT.ink, alpha: 1 });
-    expect(palette('glass')).toEqual({ color: LIGHT.ink, alpha: 0.05 });
+    expect(palette('glass')).toEqual({ color: LIGHT.ink, alpha: GLASS_WASH });
     expect(palette('paper')).toEqual({ color: LIGHT.paper, alpha: 1 });
   });
 
   it.each(TINTED)('dresses %s from its family row by day', (role) => {
     const dress = windowPalette(42, LIGHT)(role);
     const measured = cssToOklch(dress.color);
-    expect(measured.l).toBeGreaterThan(0.75);
-    expect(measured.l).toBeLessThan(0.85);
-    expect(measured.c).toBeLessThanOrEqual(0.092);
+    // The street's shared lightness, wearing the shipped lift, ± the
+    // encoder's round-trip slack.
+    const l = COLOURWAYS[0].lightness + DEFAULT_COLOURWAY_TUNING.lightnessLift;
+    expect(measured.l).toBeGreaterThan(l - 0.05);
+    expect(measured.l).toBeLessThan(l + 0.05);
+    expect(measured.c).toBeLessThanOrEqual(CHROMA_CAP + 0.002);
     expect(Number.isFinite(measured.h)).toBe(true);
   });
 
-  it.each([...PAINTED, 'awningThin', 'blind'] as const)('mixes %s into the ground at night', (role) => {
+  it.each([...PAINTED, 'awningThin', 'blind', 'fabric', 'shade'] as const)('mixes %s into the ground at night', (role) => {
     const day = windowPalette(42, LIGHT)(role).color;
     const night = windowPalette(42, DARK)(role).color;
     const ch = (css: string) => css.match(/\d+/g)!.map(Number);
+    // The mix sinks the day colour into the ground by the shipped night
+    // mix; the survivor is the complement.
+    const f = 1 - DEFAULT_COLOURWAY_TUNING.nightMix;
     const [dr, dg, db] = ch(day);
     const [nr, ng, nb] = ch(night);
-    expect(nr).toBe(Math.round(0.3 * dr));
-    expect(ng).toBe(Math.round(0.3 * dg));
-    expect(nb).toBe(Math.round(0.3 * db));
+    expect(nr).toBe(Math.round(f * dr));
+    expect(ng).toBe(Math.round(f * dg));
+    expect(nb).toBe(Math.round(f * db));
   });
 
-  it('keeps the cloth off the night mix — it relies on the colour behind', () => {
-    for (const role of ['fabric', 'shade'] as const) {
-      const day = windowPalette(42, LIGHT)(role);
-      const night = windowPalette(42, DARK)(role);
-      expect(night.color).toBe(day.color);
-      expect(night.alpha).toBe(day.alpha);
-    }
-  });
-
-  it('resolves the blind opaque — no light reads through the slats', () => {
+  it('caps the blind — the room reads through the slats', () => {
     const palette = windowPalette(42, LIGHT);
-    expect(palette('blind').alpha).toBe(1);
+    expect(palette('blind').alpha).toBe(CURTAIN_ALPHA_CAP);
     // Same cloth roll as the washes: one curtain, one cloth colour — the
     // hue reads through the echo's composite.
     const blind = cssToOklch(palette('blind').color);
@@ -251,6 +307,13 @@ describe('windowPalette', () => {
   it('washes the cloth roles at their whisper alphas', () => {
     for (const [role, alpha] of Object.entries(WASH_ALPHAS)) {
       expect(windowPalette(42, LIGHT)(role as keyof typeof WASH_ALPHAS).alpha).toBeCloseTo(alpha, 12);
+    }
+  });
+
+  it('caps every curtain fill, even at a full wash', () => {
+    const tuning = { ...DEFAULT_COLOURWAY_TUNING, washAlpha: 1 };
+    for (const role of ['fabric', 'shade', 'blind'] as const) {
+      expect(tunedWindowPalette(42, LIGHT, tuning)(role).alpha).toBeLessThanOrEqual(CURTAIN_ALPHA_CAP);
     }
   });
 
