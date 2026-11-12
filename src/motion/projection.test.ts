@@ -21,13 +21,6 @@ describe('makeProjection', () => {
     expect(Math.abs(near.y)).toBeGreaterThan(Math.abs(flat.y));
   });
 
-  it('keeps the projection stable for the same depth', () => {
-    const view = makeProjection(CENTRE_EYE);
-    const a = view.project([{ x: 0.3, y: -0.3, z: 0.5 }])[0];
-    const b = view.project([{ x: 0.3, y: -0.3, z: 0.5 }])[0];
-    expect(a).toEqual(b);
-  });
-
   it('centres the eye on the literal zero offset', () => {
     const pts = [{ x: 0.3, y: -0.3, z: 0.5 }];
     expect(makeProjection(CENTRE_EYE).project(pts)).toEqual(

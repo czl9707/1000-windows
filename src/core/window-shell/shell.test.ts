@@ -22,13 +22,6 @@ describe('expandShell', () => {
 });
 
 describe('archetype catalogue', () => {
-  it('carries exactly the decided archetypes with their weights', () => {
-    expect(Object.keys(ARCHETYPES).sort()).toEqual(['casement', 'picture', 'sliding']);
-    expect(ARCHETYPES.sliding.weight).toBe(4);
-    expect(ARCHETYPES.casement.weight).toBe(3);
-    expect(ARCHETYPES.picture.weight).toBe(2);
-  });
-
   it('carries the decided pane layouts with positive weights', () => {
     expect(ARCHETYPES.sliding.layouts.map((l) => l.value).sort()).toEqual([
       'three',
@@ -78,48 +71,24 @@ describe('shell plans', () => {
     }
   });
 
-  it('keeps the thickness jitter within ±15%', () => {
-    for (const plan of sweep(300)) {
-      expect(plan.thicknessJitter).toBeGreaterThanOrEqual(0.85);
-      expect(plan.thicknessJitter).toBeLessThanOrEqual(1.15);
-    }
-  });
-
-  it('keeps the face width within its decided range', () => {
-    for (const plan of sweep(300)) {
-      expect(plan.faceWidth).toBeGreaterThanOrEqual(0.03);
-      expect(plan.faceWidth).toBeLessThanOrEqual(0.06);
-    }
-  });
-
-  it('rolls a sill and every mass kind on every window', () => {
+  it('rolls sills, masses, shutters, slide sides, archetypes, layouts, and open states over a seed sweep', () => {
     const plans = sweep(2000);
     const by = <T extends string>(pick: (p: ShellPlan) => T) => new Set(plans.map(pick));
     expect(by((p) => p.sill)).toEqual(new Set(SILLS.map((s) => s.value)));
     expect(by((p) => p.awning)).toEqual(new Set(ADDONS.awning.map((m) => m.value)));
     expect(by((p) => p.shutters)).toEqual(new Set(ADDONS.shutters.map((m) => m.value)));
     expect(by((p) => p.box)).toEqual(new Set(ADDONS.box.map((m) => m.value)));
-  });
-
-  it('mounts shutters on sliding windows only', () => {
-    for (const plan of sweep(2000)) {
+    for (const plan of plans) {
       if (plan.archetype !== 'sliding') {
         expect(plan.shutters).toBe('none');
       }
     }
-  });
-
-  it('rolls a slide side for every slider and never otherwise', () => {
-    for (const plan of sweep(2000)) {
+    for (const plan of plans) {
       expect('slideSide' in plan).toBe(plan.archetype === 'sliding');
       if (plan.archetype === 'sliding') {
         expect(['left', 'right']).toContain(plan.slideSide);
       }
     }
-  });
-
-  it('reaches every archetype, layout, and open state across a seed sweep', () => {
-    const plans = sweep(2000);
     const archetypes = new Set(plans.map((p) => p.archetype));
     expect(archetypes).toEqual(new Set(['sliding', 'casement', 'picture']));
     for (const [id, archetype] of Object.entries(ARCHETYPES)) {

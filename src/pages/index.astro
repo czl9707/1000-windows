@@ -47,16 +47,42 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
     };
     const unbindGestures = dragWall(wall, canvas, pxPerUnit);
 
+    // The cursor, normalized to the viewport and eased per frame — the raw
+    // position reads twitchy at full-screen scale.
+    const pointer = { x: 0, y: 0 };
+    const eased = { x: 0, y: 0 };
+    const onMove = (e: PointerEvent) => {
+      pointer.x = e.clientX / window.innerWidth - 0.5;
+      pointer.y = e.clientY / window.innerHeight - 0.5;
+    };
+    const onLeave = () => {
+      pointer.x = 0;
+      pointer.y = 0;
+    };
+    window.addEventListener('pointermove', onMove);
+    document.documentElement.addEventListener('mouseleave', onLeave);
+
     let lastFrameTime = 0;
     const loop = createDemoLoop(
       canvas,
-      (ctx, time, theme, eye) => {
+      (ctx, time, theme, base) => {
         const box = cssBox(canvas);
         const dt = Math.min(Math.max(time - lastFrameTime, 0), 0.1);
         lastFrameTime = time;
         wall.advance(dt);
         const unit = wallUnits(box.width, box.height);
         const cells = visibleCells(wall.camera, box.width / unit, box.height / unit, MARGIN);
+        const follow = 1 - Math.exp(-dt * 8);
+        eased.x += (pointer.x - eased.x) * follow;
+        eased.y += (pointer.y - eased.y) * follow;
+        // The focal point rides opposite the cursor: the projection's fixed
+        // screen point sits at centre − eye·unit, so the cursor's full
+        // offset as the eye parks it at the cursor's mirror through the
+        // centre — the wall leans toward the pointer, and leaving the
+        // viewport re-centres everything.
+        const cx = (eased.x * box.width) / unit;
+        const cy = (eased.y * box.height) / unit;
+        const eye = { x: base.x + cx, y: base.y + cy };
         wall.draw(ctx, box, { unit, eye, cells, margin: MARGIN }, time, theme);
       },
       // The wall's real eye: where this canvas sits relative to the screen's
@@ -80,6 +106,8 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
       },
       destroy() {
         unbindGestures();
+        window.removeEventListener('pointermove', onMove);
+        document.documentElement.removeEventListener('mouseleave', onLeave);
         loop.destroy();
       },
     };

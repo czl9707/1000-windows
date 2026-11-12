@@ -25,11 +25,13 @@ describe('itemMarks', () => {
     expect(itemMarks(bare, OPENING)).toEqual([]);
   });
 
-  it('gives every kind a silhouette fill and line work in ink', () => {
+  it('gives every kind a silhouette fill and line work in ink, never repeating a trace name', () => {
     for (const { value: kind } of KINDS) {
       const marks = itemMarks(anchored(kind, 'left'), OPENING);
       expect(fills(marks).length, `${kind} silhouette`).toBeGreaterThan(0);
       expect(strokes(marks).length, `${kind} lines`).toBeGreaterThan(0);
+      const names = strokes(marks).map((s) => s.name);
+      expect(new Set(names).size, kind).toBe(names.length);
     }
   });
 
@@ -46,7 +48,7 @@ describe('itemMarks', () => {
     }
   });
 
-  it('keeps every item inside the frame run and behind its bottom rail', () => {
+  it('keeps every item inside the frame run, behind its bottom rail, and never past half the opening', () => {
     for (const { value: kind } of KINDS) {
       for (const side of ['left', 'right'] as const) {
         const marks = itemMarks(anchored(kind, side), OPENING);
@@ -63,6 +65,7 @@ describe('itemMarks', () => {
             expect(p.y, `${kind} y`).toBeGreaterThanOrEqual(OPENING.top - 1e-9);
           }
         }
+        expect(HEIGHT - (Math.max(...ys) - Math.min(...ys)), `${kind} height`).toBeGreaterThanOrEqual(HEIGHT / 2 - 1e-9);
       }
     }
   });
@@ -77,16 +80,6 @@ describe('itemMarks', () => {
     }
   });
 
-  it('never grows past half the opening', () => {
-    for (const { value: kind } of KINDS) {
-      for (const side of ['left', 'right'] as const) {
-        const marks = itemMarks(anchored(kind, side), OPENING);
-        const ys = marks.flatMap((m) => m.pts.map((p) => p.y));
-        expect(HEIGHT - (Math.max(...ys) - Math.min(...ys)), `${kind} height`).toBeGreaterThanOrEqual(HEIGHT / 2 - 1e-9);
-      }
-    }
-  });
-
   it('jitters the silhouette width around its kind constant', () => {
     const narrow = itemMarks(anchored('books', 'left', 0.9), OPENING);
     const wide = itemMarks(anchored('books', 'left', 1.1), OPENING);
@@ -95,13 +88,6 @@ describe('itemMarks', () => {
       return Math.max(...xs) - Math.min(...xs);
     };
     expect(spanOf(wide)).toBeGreaterThan(spanOf(narrow));
-  });
-
-  it('never repeats a trace name within one window', () => {
-    for (const { value: kind } of KINDS) {
-      const names = strokes(itemMarks(anchored(kind, 'left'), OPENING)).map((s) => s.name);
-      expect(new Set(names).size, kind).toBe(names.length);
-    }
   });
 
   it('reads the plant in its coloured roles: painted pot, washed foliage', () => {

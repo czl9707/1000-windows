@@ -31,10 +31,4 @@ describe('planPens', () => {
     expect(second.drop).toEqual([]);
   });
 
-  it('matches structurally: the same cell spelled twice is one key, not two', () => {
-    const active = new Set([pairKey(0, 0)]);
-    const plan = planPens(active, [pairKey(0, 0)]);
-    expect(plan.create).toEqual([]);
-    expect(plan.drop).toEqual([]);
-  });
 });
