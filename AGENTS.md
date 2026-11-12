@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Astro 7 + MDX docs site for "Paint 1000 windows": an infinite hand-drawn wall
+Astro 7 + MDX docs site for "1000 Windows": an infinite hand-drawn wall
 of windows, documented chapter by chapter, each chapter embedding the live
 code as a demo canvas. The domain vocabulary lives in `GLOSSARY.md`; the
 reference project's mechanisms and their facade equivalents are digested in
