@@ -41,12 +41,25 @@ describe('masses', () => {
     expect(drawWindowBox(plan({ box: 'none' }))).toEqual([]);
   });
 
-  it('emit marks for every drawn kind', () => {
-    expect(drawAwning(plan({ awning: 'slope' })).length).toBeGreaterThan(0);
-    expect(drawAwning(plan({ awning: 'canopy' })).length).toBeGreaterThan(0);
-    expect(drawShutters(plan({ shutters: 'louvered' })).length).toBeGreaterThan(0);
-    expect(drawShutters(plan({ shutters: 'paneled' })).length).toBeGreaterThan(0);
-    expect(drawWindowBox(plan({ box: 'box' })).length).toBeGreaterThan(0);
+  it('emit marks for every drawn kind, within the add-on reach bounds', () => {
+    const slope = drawAwning(plan({ awning: 'slope' }));
+    const canopy = drawAwning(plan({ awning: 'canopy' }));
+    const louvered = drawShutters(plan({ shutters: 'louvered' }));
+    const paneled = drawShutters(plan({ shutters: 'paneled' }));
+    const box = drawWindowBox(plan({ box: 'box' }));
+    expect(slope.length).toBeGreaterThan(0);
+    expect(canopy.length).toBeGreaterThan(0);
+    expect(louvered.length).toBeGreaterThan(0);
+    expect(paneled.length).toBeGreaterThan(0);
+    expect(box.length).toBeGreaterThan(0);
+    const marks = [...slope, ...canopy, ...louvered, ...paneled, ...box];
+    for (const mark of marks) {
+      for (const p of mark.pts) {
+        expect(Math.abs(p.x)).toBeLessThanOrEqual(1.151);
+        expect(p.y).toBeGreaterThanOrEqual(-0.901);
+        expect(p.y).toBeLessThanOrEqual(0.851);
+      }
+    }
   });
 
   it('fills the awning fabric with the occluding role', () => {
@@ -90,23 +103,6 @@ describe('masses', () => {
         for (const p of mark.pts) {
           expect(p.x <= left || p.x >= right).toBe(true);
         }
-      }
-    }
-  });
-
-  it('stay within the add-on reach bounds', () => {
-    const marks = [
-      ...drawAwning(plan({ awning: 'slope' })),
-      ...drawAwning(plan({ awning: 'canopy' })),
-      ...drawShutters(plan({ shutters: 'louvered' })),
-      ...drawShutters(plan({ shutters: 'paneled' })),
-      ...drawWindowBox(plan({ box: 'box' })),
-    ];
-    for (const mark of marks) {
-      for (const p of mark.pts) {
-        expect(Math.abs(p.x)).toBeLessThanOrEqual(1.151);
-        expect(p.y).toBeGreaterThanOrEqual(-0.901);
-        expect(p.y).toBeLessThanOrEqual(0.851);
       }
     }
   });

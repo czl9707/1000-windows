@@ -13,16 +13,13 @@ const TINTED = ['mullion', 'fabric', 'shade', 'blind', 'awning', 'sill', 'box'] 
 // pooling echo: fabric/shade 1 − 0.86 × 0.93, blind 1 − 0.84 × 0.92. Every
 // painted surface goes down opaque — its fill exists to hide the wall and the
 // layers behind it.
-const WASH_ALPHAS = { fabric: 0.2002, shade: 0.2002, blind: 0.2272 } as const;
+const WASH_ALPHAS = { fabric: 0.2002, shade: 0.2002 } as const;
 const PAINTED = ['mullion', 'awning', 'awningThin', 'sill', 'box'] as const;
 
 describe('the colourway catalogue', () => {
-  it('weights sum to one', () => {
+  it('weights sum to one and names its rows uniquely', () => {
     const total = COLOURWAYS.reduce((sum, row) => sum + row.weight, 0);
     expect(total).toBeCloseTo(1, 10);
-  });
-
-  it('names its rows uniquely', () => {
     const names = COLOURWAYS.map((row) => row.name);
     expect(new Set(names).size).toBe(names.length);
   });
@@ -123,21 +120,14 @@ describe('the warmth table', () => {
 });
 
 describe('the interior roles', () => {
-  it('lights the emitter opaque from the warmth roll', () => {
+  it('lights the emitter opaque from the warmth roll, shares one warmth across the room, and lays it in graded strengths', () => {
     const dress = windowPalette(42, LIGHT)('light');
     expect(dress.alpha).toBe(1);
     const o = cssToOklch(dress.color);
     expect(WARMTH).toContainEqual(warmthOf(o));
-  });
-
-  it('shares one warmth across the room: ambient and aura wear the emitter colour', () => {
     const palette = windowPalette(42, LIGHT);
     expect(palette('ambient').color).toBe(palette('light').color);
     expect(palette('aura').color).toBe(palette('light').color);
-  });
-
-  it('lays the warmth in graded strengths: emitter opaque, ambient the louder wash, aura the local one', () => {
-    const palette = windowPalette(42, LIGHT);
     const ambient = palette('ambient').alpha;
     const aura = palette('aura').alpha;
     expect(ambient).toBeGreaterThan(0);
@@ -199,7 +189,7 @@ describe('windowPalette', () => {
     expect(Number.isFinite(measured.h)).toBe(true);
   });
 
-  it.each([...PAINTED, 'awningThin'] as const)('mixes %s into the ground at night', (role) => {
+  it.each([...PAINTED, 'awningThin', 'blind'] as const)('mixes %s into the ground at night', (role) => {
     const day = windowPalette(42, LIGHT)(role).color;
     const night = windowPalette(42, DARK)(role).color;
     const ch = (css: string) => css.match(/\d+/g)!.map(Number);
@@ -211,11 +201,32 @@ describe('windowPalette', () => {
   });
 
   it('keeps the cloth off the night mix — it relies on the colour behind', () => {
-    for (const role of ['fabric', 'shade', 'blind'] as const) {
+    for (const role of ['fabric', 'shade'] as const) {
       const day = windowPalette(42, LIGHT)(role);
       const night = windowPalette(42, DARK)(role);
       expect(night.color).toBe(day.color);
       expect(night.alpha).toBe(day.alpha);
+    }
+  });
+
+  it('resolves the blind opaque — no light reads through the slats', () => {
+    const palette = windowPalette(42, LIGHT);
+    expect(palette('blind').alpha).toBe(1);
+    // Same cloth roll as the washes: one curtain, one cloth colour — the
+    // hue reads through the echo's composite.
+    const blind = cssToOklch(palette('blind').color);
+    const shade = cssToOklch(palette('shade').color);
+    expect(Math.abs(blind.h - shade.h)).toBeLessThanOrEqual(0.5 / blind.c);
+  });
+
+  it('dresses the unlit emitter in the lamp colourway without the dark sink', () => {
+    for (let i = 0; i < 100; i++) {
+      const palette = windowPalette(11000 + i * 7919, LIGHT);
+      const body = cssToOklch(palette('lamp').color);
+      const shade = cssToOklch(palette('lampShade').color);
+      expect(Math.abs(shade.h - body.h)).toBeLessThanOrEqual(0.5 / shade.c);
+      expect(shade.l).toBeGreaterThan(body.l);
+      expect(palette('lampShade').alpha).toBe(1);
     }
   });
 
@@ -247,7 +258,6 @@ describe('windowPalette', () => {
     // One curtain per window: fabric, shade, and blind are three
     // constructions of the same cloth, so they dress in the same colour.
     expect(palette('fabric').color).toBe(palette('shade').color);
-    expect(palette('shade').color).toBe(palette('blind').color);
     // Independent rolls: over a sweep the painted surfaces mostly differ,
     // matching only by the chance of two rolls landing on one family — the
     // hues compare within both jitters, the chromas within round-trip slop.

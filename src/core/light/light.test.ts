@@ -109,7 +109,7 @@ describe('lampMarks', () => {
     }
   });
 
-  it('lays the ambient beneath the aura, both over the emitter', () => {
+  it('lays the ambient beneath the aura, both over the emitter, and fades the shade auras from the lamp: one cone to the floor, one to the ceiling', () => {
     const marks = lampMarks(plan, OPENING, true);
     const ambientAt = marks.findIndex((m) => m.role === 'ambient');
     const firstAuraAt = marks.findIndex((m) => m.role === 'aura');
@@ -118,10 +118,6 @@ describe('lampMarks', () => {
     expect(ambientAt).toBeGreaterThan(emitterAt);
     expect(ambientAt).toBeLessThan(firstAuraAt);
     expect(marks.some((m) => m.role === 'veil')).toBe(false);
-  });
-
-  it('fades the shade auras from the lamp: one cone to the floor, one to the ceiling', () => {
-    const marks = lampMarks(plan, OPENING, true);
     const h = OPENING.bottom - OPENING.top;
     const auras = marks.filter((m) => m.role === 'aura');
     expect(auras.length).toBe(6);

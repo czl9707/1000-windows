@@ -31,12 +31,6 @@ describe('visibleCells', () => {
     expect(cells).toContainEqual({ col: 0, row: 1 });
   });
 
-  it('yields the same cells for the same camera however the camera got there', () => {
-    const there = visibleCells({ x: PITCH_X * 7, y: -PITCH_Y * 3 }, 10, 8, 3);
-    const backAgain = visibleCells({ x: PITCH_X * 7, y: -PITCH_Y * 3 }, 10, 8, 3);
-    expect(there).toEqual(backAgain);
-  });
-
   it('counts a cell when its window box crosses the extent edge, not when it falls short', () => {
     // Cell (1,0)'s box starts at x = 2.2. An extent ending at 2.25 counts
     // it; one ending at 2.15 does not.

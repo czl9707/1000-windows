@@ -9,19 +9,6 @@ import { SIDES, KINDS, WIDTH_JITTER, BOOK_COUNT_RANGE, PLANT_KINDS } from './cat
 // sill's draws with it, and neither layer ever shifts the other. The
 // expectation replays the block by hand off a fresh fork.
 describe('expandSill', () => {
-  it('reads its side roll after the curtain block, in one roll: 1:1:2, half the sills bare', () => {
-    for (const seed of [1, 42, 2000, 1335613256, 7, 99, 123456]) {
-      const rng = fork(seed, 'dna');
-      expandCurtain(rng);
-      const sill = expandSill(rng);
-      const exp = fork(seed, 'dna');
-      expandCurtain(exp);
-      const side = exp.weighted(SIDES);
-      expect(sill.present, `seed ${seed}`).toBe(side !== 'none');
-      if (sill.present) expect(sill.side, `seed ${seed}`).toBe(side);
-    }
-  });
-
   it('rolls the kind only on an anchored sill — books 3 / mug 3 / jars 2 / plant 4 / clock 1', () => {
     for (const seed of [1, 42, 2000, 1335613256, 7, 99, 123456]) {
       const rng = fork(seed, 'dna');

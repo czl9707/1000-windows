@@ -163,7 +163,7 @@ describe('the swung casement leaf', () => {
     box: 'none',
   };
 
-  it('foreshortens by the swing and stands out of the wall at the swing depth', () => {
+  it('foreshortens by the swing, stands out of the wall at the swing depth, carries its glass as a wash that sorts above the frame, and keeps the fixed pane flat on the wall', () => {
     const marks = drawCasement(plan);
     const free = marks.find((m) => m.kind === 'stroke' && m.name === 'leaf-0-right');
     const wash = marks.find((m): m is FillMark => m.kind === 'fill' && m.z === SHELL_Z.open);
@@ -187,17 +187,7 @@ describe('the swung casement leaf', () => {
     expect(freeX).toBeLessThan(0);
     expect(wash!.pts.some((p) => p.y < -0.4)).toBe(true);
     expect(wash!.pts.some((p) => p.y > 0.4)).toBe(true);
-  });
-
-  it('carries its glass as a wash that sorts above the frame', () => {
-    const marks = drawCasement(plan);
-    const wash = marks.find((m): m is FillMark => m.kind === 'fill' && m.z === SHELL_Z.open);
-    expect(wash).toBeDefined();
     expect(wash!.role).toBe('glass');
-  });
-
-  it('keeps the fixed pane flat on the wall', () => {
-    const marks = drawCasement(plan);
     const fixed = marks.find((m): m is FillMark => m.kind === 'fill' && m.z === SHELL_Z.glass);
     expect(fixed).toBeDefined();
   });
