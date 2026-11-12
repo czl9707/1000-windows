@@ -20,6 +20,8 @@ import {
   BEDSIDE_DROP,
   DESK_DROP,
   FLOOR_DROP,
+  FLOOR_LAMP_REACH,
+  ARC_REACH,
   LIGHT_DEPTH,
   LIGHT_Z,
   type LampKind,
@@ -148,20 +150,22 @@ function clippedPoly(poly: Pt3[], o: PaneRect): Pt3[] {
 }
 
 // The aura falls off in nested passes of one shape: the same warmth role
-// drawn at shrinking scale about the shape's centre, the overlap compounding
-// the alpha the way the cloth's pooling echo does. One alpha per role, a
-// graded falloff from nesting.
+// drawn at shrinking scale about the emitter's own point — never about the
+// shape's centre, which clipping would move — so every pass keeps its grip
+// on the lamp and the glow fades away from it. One alpha per role, a graded
+// falloff from nesting.
 const AURA_PASSES = [1, 0.62, 0.3];
 
-function scaleAbout(pts: Pt3[], factor: number): Pt3[] {
-  const cx = pts.reduce((s, p) => s + p.x, 0) / pts.length;
-  const cy = pts.reduce((s, p) => s + p.y, 0) / pts.length;
-  return pts.map((p) => ({ x: cx + (p.x - cx) * factor, y: cy + (p.y - cy) * factor, z: p.z }));
+function scaleAbout(pts: Pt3[], anchor: Pt3, factor: number): Pt3[] {
+  return pts.map((p) => ({
+    x: anchor.x + (p.x - anchor.x) * factor,
+    y: anchor.y + (p.y - anchor.y) * factor,
+    z: p.z,
+  }));
 }
 
-function aura(pts: Pt3[], o: PaneRect): Mark[] {
-  const shape = clippedPoly(pts, o);
-  return AURA_PASSES.map((pass) => fill('aura', scaleAbout(shape, pass)));
+function aura(pts: Pt3[], anchor: Pt3, o: PaneRect): Mark[] {
+  return AURA_PASSES.map((pass) => fill('aura', clippedPoly(scaleAbout(pts, anchor, pass), o)));
 }
 
 // Which way the arc reaches: the facing mirrors the arm, its head, and the
@@ -180,17 +184,19 @@ interface Frame {
 // The furniture's marks and the aura shapes the construction casts — one
 // switch per kind, the drawer's whole vocabulary of shapes. `lit` picks the
 // emitter's role; the geometry is the same lamp either way. The auras come
-// back unbuilt: they draw only in a lit room, so the state gate stays in
+// back as shape plus anchor — the point on the emitter the falloff nests
+// about — and draw only in a lit room, so the state gate stays in
 // lampMarks. The standing lamps are built on their furniture's line below
 // the sightline and let the clip keep what the glass shows.
-function emit(kind: LampKind, f: Frame, lit: boolean): { marks: Mark[]; auras: Pt3[][] } {
+function emit(kind: LampKind, f: Frame, lit: boolean): { marks: Mark[]; auras: { pts: Pt3[]; anchor: Pt3 }[] } {
   const { o, x, w, h, skew } = f;
-  const emitterRole = lit ? 'light' : 'lamp';
+  const emitterRole = lit ? 'light' : 'lampShade';
+  const at = (px: number, py: number): Pt3 => ({ x: px, y: py, z: atDepth() });
   switch (kind) {
     case 'floorLamp': {
-      const shadeTop = o.top + 0.16 * h;
-      const shadeBottom = shadeTop + 0.14 * h;
       const floorY = o.bottom + FLOOR_DROP;
+      const shadeBottom = floorY - FLOOR_LAMP_REACH * h;
+      const shadeTop = shadeBottom - 0.14 * h;
       return {
         marks: [
           fill('lamp', rect(x - 0.008 * w, shadeBottom, x + 0.008 * w, floorY)),
@@ -199,16 +205,18 @@ function emit(kind: LampKind, f: Frame, lit: boolean): { marks: Mark[]; auras: P
           ink('lamp-shade-left', x - 0.05 * w, shadeTop, x - 0.08 * w, shadeBottom),
           ink('lamp-shade-right', x + 0.05 * w, shadeTop, x + 0.08 * w, shadeBottom),
         ],
+        // A shade throws two cones, one to the floor and one to the
+        // ceiling, each fading from the shade edge it springs from.
         auras: [
-          trapezoid(x, shadeBottom, 0.16 * w, o.bottom, 0.5 * w),
-          rect(x - 0.08 * w, shadeTop - 0.08 * h, x + 0.08 * w, shadeTop),
+          { pts: trapezoid(x, shadeBottom, 0.16 * w, o.bottom, 0.5 * w), anchor: at(x, shadeBottom) },
+          { pts: trapezoid(x, o.top, 0.4 * w, shadeTop, 0.1 * w), anchor: at(x, shadeTop) },
         ],
       };
     }
     case 'arcLamp': {
       const headX = x + skew * 1.6 * w;
-      const headY = o.top + 0.3 * h;
       const floorY = o.bottom + FLOOR_DROP;
+      const headY = floorY - ARC_REACH * h;
       return {
         marks: [
           fill('lamp', rect(x - 0.006 * w, headY, x + 0.006 * w, floorY)),
@@ -217,7 +225,7 @@ function emit(kind: LampKind, f: Frame, lit: boolean): { marks: Mark[]; auras: P
           fill(emitterRole, circle(headX, headY, 0.035 * w)),
           inkPts('lamp-dome', circle(headX, headY, 0.035 * w, 18)),
         ],
-        auras: [circle(headX, headY + 0.1 * h, 0.16 * w)],
+        auras: [{ pts: circle(headX, headY, 0.14 * w), anchor: at(headX, headY) }],
       };
     }
     case 'tableLamp': {
@@ -232,7 +240,7 @@ function emit(kind: LampKind, f: Frame, lit: boolean): { marks: Mark[]; auras: P
           ink('lamp-drum-top', x - 0.07 * w, shadeTop, x + 0.07 * w, shadeTop),
           ink('lamp-drum-bottom', x - 0.07 * w, shadeBottom, x + 0.07 * w, shadeBottom),
         ],
-        auras: [circle(x, (shadeTop + shadeBottom) / 2, 0.2 * w)],
+        auras: [{ pts: circle(x, (shadeTop + shadeBottom) / 2, 0.2 * w), anchor: at(x, (shadeTop + shadeBottom) / 2) }],
       };
     }
     case 'bedsideLamp': {
@@ -247,7 +255,7 @@ function emit(kind: LampKind, f: Frame, lit: boolean): { marks: Mark[]; auras: P
           ink('lamp-shade-left', x - 0.04 * w, shadeTop, x - 0.06 * w, shadeBottom),
           ink('lamp-shade-right', x + 0.04 * w, shadeTop, x + 0.06 * w, shadeBottom),
         ],
-        auras: [circle(x, (shadeTop + shadeBottom) / 2, 0.12 * w)],
+        auras: [{ pts: circle(x, (shadeTop + shadeBottom) / 2, 0.12 * w), anchor: at(x, (shadeTop + shadeBottom) / 2) }],
       };
     }
     case 'pendant': {
@@ -260,9 +268,10 @@ function emit(kind: LampKind, f: Frame, lit: boolean): { marks: Mark[]; auras: P
           ink('lamp-shade-left', x - 0.03 * w, shadeTop, x - 0.09 * w, shadeBottom),
           ink('lamp-shade-right', x + 0.03 * w, shadeTop, x + 0.09 * w, shadeBottom),
         ],
+        // Same two-cone cast as the floor lamp, hung from the ceiling line.
         auras: [
-          trapezoid(x, shadeBottom, 0.18 * w, o.bottom, 0.5 * w),
-          rect(x - 0.06 * w, shadeTop - 0.05 * h, x + 0.06 * w, shadeTop),
+          { pts: trapezoid(x, shadeBottom, 0.18 * w, o.bottom, 0.5 * w), anchor: at(x, shadeBottom) },
+          { pts: trapezoid(x, o.top, 0.3 * w, shadeTop, 0.06 * w), anchor: at(x, shadeTop) },
         ],
       };
     }
@@ -274,13 +283,15 @@ function emit(kind: LampKind, f: Frame, lit: boolean): { marks: Mark[]; auras: P
           ink('lamp-cord', x, o.top, x, bulbY - r),
           fill(emitterRole, circle(x, bulbY, r)),
         ],
-        auras: [circle(x, bulbY, 0.15 * w)],
+        auras: [{ pts: circle(x, bulbY, 0.15 * w), anchor: at(x, bulbY) }],
       };
     }
   }
 }
 
 export function lampMarks(plan: LampPlan, o: PaneRect, night: boolean): Mark[] {
+  const veil = () => fill('veil', rect(o.left, o.top, o.right, o.bottom));
+  if (!plan.present) return night ? [veil()] : [];
   const w = o.right - o.left;
   const h = o.bottom - o.top;
   const x = o.left + ANCHOR_X[plan.location] * w;
@@ -296,8 +307,8 @@ export function lampMarks(plan: LampPlan, o: PaneRect, night: boolean): Mark[] {
   }
   if (lit) {
     drawn.push(fill('ambient', rect(o.left, o.top, o.right, o.bottom)));
-    for (const shape of auras) drawn.push(...aura(shape, o));
+    for (const { pts, anchor } of auras) drawn.push(...aura(pts, anchor, o));
   }
-  if (night && !plan.on) drawn.push(fill('veil', rect(o.left, o.top, o.right, o.bottom)));
+  if (night && !plan.on) drawn.push(veil());
   return drawn;
 }

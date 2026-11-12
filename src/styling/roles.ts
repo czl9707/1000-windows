@@ -8,7 +8,9 @@
 // construction: 'fabric' is hanging cloth (panels, drapes), 'shade' the
 // roman's flat cloth, and 'blind' the venetian's opaque slat rows.
 // The interior roles carry the light layer: 'lamp' is the lamp structure's
-// own furniture paint, 'light' the emitter's warmth, 'ambient' the room's
+// own furniture paint, 'lampShade' the emitting part's colour whenever the
+// lamp is off — the same colourway as the body, without the dark sink —
+// 'light' the emitter's warmth, 'ambient' the room's
 // low wash of it, 'aura' the lamp's local glow — all three warmth roles
 // resolve from one roll, so a room wears a single light colour — and
 // 'veil' is the darkening wash an unlit room draws over its interior.
@@ -25,6 +27,7 @@ export type ColorRole =
   | "shade"
   | "blind"
   | "lamp"
+  | "lampShade"
   | "light"
   | "ambient"
   | "aura"

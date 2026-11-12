@@ -85,7 +85,15 @@ interface RoleTint {
 }
 
 const ROLE_TINTS: Record<
-  "mullion" | "awning" | "sill" | "box" | "fabric" | "shade" | "blind" | "lamp",
+  | "mullion"
+  | "awning"
+  | "sill"
+  | "box"
+  | "fabric"
+  | "shade"
+  | "blind"
+  | "lamp"
+  | "lampShade",
   RoleTint
 > = {
   mullion: { alpha: 1, echo: false },
@@ -94,8 +102,9 @@ const ROLE_TINTS: Record<
   box: { alpha: 1, echo: false },
   fabric: { alpha: 0.14, echo: true, skipsNightMix: true },
   shade: { alpha: 0.14, echo: true, skipsNightMix: true },
-  blind: { alpha: 0.16, echo: true, skipsNightMix: true },
+  blind: { alpha: 1, echo: false },
   lamp: { alpha: 1, echo: false, skipsNightMix: true },
+  lampShade: { alpha: 1, echo: false, skipsNightMix: true },
 };
 
 // The dials of the colour model, all in one place: the hue jitter band, the
@@ -244,6 +253,7 @@ const ROLE_RESOLVERS: Record<ColorRole, (ctx: RoleContext) => ResolvedColor> = {
     chromaScale: 1,
     lightnessShift: tuning.lampLightnessShift,
   })),
+  lampShade: tintResolver(ROLE_TINTS.lampShade, "lamp"),
   light: warmthResolver(() => OCCLUDE),
   ambient: warmthResolver((tuning) => tuning.ambientAlpha),
   aura: warmthResolver((tuning) => tuning.auraAlpha),

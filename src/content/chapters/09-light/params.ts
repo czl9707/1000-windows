@@ -6,7 +6,7 @@ import type { ColourwayTuning } from '@/styling/colourway';
 // index the roll's catalogues.
 export const KIND_PARAMS: ParamSpec[] = [
   { key: 'night', label: 'Night', min: 0, max: 1, step: 1 },
-  { key: 'location', label: 'Location (left/centre/right)', min: 0, max: 2, step: 1 },
+  { key: 'location', label: 'Location (left/inner left/inner right/right)', min: 0, max: 3, step: 1 },
   { key: 'facing', label: 'Facing (left/right)', min: 0, max: 1, step: 1 },
   { key: 'lit', label: 'Lights on', min: 0, max: 1, step: 1 },
 ];

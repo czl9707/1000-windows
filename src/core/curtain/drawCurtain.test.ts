@@ -41,7 +41,7 @@ function strokes(marks: ReturnType<typeof clothMarks>): StrokeMark[] {
 
 describe('the cloth roles', () => {
   it('resolve as a colourway wash — louder than the glass, under solid ink', () => {
-    for (const role of CLOTH_ROLES) {
+    for (const role of ['fabric', 'shade'] as const) {
       const dress = PALETTE(role);
       expect(dress.color).not.toBe(PALETTE('ink').color);
       expect(() => cssToOklch(dress.color)).not.toThrow();

@@ -13,11 +13,10 @@ import {
 // share this stand-in instead of the real windowPalette.
 
 // The curtain cloth: the ink colour at a whisper — a wash a shade darker
-// than the paper it covers. 0.08 for the hanging cloth and the shade alike,
-// 0.12 for the venetian's slat rows.
+// than the paper it covers, the same for the hanging cloth and the shade.
+// The venetian's slat rows occlude, like the painted faces.
 const FABRIC_CLOTH = 0.08;
 const SHADE_CLOTH = 0.08;
-const BLIND_CLOTH = 0.12;
 
 export function mockPalette(colors: ThemeColors): Palette {
   const dresses: Record<ColorRole, ResolvedColor> = {
@@ -34,10 +33,11 @@ export function mockPalette(colors: ThemeColors): Palette {
     box: { color: colors.paper, alpha: OCCLUDE },
     fabric: { color: colors.ink, alpha: FABRIC_CLOTH },
     shade: { color: colors.ink, alpha: SHADE_CLOTH },
-    blind: { color: colors.ink, alpha: BLIND_CLOTH },
+    blind: { color: colors.ink, alpha: OCCLUDE },
     // The light layer postdates these chapters: its roles occlude in the
     // ground colour here, the way the painted faces do.
     lamp: { color: colors.paper, alpha: OCCLUDE },
+    lampShade: { color: colors.paper, alpha: OCCLUDE },
     light: { color: colors.paper, alpha: OCCLUDE },
     ambient: { color: colors.ink, alpha: 0 },
     aura: { color: colors.ink, alpha: 0 },
