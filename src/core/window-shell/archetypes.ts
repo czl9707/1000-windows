@@ -28,7 +28,9 @@ export type AwningId = 'none' | 'slope' | 'canopy';
 export type ShuttersId = 'none' | 'louvered' | 'paneled';
 export type BoxId = 'none' | 'box' | 'pair';
 
-interface ShellMasses {
+// The fields the three plans share: the measured rolls and the mounted
+// masses, one interface so every plan carries the same base.
+interface ShellBase {
   thicknessJitter: number;
   faceWidth: number;
   sill: SillId;
@@ -37,20 +39,20 @@ interface ShellMasses {
   box: BoxId;
 }
 
-export interface SlidingPlan extends ShellMasses {
+export interface SlidingPlan extends ShellBase {
   archetype: 'sliding';
   layout: SlidingLayout;
   open: OpenState;
   slideSide: Side;
 }
 
-export interface CasementPlan extends ShellMasses {
+export interface CasementPlan extends ShellBase {
   archetype: 'casement';
   layout: CasementLayout;
   open: OpenState;
 }
 
-export interface PicturePlan extends ShellMasses {
+export interface PicturePlan extends ShellBase {
   archetype: 'picture';
   layout: PictureLayout;
 }

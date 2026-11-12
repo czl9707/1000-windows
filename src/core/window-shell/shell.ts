@@ -111,7 +111,7 @@ export function innerRect(face: number): PaneRect {
 }
 
 // Geometry helpers in unit measure. Points always lie where the geometry says
-// — a SHELL_Z sort key must never reach them (see window.ts).
+// — a SHELL_Z sort key must never reach them.
 export function rectPts(
   x0: number,
   y0: number,

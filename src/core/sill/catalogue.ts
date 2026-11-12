@@ -3,8 +3,9 @@
 // of the drawing, the weights of the street.
 //
 // Roll order in the sill block (append new rolls at the end, never between):
-// side → kind → the item's measured jitters. The `none` side is the empty
-// ledge — an empty ledge rolls nothing further and draws no item.
+// side → kind → the item's rolls — width jitter, book count, plant
+// vocabulary. The `none` side is the empty ledge — an empty ledge rolls
+// nothing further and draws no item.
 //
 // The sill layer sits between the curtain and the insider layer: its block
 // appends to the DNA stream after the curtain's, unconditionally — a mug
@@ -50,8 +51,9 @@ export const PLANT_KINDS: readonly { value: PlantKind; weight: number }[] = [
 // of the same kind never match item for item.
 export const WIDTH_JITTER = { min: 0.9, max: 1.1 } as const;
 
-// The row's book count, rolled after the width jitter (the sill block's
-// last draw; appended layers come after it, never between).
+// The row's book count, rolled after the width jitter. The plant vocabulary
+// is the block's last roll; appended layers come after the block, never
+// between its rolls.
 export const BOOK_COUNT_RANGE = { min: 3, max: 6 } as const;
 
 // The anchored item's gap from the inner jamb — wide enough that the item
