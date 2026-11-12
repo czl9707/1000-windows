@@ -1,0 +1,114 @@
+---
+title: The wall
+status: landed
+---
+
+import DemoCanvas from "@/components/DemoCanvas.astro";
+import DemoReseedButton from "@/components/DemoReseedButton.astro";
+
+[The shell](/docs/window-shell) gave every window its construction;
+[motion](/docs/motion) pinned the eye and gave depth its drift.
+This chapter is the step where the windows stop being specimens and become
+a wall: an infinite grid of them, alive under the pointer, pannable in
+every direction. The wall is the home page now — the canvas you are
+looking at if you came in through the front door.
+
+<DemoCanvas demo="wall-strip" label="The wall — six windows at rest">
+  <DemoReseedButton />
+</DemoCanvas>
+
+The demo is the wall at rest: a frame of windows in their stippled,
+patched wall, nothing panning. The eye follows the cursor — the pointer
+standing in for where this canvas sits relative to the screen's centre,
+the same stand-in [motion](/docs/motion) uses; on the home wall
+that offset is the canvas's real position. Panning lives on the home
+page — drag and let go: the wall glides, decelerates, and settles.
+Everywhere it applies the same rule: every visible window redraws every
+frame, and the same coordinates always show the same tenant, no matter
+how the camera arrived.
+
+## The grid and its scale
+
+The wall is a grid of cells, one window per cell — no vacancies, no
+searching for the empty lots. A cell's identity is its integer
+coordinates, and its seed is `windowSeed(metaSeed, col, row)`: the
+coordinates exist inside that one call and nowhere else, so pan history
+cannot reach a tenant even in principle.
+
+The pitch is deliberately sparse — several units of bare wall around
+each window box — so every window stands in its own frame of wall and
+the neighbours never crowd it. How large a unit lands on screen is not
+a constant — it is a rule about counts, decided once and enforced by the
+viewport: a minimum view in columns and rows, a cap on the visible cell
+count, a floor under each window's rendered size. Where the bounds
+conflict, the count bounds yield first: a shrinking viewport drops
+columns and rows rather than shrinking tenants into specks, a phone
+shows a couple of large windows instead of a crowd of small ones, and
+only past the floor does the cap get a word in. The cell's screen size
+adjusts to hit the bounds; the bounds are never enforced by cutting the
+draw short.
+
+## Culling and the pen lifecycle
+
+Each frame asks one pure question — which cells' window boxes cross the
+camera-centred extent, widened by a margin of at least one cell — and the
+answer is a list of coordinates:
+
+```ts
+export function visibleCells(camera: Camera, extentW: number, extentH: number, margin = 0): Cell[]
+```
+
+The pens follow the same rule for both layers of the wall — windows and
+texture slots alike: a pen is created when its cell enters the extended
+viewport and dropped when it leaves. The pen's internal trace cache dies
+with the instance, so nothing outlives the pan history: no cache grows
+with distance travelled, and memory stays bounded by what is on screen.
+
+```ts
+export function planPens(active: ReadonlySet<string>, wanted: readonly string[]): PenPlan
+```
+
+The diff is pure and keyed by canonical `"col,row"` strings — a cell seen
+across two frames is two separate objects, so structural identity is
+spelled, not referenced.
+
+## The wall between the windows
+
+The bare paper between windows carries the settled texture treatment,
+ported from the throwaway prototype: the paper stipple tile across the
+whole wall, and ragged illustrative brick-patch islands over it — sparse
+overshooting course lines with staggered vertical joints, drawn `ruhig`
+(mortar does not tremble), at a whisper of ink. Both are seeded per wall
+slot from the meta-seed, so the surface varies region to region, survives
+panning exactly as a window does, and re-rolls when the wall shuffles.
+
+## Drag, inertia, rest
+
+Panning moves the world; the eye stays at the screen's centre, exactly as
+[motion](/docs/motion) fixed it. A drag translates the camera
+under the pointer; a release hands the smoothed drag velocity to the
+glide — velocity decaying exponentially under friction, the camera
+advancing by the decay's exact integral, so the physics is deterministic
+in `(camera, velocity, dt)`:
+
+```ts
+export function glide(camera: Camera, velocity: Velocity, dt: number, friction: number = FRICTION)
+```
+
+Below the rest threshold a glide snaps still rather than crawling. A
+release shorter than a few pixels is a click: it never nudges the wall.
+The gestures are part of the wall module too — a pannable surface binds
+`dragWall(wall, canvas, unitPx)` once, and the strip above is the same
+engine with the gestures left unbound.
+
+## What the wall does not know
+
+A whole frame of wall is one call — `wall.draw(ctx, box, frame, time, colors)` —
+the engine entrypoint that owns the meta-seed, the camera, and both layers'
+pens; reseed, glide, and the pan gestures go through the same object. Inside
+that frame, the wall composites windows through one call —
+`drawWindow(ctx, pen, palette, eye)` — and that is the whole contract. It
+knows nothing of shells or tenants. Everything that
+happens inside a window lands behind that entry, and the home page holds
+nothing but the wiring around the engine: the frame's view and real eye,
+and the shuffle seat.

@@ -1,0 +1,75 @@
+---
+import Typography from '@/components/ui/Typography.astro';
+import ChapterList from './ChapterList.astro';
+import Pager from './Pager.astro';
+import TocList from './TocList.astro';
+import type { ChapterLayoutProps } from './types';
+
+const props = Astro.props as ChapterLayoutProps;
+---
+
+<div class="Grid">
+  <article class="Article">
+    <Typography as="h1" variant="h2">{props.chapter.title}</Typography>
+    <div class="ChapterProse">
+      <slot />
+    </div>
+    <Pager prev={props.prev} next={props.next} />
+  </article>
+  <aside class="SidePanel">
+    <TocList headings={props.headings} />
+    <div class="Gap"/>
+    <ChapterList chapters={props.chapters} chapter={props.chapter} />
+  </aside>
+</div>
+
+<style>
+  .Grid {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: var(--spacing-component);
+    align-items: start;
+    justify-items: start;
+    width: 100%;
+    max-width: var(--breakpoint-md);
+    margin: 0 auto;
+    padding-inline: var(--spacing-group);
+    box-sizing: border-box;
+  }
+
+  .ChapterProse {
+    margin-top: var(--spacing-group);
+  }
+
+  .Gap {
+    height: var(--spacing-paragraph);
+  }
+
+  .Article {
+    grid-column: span 5 / span 5;
+    width: 100%;
+  }
+
+  .SidePanel {
+    grid-column: span 2 / span 2;
+    position: sticky;
+    top: calc(var(--size-header-height) + var(--spacing-component));
+    max-height: calc(100vh - var(--size-header-height) - var(--spacing-component));
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  @media (--smaller-than-md) {
+    .SidePanel {
+      display: none;
+    }
+    .Grid {
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+    .Article {
+      grid-column: span 5 / span 5;
+    }
+  }
+</style>

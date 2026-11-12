@@ -1,0 +1,94 @@
+---
+title: The layers
+status: landed
+---
+
+import DemoCanvas from '@/components/DemoCanvas.astro';
+import DemoReseedButton from '@/components/DemoReseedButton.astro';
+
+A drawing of a window used to be one function: decide the geometry, then
+draw it, statement by statement. That cannot survive a wall of a thousand
+windows, an awning reaching out of the wall plane, and — soon — a cursor
+that makes near things shift more than far ones. What replaces it is a
+pipeline the reference project arrived at by the same bruises: *geometry
+emits marks; motion places them; style dresses them; the pen draws them.*
+
+The [Randomness](/docs/randomness) chapter settled who decides what;
+this chapter settles in what shape the decisions travel.
+
+<DemoCanvas demo="layers-grid" label="Demo canvas — the layers">
+  <DemoReseedButton />
+</DemoCanvas>
+
+The same shell grid the [window shell](/docs/window-shell) chapter mounts —
+every window here stands on the pipeline below.
+
+## Marks
+
+Geometry no longer draws. A drawer is a pure function from its plan to a
+list of **marks**, and a mark is one drawing instruction carried in 3D:
+
+```ts
+interface StrokeMark { kind: 'stroke'; pts: Pt3[]; name: string; width: number; role: ColorRole; z: number }
+interface FillMark   { kind: 'fill';   pts: Pt3[]; role: ColorRole; z: number }
+interface DotMark    { kind: 'dot';    pts: Pt3[]; name: string; r: number; role: ColorRole; z: number }
+
+type Mark = StrokeMark | FillMark | DotMark;
+```
+
+Because a drawer only emits, it can be tested without a canvas, and the
+same geometry can later be placed, dressed, and drawn by whatever the
+wall needs.
+
+## Depth lives on points
+
+The obvious model gives every mark one depth, and it is wrong the first
+time a casement opens. A swung leaf is a rigid rectangle hinged at the
+wall: its hinge edge sits at depth zero, its free edge stands out at the
+swing's depth. One number cannot say that — so `z` lives on every point,
+and the mark's own `z` is only a *sort key*, set by the drawer, with
+ties keeping emission order. The append-only draw order that the
+[Randomness](/docs/randomness) chapter promises survives the sort.
+
+The depths themselves are plain numbers, spaced widely enough that
+anything later can interleave a layer between the shell's.
+
+## Motion: weak perspective
+
+Projection is the base of the motion layer: every point passes through
+`s = F/(F − z)`, the focal length living inside the motion module, and
+stroke widths scale by the mark's mean `s`. It is the reference's `raum`
+chapter ported whole.
+Near things grow; the shapes that reach out of the wall plane — the
+awning, the swung casement leaf, the shutters — carry real depth on
+their points and pick up an honest foreshortening.
+
+The parallax lives here too: the eye sits at the screen's centre, and
+each mark shifts by `eye · (s − 1)` — the wall plane stays pinned while
+nearer layers drift. [Motion](/docs/motion) gives the model and its
+costs; nothing upstream changes.
+
+## Style and the pen
+
+A mark carries no colour and no strength — it carries a *role*, and the
+role is the whole dress. `ink` draws solid, the lines and the dots; `glass`
+is the pane wash, at the strength styling settles it at — visible, never
+louder than the lines; `paper` occludes, painted opaque in
+the ground colour so an awning or a window box hides the wall behind it.
+`src/styling/` owns what each role means — colour and strength together,
+resolved by one function built fresh each frame from the theme's two
+colours — so no drawing code names a colour value or an alpha: a theme
+switch re-renders the same scene in the new palette, and the pen — handed
+the resolved colour and strength stroke by stroke — stays 2D and
+colour-blind: it wobbles, boils, and ribbons along the *projected* path,
+exactly as the [pen chapter](/docs/the-pen) describes, never knowing depth
+or theme existed.
+
+## The folder shape
+
+The pipeline is the folder tree: `src/core/` holds the scene's geometry
+(marks, the window shell), `src/pen/` the hand, `src/motion/` the
+placement, `src/styling/` the dressing. Calls only go downwards — core
+may use motion, motion may use the pen's types, nothing imports upward —
+and a chapter's demo sits at the bottom, wiring one window's seed
+through the whole chain.

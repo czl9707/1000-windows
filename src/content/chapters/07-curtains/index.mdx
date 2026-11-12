@@ -1,0 +1,161 @@
+---
+title: The curtain
+status: landed
+---
+
+import DemoCanvas from '@/components/DemoCanvas.astro';
+import DemoReseedButton from '@/components/DemoReseedButton.astro';
+
+The shell is everything the building owns; the curtain is the tenant's
+first possession. It hangs behind the glass — inside the opening, its
+points a hair behind the wall plane — so the pane wash draws over it and
+a swung casement leaf plausibly swings in front of it. On the wall the
+curtain is the first sign that someone lives there: before occupants,
+before light, a window that has cloth is a window someone dressed.
+
+<DemoCanvas demo="curtain-presence" label="Demo canvas — bare and dressed neighbours on one street">
+  <DemoReseedButton />
+</DemoCanvas>
+
+## The coverage levels
+
+The stream's first roll decides both whether a window is dressed and how
+much cloth it carries, in one pick: **coverage levels** — bare at the
+bottom, then three depths of cloth, with bare the most common pick. The
+bare window is the point: roughly two windows in five stand bare, and
+the glass shows through.
+The level is a desired value, not a share; the kind's zone takes it from
+there. When the roll lands on zero the stream ends: a bare window rolls
+no kind, no jitter, and its tenant DNA simply starts further down —
+nothing behind the curtain exists to re-randomize when the vocabulary
+grows.
+
+## The kinds
+
+Covered, the roll picks one of four home coverings, weighted toward what
+a real street shows: `panels`, `drapes`, `venetian`, `roman`. The
+catalogue is flat — one roll, one named kind, one
+construction — because independent axes multiply into combinations nobody
+designed (see [the window shell](/docs/window-shell)). Café tiers,
+vertical blinds, sheers, tie-backs, valances: all plausible, all absent.
+The append-only rule lets any of them land later as an append — a sheer
+is a drapes fill drawn quieter, a tie-back a panels variant, a valance a
+trim over any kind — and not one existing tenant re-randomizes.
+
+<DemoCanvas demo="curtain-kinds" label="Demo canvas — the four kinds at a mid coverage" />
+
+**Panels** hang at the sides, one mass per jamb. The coverage measures
+the inward reach of each panel as a share of half the opening's width,
+so panels always read as dressing, never as covering — their zone
+ceiling sits at dressing. **Drapes** are one mass hung from a rolled
+jamb, its span the coverage's share of the opening's width, riding
+almost the whole opening. **Venetian** and **roman** hang from the
+head, and their coverage measures down as a share of the opening's
+height — the venetian as opaque slat rows over transparent gaps, the
+roman as a shade whose folds bunch above its bottom bar.
+
+## Coverage: the zone is the ceiling, not the measure
+
+The rolled level is the desired coverage; the kind's zone is the ceiling
+it is clamped to after the draw. The drapes ride the levels nearly
+verbatim, the deepest pulled down just short of the whole opening,
+while the panels pull every deep level onto their dressing ceiling:
+those two windows draw the same cloth apart from the jitter, because a
+panel is dressing, never covering. The gene never pushes a kind out of
+its silhouette.
+
+<DemoCanvas demo="curtain-coverage" label="Demo canvas — the drapes riding the levels, the panels clamped to their ceiling" />
+
+## The cloth
+
+Each construction carries its own cloth role, resolved by styling — the
+drawer never names a colour or a strength, the same discipline the glass
+wash follows. The cloth resolves in the ink colour at a whisper: a wash
+a shade darker than the paper it covers, so the cloth reads against the
+wall at any distance yet stays quieter than the lines. The hanging cloth
+(panels, drapes) reads as `fabric` and the roman's flat cloth as
+`shade`, tuned together; the venetian's slat rows read as
+`blind`, and they alone go down opaque — slats are the one cloth no
+light reads through, so a lit room glows only where the blind's gaps
+leave the glass. The washing cloths are a base wash, and the fold bands are the
+same wash drawn again over it, an irregular number of passes per
+band — dark, bare, mid — so the drape darkens where the cloth turns and
+mottles between folds without a texture pass. Band boundaries wobble
+off their even share on the golden-angle sine, deterministic, no stream
+draw. What the pen sees is the hand: hem, fold lines, slats, bars —
+every curtain line draws at the texture weight, the catalogue's
+lightest, so the cloth's hand reads quieter than the frame's own lines
+([the pen](/docs/the-pen) warps each off its trace name). Two verdicts
+shape that line work. First, the dense lines obey the hand rule: on
+paper nobody draws every line of a dense run — some are omitted
+outright, and a kept line runs over only part of its span, the cloth
+fill carrying the texture instead (the golden-angle sine picks the
+omissions and the extents). Second, the hanging cloth hangs on
+verticals alone: the panels and the drapes draw no line across the top,
+the fill's edge stating it, and run all the way from head to hem — no
+rod clearance above them. The object edges — hems, the roman's bar,
+the venetian's rail and the roman's rod — stay full: they are things,
+not texture.
+
+## Behind the glass
+
+The cloth's points carry a small negative depth — the curtain stands a
+hair behind the wall plane, inside the room — and its marks sort on
+their own key between the shell's backing and its glass. That is the
+whole reason the layer can sit there: the pane wash draws over the
+cloth, the frame draws over the wash, and the projection places the
+fabric a touch smaller than the opening it fills ([Motion](/docs/motion)).
+No level of detail exists anywhere in the construction: the same marks
+draw at wall scale and in a close-up, and the only size variance is the
+coverage.
+
+## The rolls
+
+The curtain rolls on the DNA stream, `fork(seed, 'dna')` — the shell
+keeps its own fork, so frame vocabulary and tenant vocabulary grow
+without re-randomizing each other (the curtain is the tenant's first
+layer; the insider genes will append behind it). The order is fixed:
+coverage level, then kind, then the measured rolls (rod
+jitter, width jitter, drape side, blind slat share) — and new rolls
+append at the end, never between. A bare window consumes only the
+coverage roll:
+its stream ends there, and everything appended later lands after it for
+every tenant alike. The blind slat share rolls for every dressed
+window, mostly light, a rare blind nearly closed,
+and only the venetian reads it: each slat row draws opaque down its
+rolled share of the row and transparent below, hard to both jambs, no
+padding — the lighter the roll, the more glass shows through the gaps —
+and the lightest roll is the closed blind, its rows joined into one
+opaque face.
+
+```ts
+export function expandCurtain(rng: Rng): CurtainPlan {
+  const level = rng.weighted(COVERAGE_LEVELS);
+  if (level === 0) return { present: false };
+  const kind = rng.weighted(KINDS);
+  const coverage = Math.min(level, ZONE_CEILING[kind]);
+  const rodY = rng.float(ROD_JITTER.min, ROD_JITTER.max);
+  const widthJitter = rng.float(WIDTH_JITTER.min, WIDTH_JITTER.max);
+  const drapeSide = rng.weighted(DRAPE_SIDES);
+  const slatShare = rng.outliers(
+    SLAT_SHARE_RANGE.min, SLAT_SHARE_RANGE.max, SLAT_SHARE_RANGE.outlierMin, SLAT_SHARE_RANGE.outlierMax,
+  );
+  return { present: true, kind, coverage, rodY, widthJitter, drapeSide, slatShare };
+}
+```
+
+`expandCurtain` is the only place that rolls. The drawers are pure
+emitters (`panels`, `drapes`, `venetian`, `roman` in
+`drawCurtain.ts`): each turns a `CurtainPlan` into
+[marks](/docs/the-layers), and `windowSceneMarks(seed, plan)` appends
+them behind the shell's — every consumer of `drawWindow` gains tenants
+without knowing the layer exists.
+
+## What may change later
+
+Weights may change; kinds may be inserted; sheer, tie-backs, and valance
+may append. What may never change is the shape of the promise: a
+window's curtain rolls are a pure function of its seed, appended only at
+the stream's end. The light genes — a lamp glowing behind the drapes, TV
+flicker through them — belong to the light chapter and append there;
+this layer hands over the genes that chapter needs, and nothing more.

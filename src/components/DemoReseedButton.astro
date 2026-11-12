@@ -1,0 +1,24 @@
+---
+import Button from '@/components/ui/Button.astro';
+import { ShuffleIcon } from '@radix-ui/react-icons';
+---
+
+<Button variant="filled" color="transparent" data-demo-reseed aria-label="Reseed demo">
+    <ShuffleIcon />
+</Button>
+
+<script>
+    import { handleRegistered, reseedHandleFor, rollSeed } from './mount';
+
+    for (const button of document.querySelectorAll<HTMLButtonElement>('[data-demo-reseed]')) {
+        const canvas = button.closest('[data-demo-frame]')?.querySelector('canvas[data-demo]');
+        if (!(canvas instanceof HTMLCanvasElement)) {
+            throw new Error('reseed button: no demo canvas in the enclosing frame');
+        }
+        button.addEventListener('click', () => {
+            handleRegistered(canvas).then(() => {
+                reseedHandleFor(canvas)!.reseed(rollSeed());
+            });
+        });
+    }
+</script>

@@ -1,0 +1,77 @@
+.panel {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem 2.5rem;
+  align-items: center;
+  /* Own full row in the frame's flex controls, below the buttons. */
+  flex: 1 1 100%;
+}
+
+.sliderRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) 5ch;
+  gap: 0.6rem;
+  align-items: center;
+}
+
+.paramLabel {
+  font-family: var(--typography-body2-fontFamily);
+  font-weight: var(--typography-body2-fontWeight);
+  font-size: var(--typography-body2-fontSize);
+  line-height: var(--typography-body2-lineHeight);
+  color: rgb(var(--color-secondary-foreground));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sliderRoot {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 1.25rem;
+  touch-action: none;
+}
+
+.sliderTrack {
+  position: relative;
+  flex: 1;
+  height: 3px;
+  border-radius: 2px;
+  background: rgb(var(--color-primary-foreground) / 0.25);
+}
+
+.sliderRange {
+  position: absolute;
+  inset: 0;
+  border-radius: 2px;
+  background: rgb(var(--color-primary-foreground));
+}
+
+.sliderThumb {
+  display: block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: rgb(var(--color-primary-foreground));
+  outline: none;
+  cursor: pointer;
+  box-shadow: 0 0 0 0 rgb(var(--color-accent-foreground) / 0.35);
+  transition: box-shadow 120ms;
+}
+
+.sliderThumb:hover,
+.sliderThumb:focus-visible {
+  box-shadow: 0 0 0 3px rgb(var(--color-accent-foreground) / 0.35);
+}
+
+.value {
+  font-family: var(--typography-code-fontFamily);
+  font-weight: var(--typography-code-fontWeight);
+  font-size: var(--typography-code-fontSize);
+  line-height: var(--typography-code-lineHeight);
+  min-width: 5ch;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}

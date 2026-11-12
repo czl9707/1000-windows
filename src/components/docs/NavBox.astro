@@ -1,0 +1,43 @@
+---
+import Typography from '@/components/ui/Typography.astro';
+
+interface Props {
+  label: string;
+}
+
+const { label } = Astro.props;
+---
+
+<section class="Panel">
+  <Typography as="p" variant="button" color="secondary">{label}</Typography>
+  <div class="BoxContainer">
+    <slot />
+  </div>
+</section>
+
+<style>
+  .Panel {
+    display: flex;
+    flex-direction: column;
+    gap: calc(var(--spacing-paragraph) / 2);
+    width: 100%;
+    min-width: 0;
+  }
+
+  .BoxContainer {
+    border-radius: var(--size-border-radius);
+    display: flex;
+    flex-direction: column;
+    border: var(--border);
+    padding: var(--spacing-paragraph);
+    flex: 0 1 content;
+    gap: 0.5rem;
+    width: 100%;
+    box-sizing: border-box;
+
+    overflow-y: scroll;
+    &::-webkit-scrollbar {
+      display: none;
+    }
+  }
+</style>

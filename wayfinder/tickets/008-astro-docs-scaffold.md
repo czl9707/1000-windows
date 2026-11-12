@@ -18,7 +18,7 @@ Structure decisions as approved (final state after the post-closure simplificati
 
 - **Routes**: `/` home lists chapters from the collection with a draft/landed badge (full demo lives here later); `/docs/[slug]` renders each chapter, from `src/pages/docs/[...slug].astro`. Chapters are a content collection (`src/content/chapters/*.mdx`, schema `title`/`order`/`status: draft | landed`). The pen chapter exists as a draft already.
 - **Shell**: header stays title (logo later) + portfolio theme toggle (`Button` + Radix icons, `data-theme` + localStorage, dark default). Chapter navigation moves to a left sidebar later (map fog item).
-- **Demo embed pattern**: a chapter's MDX imports `DemoCanvas.astro`, which renders `<canvas data-demo>` and a `<script>` calling `mountAll()` from `src/demo/mount.ts` — engine stays vanilla TS under `src/demo/`, zero imports from site code. The mount is DPR-aware, runs an animation loop painting the theme-token ground, honours `prefers-reduced-motion` (static draw, no loop), repaints on theme switch, and returns a destroy handle.
+- **Demo embed pattern**: a chapter's MDX imports `DemoCanvas.astro`, which renders `<canvas data-demo>` and a `<script>` calling `mountAll()` from `src/demo/mount.ts` — engine stays vanilla TS under `src/demo/`, zero imports from site code. The mount is DPR-aware, runs an animation loop painting the theme-token ground, repaints on theme switch, and returns a destroy handle.
 - **Radix island proven**: `DemoHint.tsx` (Tooltip, `client:visible`) hydrates inside the chapter MDX.
 - Commands: `npm run dev` / `build` / `preview` / `check`, all Astro defaults; no deploy target chosen.
 

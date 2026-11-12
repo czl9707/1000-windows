@@ -1,0 +1,54 @@
+---
+import Typography from '@/components/ui/Typography.astro';
+import NavBox from './NavBox.astro';
+import NavRow from './NavRow.astro';
+import type { TocHeading } from './types';
+
+interface Props {
+  headings: TocHeading[];
+}
+
+const { headings } = Astro.props;
+---
+
+<NavBox label="Table of Content">
+  {
+    headings.map((h) => (
+      <NavRow href={`#${h.slug}`} depth={h.depth}>
+        <Typography variant="body1">{h.text}</Typography>
+      </NavRow>
+    ))
+  }
+</NavBox>
+
+<script>
+  // rehype-sectionize wraps every heading's content in <section data-slug>;
+  // this observer flags a TOC row active while its section crosses the
+  // viewport.
+  const slugToRows = new Map<string, HTMLAnchorElement[]>();
+  for (const row of document.querySelectorAll<HTMLAnchorElement>(
+    '.BoxContainer a[href^="#"]'
+  )) {
+    const slug = decodeURIComponent(row.hash.slice(1));
+    const rows = slugToRows.get(slug) ?? [];
+    rows.push(row);
+    slugToRows.set(slug, rows);
+  }
+
+  const observer = new IntersectionObserver(
+    (entries) => {
+      for (const entry of entries) {
+        const slug = (entry.target as HTMLElement).dataset.slug;
+        if (!slug) continue;
+        for (const row of slugToRows.get(slug) ?? []) {
+          row.setAttribute("data-active", entry.isIntersecting ? "true" : "false");
+        }
+      }
+    },
+    { threshold: 0.01 }
+  );
+
+  for (const section of document.querySelectorAll<HTMLElement>("section[data-slug]")) {
+    observer.observe(section);
+  }
+</script>
