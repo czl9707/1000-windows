@@ -2,7 +2,7 @@
 title: Land the furniture layer
 labels: [wayfinder:task]
 assignee: zane
-state: open
+state: closed
 blocked-by: []
 ---
 
@@ -24,4 +24,8 @@ TDD in five steps, both reviews (code-review, quality-review) in loop per step, 
 
 **Step 4 — the module entry and wiring (`src/core/furniture/index.ts`, `src/core/window.ts`).** Entry follows the base shape: `expandFurniture`, `furnitureMarks(rng, opening)`, `FurniturePlan`. In `window.ts`: the walk appends the furniture block after the light block (`lampLit` untouched — verified by its existing test), the assembly places `...furniture` first of the tenant layers so the z-bucket sort draws it 6 → 2, then light, curtain, sill. The entry comment updated: the furniture block is the walk's last layer, drawn deepest.
 
-**Step 5 — scene tests (`src/core/window.test.ts` additions).** A room with rolled furniture carries furniture marks sorting under `LIGHT_Z` and over the veil; a fully curtained room's furniture still sorts under the cloth (the cloth hides it at draw time); `lampLit`'s walk and every earlier layer's plan are byte-identical on old seeds (append-only purity).
+**Step 5 — scene tests (`src/core/window.test.ts` additions).** A room with rolled furniture carries furniture marks sorting under `LIGHT_Z` and over the shell's paper backing (which moved to `-20` to sit under every tenant bucket — the furniture buckets `-8..-12` would otherwise collide with it); curtain, sill, and light bands byte-identical to their direct walk blocks (append-only purity); `lampLit` pinned against the drawn night scene — the ambient fill lands exactly when `lampLit` says so; the furniture band sorts under the curtain cloth in every curtained room (no zone ceiling reaches the full opening, so the cloth never swallows the room outright — the ordering is what holds).
+
+## Resolution
+
+Built through five TDD steps with both reviews per step; 182 tests, typecheck, and build green. Commits on `furniture-layer`: the roll, the colour, the drawer, the wiring, plus a shared `src/core/handrule.ts` leaf the curtain and furniture drawers both consume (the rule's second drawer triggered the extraction the reviews had been asking for). No chapter, per the user decision — the layer shows on the home wall; the human eyeball on the wall is the pending check.
