@@ -1,4 +1,5 @@
 ---
+import Button from '@/components/ui/Button.astro';
 import BaseLayout from '@/components/layouts/BaseLayout.astro';
 ---
 
@@ -9,6 +10,11 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
     aria-label="The wall — an endless hand-drawn wall of windows; drag to pan, use the shuffle button for a new wall"
     role="img"
   ></canvas>
+  <div class="FocusNav" data-focus-nav hidden>
+    <Button variant="filled" color="transparent" data-focus-prev aria-label="Focus the window to the left">←</Button>
+    <span class="FocusSeed" data-focus-seed></span>
+    <Button variant="filled" color="transparent" data-focus-next aria-label="Focus the window to the right">→</Button>
+  </div>
 </BaseLayout>
 
 <style>
@@ -24,6 +30,33 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
 
   .Wall:active {
     cursor: grabbing;
+  }
+
+  .FocusNav {
+    position: fixed;
+    bottom: 1.25rem;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .FocusNav[hidden] {
+    display: none;
+  }
+
+  .FocusSeed {
+    padding: 0.4rem 0.75rem;
+    border-radius: var(--size-border-radius);
+    background: rgb(var(--color-primary-background) / 0.72);
+    color: rgb(var(--color-primary-foreground));
+    font-family: var(--typography-button-fontFamily);
+    font-size: var(--typography-button-fontSize);
+    font-weight: var(--typography-button-fontWeight);
+    line-height: var(--typography-button-lineHeight);
+    user-select: none;
   }
 </style>
 
@@ -46,15 +79,20 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
 
   // The focus state is the page's own: a tapped window rides to the screen
   // centre at FOCUS_SCALE times its wall size while everything else stops
-  // being drawn, and any click hands the wall back.
+  // being drawn, any click hands the wall back, and the arrow buttons (or
+  // arrow keys) slide the focus along the row — the strip position eases
+  // toward the target column so neighbouring windows hand off mid-slide.
   const FOCUS_SCALE = 1.6;
   const FOCUS_SECONDS = 0.45;
+  const FOCUS_SLIDE_RATE = 10;
   const TAP_THRESHOLD_PX = 5;
   const easeOutCubic = (t: number): number => 1 - Math.pow(1 - t, 3);
 
   interface FocusState {
-    col: number;
+    anchorCol: number;
     row: number;
+    strip: number;
+    target: number;
     t: number;
     releasing: boolean;
   }
@@ -103,13 +141,30 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
 
     let focus: FocusState | null = null;
     const enterFocus = (col: number, row: number) => {
-      focus = { col, row, t: 0, releasing: false };
+      focus = { anchorCol: col, row, strip: col, target: col, t: 0, releasing: false };
       wall.velocity = { x: 0, y: 0 };
       unbindGestures();
     };
     const leaveFocus = () => {
       if (focus) focus.releasing = true;
     };
+    const shiftFocus = (dir: number) => {
+      if (!focus || focus.releasing) return;
+      focus.target += dir;
+    };
+
+    // The arrow buttons and the seed readout live in the bar under the
+    // focused window; the page shows the bar only while the focus holds.
+    const nav = document.querySelector<HTMLElement>('[data-focus-nav]');
+    const prevButton = nav?.querySelector<HTMLButtonElement>('[data-focus-prev]');
+    const nextButton = nav?.querySelector<HTMLButtonElement>('[data-focus-next]');
+    const seedLabel = nav?.querySelector<HTMLElement>('[data-focus-seed]');
+    const onPrev = () => shiftFocus(-1);
+    const onNext = () => shiftFocus(1);
+    prevButton?.addEventListener('click', onPrev);
+    nextButton?.addEventListener('click', onNext);
+    let navShown = false;
+    let seedShown = '';
 
     // The cursor, normalized to the viewport and eased per frame — the raw
     // position reads twitchy at full-screen scale.
@@ -155,6 +210,15 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
     };
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') leaveFocus();
+      if (focus && !focus.releasing) {
+        if (e.key === 'ArrowLeft') {
+          e.preventDefault();
+          shiftFocus(-1);
+        } else if (e.key === 'ArrowRight') {
+          e.preventDefault();
+          shiftFocus(1);
+        }
+      }
     };
     canvas.addEventListener('pointerdown', onTapDown);
     canvas.addEventListener('pointermove', onTapMove);
@@ -172,6 +236,23 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
         if (focus) {
           const step = dt / FOCUS_SECONDS;
           focus.t = focus.releasing ? Math.max(focus.t - step, 0) : Math.min(focus.t + step, 1);
+          const drift = focus.target - focus.strip;
+          if (drift !== 0) {
+            focus.strip += drift * (1 - Math.exp(-dt * FOCUS_SLIDE_RATE));
+            if (Math.abs(focus.target - focus.strip) < 0.001) focus.strip = focus.target;
+          }
+          const showNav = !focus.releasing;
+          if (nav && navShown !== showNav) {
+            nav.hidden = !showNav;
+            navShown = showNav;
+          }
+          if (seedLabel && showNav) {
+            const key = `${focus.target},${focus.row}`;
+            if (seedShown !== key) {
+              seedLabel.textContent = `Seed: ${focusPen(focus.target, focus.row).seed}`;
+              seedShown = key;
+            }
+          }
           if (focus.releasing && focus.t === 0) {
             focus = null;
             rebindGestures();
@@ -207,26 +288,37 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
           ctx.fillRect(0, 0, canvas.width, canvas.height);
           ctx.restore();
         }
-        const slotX = focus.col * PITCH_X;
-        const slotY = focus.row * PITCH_Y;
-        const x = slotX + (wall.camera.x - slotX) * k;
-        const y = slotY + (wall.camera.y - slotY) * k;
+        const active = focus;
+        const anchorX = active.anchorCol * PITCH_X;
+        const anchorY = active.row * PITCH_Y;
+        const x = anchorX + (wall.camera.x - anchorX) * k;
+        const y = anchorY + (wall.camera.y - anchorY) * k;
         const s = WINDOW_SCALE * (1 + (FOCUS_SCALE - 1) * k);
-        const pen = focusPen(focus.col, focus.row);
-        pen.setTime(time);
-        ctx.save();
-        ctx.scale(box.dpr * unit, box.dpr * unit);
-        ctx.translate(
-          box.width / (2 * unit) - wall.camera.x,
-          box.height / (2 * unit) - wall.camera.y,
-        );
-        ctx.translate(x, y);
-        ctx.scale(s, s);
-        drawWindow(ctx, pen, windowPalette(pen.seed, theme, lampLit(pen.seed)), {
-          x: eye.x + x - wall.camera.x,
-          y: eye.y + y - wall.camera.y,
-        }, theme.isNight);
-        ctx.restore();
+        // One shift travels the whole viewport: the incoming window starts
+        // past the screen edge, the one it replaces leaves past the other.
+        const spacing = box.width / unit + 2 * BOX.halfW * s;
+        const drawFocused = (col: number) => {
+          const wx = x + (col - active.strip) * spacing;
+          const pen = focusPen(col, active.row);
+          pen.setTime(time);
+          ctx.save();
+          ctx.scale(box.dpr * unit, box.dpr * unit);
+          ctx.translate(
+            box.width / (2 * unit) - wall.camera.x,
+            box.height / (2 * unit) - wall.camera.y,
+          );
+          ctx.translate(wx, y);
+          ctx.scale(s, s);
+          drawWindow(ctx, pen, windowPalette(pen.seed, theme, lampLit(pen.seed)), {
+            x: eye.x + wx - wall.camera.x,
+            y: eye.y + y - wall.camera.y,
+          }, theme.isNight);
+          ctx.restore();
+        };
+        const first = Math.floor(active.strip);
+        const last = Math.ceil(active.strip);
+        drawFocused(first);
+        if (last !== first) drawFocused(last);
       },
       // The wall's real eye: where this canvas sits relative to the screen's
       // centre, in unit measure. Filling the viewport, it sits at the centre;
@@ -257,6 +349,8 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
         canvas.removeEventListener('pointermove', onTapMove);
         canvas.removeEventListener('pointerup', onTapUp);
         window.removeEventListener('keydown', onKeyDown);
+        prevButton?.removeEventListener('click', onPrev);
+        nextButton?.removeEventListener('click', onNext);
         loop.destroy();
       },
     };
