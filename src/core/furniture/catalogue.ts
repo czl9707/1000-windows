@@ -80,3 +80,8 @@ export const PLANE_DEPTH: readonly number[] = [-0.15, -0.19, -0.23, -0.27, -0.31
 // under the light block's LIGHT_Z (-7), the curtain's CURTAIN_Z (-5), and
 // the sill's SILL_ITEM_Z (-2). Plane 2 draws last of the six.
 export const PLANE_Z: readonly number[] = [-8, -9, -10, -11, -12];
+
+// Each plane's piece scale in world measure: a deeper piece is a smaller
+// piece, the room's perspective stated in the geometry itself (the
+// projection adds only the eye's parallax on top).
+export const PLANE_SCALE: readonly number[] = [1, 0.92, 0.84, 0.76, 0.68];
