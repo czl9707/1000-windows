@@ -13,7 +13,10 @@ The per-window random value, derived deterministically from the meta-seed and th
 Who lives behind one window — the window's identity as a whole: occupant (if any), furniture, curtain, plants, animals, and light. "A window seed is a tenant."
 
 ## Dominant element
-The single most readable thing in a window scene (an occupant silhouette, a cat on the sill, a lone lamp). Every window has at most one; it carries the story at a glance. Everything else in the window is supporting props.
+The room's single most readable shape: the lit lamp, and only the lamp. No other tenant layer rolls a dominant variant — furniture and props are supporting masses, so the lamp never competes for the slot.
+
+## Furniture
+The tenant layer of tall room pieces behind the glass — bookshelf, wardrobe, easel, TV on a stand, and their kin. The room's floor sits below the window opening, so only what a piece's height rises into the opening shows; low pieces (tables, cushions, sofas) are invisible and not in the catalogue. Pieces stand on depth planes: the lamp always in plane 1, furniture rolling planes 2–6, at most one piece per plane, deeper planes drawing smaller and standing more often empty. All pieces in one room share one colourway; the TV screen is permanently dark. A fully drawn curtain hides the furniture — the cloth sits at the glass plane in front of every piece; sill items still draw in front of the cloth.
 
 ## Curtain
 The window covering — cloth or blind hung behind the glass. A tenant trait: some windows carry one, some stand bare. Four kinds — panels, drapes, venetian, roman — each a named construction with its own ceiling on how much of the opening it may cover; coverage rolls in discrete levels — bare, lightly dressed, half, full — mostly bare or light, a rare window full. Its dense line work obeys the hand rule, and the hanging cloth (panels, drapes) hangs on verticals alone. The curtain's density is curtain identity, not a light trait.
@@ -22,10 +25,10 @@ The window covering — cloth or blind hung behind the glass. A tenant trait: so
 The tenant layer between the curtain and the insider layer: at most one small prop on the inside ledge. One roll decides presence and corner — half of all sills stand empty, and a present item anchors into its rolled corner. Sill items draw in front of the curtain cloth and behind the pane wash, so even a fully closed curtain never hides them. The sill-sized potted plant belongs here; larger greenery belongs to the insider layer's plants.
 
 ## Colourway
-The finished colour one of a tenant's coloured surfaces wears — curtain cloth, awning canvas, sill ledge, window box, and the painted frame face each roll their own off the window seed, from one weighted list; the curtain's three constructions roll together as one cloth. Two surfaces land on the same colour only by chance. A colourway is tenant identity, not state — it never changes with the page theme. Most rolls land on quiet, pale families; louder ones exist and stay rare.
+The finished colour one of a tenant's coloured surfaces wears — curtain cloth, awning canvas, sill ledge, window box, the painted frame face, and the room's furniture each roll their own off the window seed, from one weighted list; the curtain's three constructions roll together as one cloth, and all of a room's furniture rolls together as one body. Two surfaces land on the same colour only by chance. A colourway is tenant identity, not state — it never changes with the page theme. Most rolls land on quiet, pale families; louder ones exist and stay rare.
 
 ## Night
-What the site's dark theme means for the wall: the same tenants and the same scene re-read under darkness, never a different scene. Every coloured surface sinks most of the way into the dark ground — the same mix for every surface — so night is the day palette mixed into the paper, hue kept, and no separate night palette exists.
+What the site's dark theme means for the wall: the same tenants and the same scene re-read under darkness, never a different scene. The street's tinted surfaces sink most of the way into the dark ground — the same mix for every one of them, so night is the day palette mixed into the paper, hue kept, and no separate night palette exists. The interior's own paint keeps its colour (a lit room must read its warmth through what lies over it); an unlit room's interior darkens under the night veil instead.
 
 ## Hand rule
 How dense line work is drawn on paper: a run of dense lines is never fully drawn — some are omitted outright, and a kept line runs over only part of its span, the fill carrying the texture instead. Picked by the golden-angle sine, deterministic, no stream draw. Object edges (hems, bars, rails, the roman's rod) are not dense line work and draw full.
@@ -79,7 +82,7 @@ Whether a window is closed, half-open, or open. Only operable archetypes roll it
 A stroke's hard switch that disables the frame stream entirely (reference: `ruhig`) — for marks that must never move, such as hatching.
 
 ## Mark
-One emitted drawing instruction: a discriminated union — a stroke (trace name, width), a fill, or a dot (radius) — each carrying its 3D points, a dress role (`ink` draws solid; `glass` is the pane wash; `paper` occludes in the background colour; the painted roles `mullion`, `awning`, `sill`, and `box` occlude in their own paint; the cloth roles `fabric`, `shade`, and `blind` dress curtain fills by construction), and a numeric depth sort key. Colour and strength both live in the role, resolved by styling from the window's colourway. Geometry emits marks; motion places them; style dresses them; the pen draws them.
+One emitted drawing instruction: a discriminated union — a stroke (trace name, width), a fill, or a dot (radius) — each carrying its 3D points, a dress role (`ink` draws solid; `glass` is the pane wash; `paper` occludes in the background colour; the painted roles `mullion`, `awning`, `sill`, and `box` occlude in their own paint; the cloth roles `fabric`, `shade`, and `blind` dress curtain fills by construction; the interior roles the light and furniture layers dress — `lamp`, `furniture`, `tvScreen`, and the warmth roles), and a numeric depth sort key. Colour and strength both live in the role, resolved by styling from the window's colourway. Geometry emits marks; motion places them; style dresses them; the pen draws them.
 
 ## Depth
 The z coordinate of a point, in unit measure; 0 is the wall plane, larger stands nearer the viewer. The draw stage stable-sorts marks by their depth key and projects each point through weak perspective before the pen sees it.

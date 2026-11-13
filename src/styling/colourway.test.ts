@@ -348,3 +348,38 @@ describe('windowPalette', () => {
     expect(() => palette('nonsense')).toThrow();
   });
 });
+
+describe('the furniture roles', () => {
+  // The pieces of one room read the single furniture role, so the shared
+  // roll needs no test beyond its own independence: one fork per window,
+  // matching the other painted rolls only by chance.
+  it('rolls the furniture body its own colourway, independent of the other painted roles', () => {
+    let matching = 0;
+    const total = 200;
+    for (let i = 0; i < total; i++) {
+      const p = windowPalette(5000 + i * 7919, LIGHT);
+      const furniture = cssToOklch(p('furniture').color);
+      const frame = cssToOklch(p('mullion').color);
+      if (Math.abs(furniture.h - frame.h) <= 12 && Math.abs(furniture.c - frame.c) <= 0.001) matching++;
+    }
+    expect(matching / total).toBeLessThan(0.25);
+    expect(matching).toBeGreaterThan(0);
+  });
+
+  it('keeps the furniture body off the night mix — the veil darkens instead', () => {
+    for (let i = 0; i < 20; i++) {
+      const seed = 8200 + i * 7919;
+      expect(windowPalette(seed, LIGHT)('furniture')).toEqual(windowPalette(seed, DARK)('furniture'));
+    }
+  });
+
+  it('resolves the TV screen fixed and dark whatever the theme or the seed', () => {
+    const day = windowPalette(42, LIGHT)('tvScreen');
+    const night = windowPalette(42, DARK)('tvScreen');
+    expect(night).toEqual(day);
+    expect(cssToOklch(day.color).l).toBeLessThan(0.35);
+    for (let i = 1; i < 40; i++) {
+      expect(windowPalette(9000 + i * 7919, LIGHT)('tvScreen')).toEqual(day);
+    }
+  });
+});

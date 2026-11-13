@@ -15,6 +15,11 @@
 // low wash of it, 'aura' the lamp's local glow — all three warmth roles
 // resolve from one roll, so a room wears a single light colour — and
 // 'veil' is the darkening wash an unlit room draws over its interior.
+// 'furniture' is the room's furniture body: every piece of one window reads
+// the single role, one shared colourway roll, kept off the night mix like
+// the lamp's own paint — the veil darkens an unlit room instead.
+// 'tvScreen' is the permanently dark screen: fixed in both themes, no
+// colourway roll.
 export type ColorRole =
   | "ink"
   | "glass"
@@ -24,6 +29,8 @@ export type ColorRole =
   | "awningThin"
   | "sill"
   | "box"
+  | "furniture"
+  | "tvScreen"
   | "fabric"
   | "shade"
   | "blind"

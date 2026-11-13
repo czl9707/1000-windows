@@ -28,7 +28,7 @@ export interface Colourway {
 }
 
 type ColourGroup =
-  "mullion" | "awning" | "sill" | "box" | "cloth" | "lamp" | "light";
+  "mullion" | "awning" | "sill" | "box" | "cloth" | "lamp" | "light" | "furniture";
 
 // Rarity lives in the character: the quiet families dominate, the dyed-looking
 // ones are rare rows, not a separate gate. Each row is a finished colour —
@@ -108,6 +108,10 @@ const AWNING_WEAR: Wear = {
 // panel: the transmitted light stays well under the warmth's own lightness.
 export const BACKLIGHT_GLOW = 0.3;
 export const BACKLIGHT_TRANSMIT_L = 0.2;
+
+// The TV screen's fixed dark: a dead screen in both themes, no colourway
+// roll, no night pass — the thing never turns on, in daylight or by lamplight.
+export const TV_SCREEN = oklchToCss({ l: 0.22, c: 0.008, h: 250 });
 
 // The dials of the colour model, all in one place: the scale on the families'
 // chroma, the lift on their lightness, the cloth washes' tint, the night
@@ -286,6 +290,8 @@ const ROLE_RESOLVERS: Record<ColorRole, (ctx: RoleContext) => ResolvedColor> = {
   awningThin: painted("awning", () => AWNING_WEAR),
   sill: painted("sill"),
   box: painted("box"),
+  furniture: interiorPainted("furniture"),
+  tvScreen: () => ({ color: TV_SCREEN, alpha: OCCLUDE }),
   fabric: clothWash("cloth"),
   shade: clothWash("cloth"),
   blind: blindSlat("cloth"),

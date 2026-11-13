@@ -6,6 +6,7 @@ import {
   type ResolvedColor,
   type Theme,
 } from '@/styling/roles';
+import { TV_SCREEN } from '@/styling/colourway';
 
 // The resolution chapters 03-07 draw in: the pre-colourway palette, the one
 // makePalette held before chapter 08 split the roles per surface group. The
@@ -42,6 +43,11 @@ export function mockPalette(theme: Theme): Palette {
     ambient: { color: theme.ink, alpha: 0 },
     aura: { color: theme.ink, alpha: 0 },
     veil: { color: theme.paper, alpha: 0 },
+    // The furniture layer postdates them too: its roles draw nothing here,
+    // though the screen keeps its fixed dark — the one fact the mock carries
+    // rather than contradict.
+    furniture: { color: theme.paper, alpha: OCCLUDE },
+    tvScreen: { color: TV_SCREEN, alpha: OCCLUDE },
   };
   return (role) => dresses[role];
 }
