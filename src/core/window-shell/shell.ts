@@ -79,12 +79,13 @@ const FACE_WIDTH_RANGE = { min: 0.03, max: 0.06 } as const;
 export const BOX = { halfW: 0.8, halfH: 0.5 };
 
 // Sort keys for the shell's marks, spaced so later layers interleave. The
-// awning sorts above the shutters — the roof stands over them. Sort
-// keys only: a unit-measure depth stays under ~1.2 (a swung casement leaf),
-// and one of these values fed to the projection would flip the geometry
-// through the origin.
+// awning sorts above the shutters — the roof stands over them. The backing
+// sits under every tenant bucket: it is the paper ground of the whole box,
+// and every interior layer paints over it. Sort keys only: a unit-measure
+// depth stays under ~1.2 (a swung casement leaf), and one of these values
+// fed to the projection would flip the geometry through the origin.
 export const SHELL_Z = {
-  backing: -10,
+  backing: -20,
   glass: 0,
   frame: 10,
   sill: 20,

@@ -9,6 +9,7 @@ import { ANCHORS, ANCHOR_X, FACINGS, FLOOR_DROP, FLOOR_LAMP_REACH, LAMP_KINDS, L
 
 import { expandLight, type LampPlan, type OwnedLamp } from './light';
 import { lampMarks } from './drawLamp';
+import { PLANE_Z } from '@/core/furniture/catalogue';
 
 const OPENING = innerRect(0.07);
 const INTERIOR_ROLES = ['lamp', 'lampShade', 'light', 'ambient', 'aura', 'veil'] as const;
@@ -275,9 +276,15 @@ describe('the light block in the assembled scene', () => {
     for (let i = 0; i < 100; i++) {
       const seed = 90000 + i * 104729;
       const plan = planFor(seed);
-      const assembled = windowSceneMarks(seed, plan, true).filter((m) => m.z !== LIGHT_Z);
-      // The walk without the light block: the same fork consumed by the
-      // curtain and sill alone, over the shell's own opening.
+      // The furniture block, appended after this one, wears its own plane
+      // buckets; both layers lift out so the earlier blocks stand alone.
+      const assembled = windowSceneMarks(seed, plan, true).filter(
+        (m) =>
+          m.z !== LIGHT_Z &&
+          !(m.z >= Math.min(...PLANE_Z) && m.z <= Math.max(...PLANE_Z)),
+      );
+      // The walk without the light and furniture blocks: the same fork
+      // consumed by the curtain and sill alone, over the shell's own opening.
       const rng = fork(seed, 'dna');
       const opening = innerRect(plan.faceWidth);
       const expected = [

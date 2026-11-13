@@ -10,11 +10,17 @@ import { drawCasement } from './window-shell/drawCasement';
 import { drawSliding } from './window-shell/drawSliding';
 import { BOX, SHELL_Z, innerRect } from './window-shell/shell';
 import { expandShell, shellMarks } from './window-shell';
-import { drawWindow } from './window';
-import { expandSill } from './sill';
+import { drawWindow, lampLit } from './window';
+import { expandSill, sillMarks } from './sill';
 import { SILL_ITEM_Z } from './sill/catalogue';
 import { expandCurtain } from './curtain';
 import { clothMarks } from './curtain/drawCurtain';
+import { CURTAIN_Z } from './curtain/catalogue';
+import { expandLight } from './light';
+import { lightMarks } from './light';
+import { LIGHT_DEPTH, LIGHT_Z } from './light/catalogue';
+import { expandFurniture } from './furniture';
+import { PLANE_Z } from './furniture/catalogue';
 import { fork } from './randomness/rng';
 import { windowSceneMarks } from './window';
 import { CENTRE_EYE } from '@/motion/projection';
@@ -292,6 +298,80 @@ describe('the tenant behind the glass', () => {
       const onLedge = marks.filter((m) => m.z === SILL_ITEM_Z);
       expect(onLedge.length > 0, `seed ${seed}`).toBe(present);
       expect(onLedge.every((m) => m.pts.every((p) => p.z < 0)), `seed ${seed} behind the wall`).toBe(true);
+    }
+  });
+});
+
+describe('the furniture in the room', () => {
+  it('furnishes the room iff the stream rolls furniture, sorting under the light block', () => {
+    for (let i = 0; i < 300; i++) {
+      const seed = 45000 + i * 104729;
+      const rng = fork(seed, 'dna');
+      expandCurtain(rng);
+      expandSill(rng);
+      expandLight(rng);
+      const rolled = expandFurniture(rng).planes.some((slot) => slot.present);
+      const marks = windowSceneMarks(seed, expandShell(seed), false);
+      // The furniture band: the plane buckets' span, nothing else's.
+      const pieces = marks.filter((m) => m.z >= Math.min(...PLANE_Z) && m.z <= Math.max(...PLANE_Z));
+      expect(pieces.length > 0, `seed ${seed}`).toBe(rolled);
+      for (const mark of pieces) {
+        expect(mark.z, `seed ${seed}`).toBeLessThan(LIGHT_Z);
+        for (const p of mark.pts) expect(p.z, `seed ${seed} deeper than the light`).toBeLessThan(LIGHT_DEPTH);
+      }
+    }
+  });
+
+  it('leaves every earlier layer byte-identical: curtain, sill, and light equal their direct walk blocks', () => {
+    for (let i = 0; i < 200; i++) {
+      const seed = 48000 + i * 104729;
+      const plan = expandShell(seed);
+      const opening = innerRect(plan.faceWidth);
+      const scene = windowSceneMarks(seed, plan, false);
+      const rng = fork(seed, 'dna');
+      const direct = [
+        ...clothMarks(expandCurtain(rng), opening),
+        ...sillMarks(rng, opening),
+        ...lightMarks(rng, opening, false),
+      ];
+      const band = (z: number) => scene.filter((m) => m.z === z);
+      expect(band(CURTAIN_Z)).toEqual(direct.filter((m) => m.z === CURTAIN_Z));
+      expect(band(SILL_ITEM_Z)).toEqual(direct.filter((m) => m.z === SILL_ITEM_Z));
+      expect(band(LIGHT_Z)).toEqual(direct.filter((m) => m.z === LIGHT_Z));
+    }
+  });
+
+  // The colour model reads lampLit for the backlit cloth and the palette's
+  // lit flag; a layer inserted before the light block would shift its walk.
+  // The drawn scene is the independent source: the ambient fill lands only
+  // for a present, lit lamp at night.
+  it('answers lampLit as the night scene draws it', () => {
+    for (let i = 0; i < 200; i++) {
+      const seed = 51000 + i * 104729;
+      const lit = lampLit(seed);
+      const scene = windowSceneMarks(seed, expandShell(seed), true);
+      const ambient = scene.some((m) => m.kind === 'fill' && m.role === 'ambient' && m.z === LIGHT_Z);
+      expect(ambient, `seed ${seed}`).toBe(lit);
+    }
+  });
+
+  // No curtain kind's zone ceiling reaches the full opening, so the cloth
+  // never swallows the room outright — but the ordering holds whatever the
+  // coverage: every furniture bucket sorts under the cloth's.
+  it('sorts the furniture under the cloth of every curtained room', () => {
+    for (let i = 0; i < 300; i++) {
+      const seed = 54000 + i * 104729;
+      const rng = fork(seed, 'dna');
+      const curtain = expandCurtain(rng);
+      if (!curtain.present) continue;
+      expandSill(rng);
+      expandLight(rng);
+      const rolled = expandFurniture(rng).planes.some((slot) => slot.present);
+      if (!rolled) continue;
+      const marks = windowSceneMarks(seed, expandShell(seed), false);
+      const furniture = marks.filter((m) => m.z >= Math.min(...PLANE_Z) && m.z <= Math.max(...PLANE_Z));
+      expect(furniture.length, `seed ${seed}`).toBeGreaterThan(0);
+      expect(Math.max(...furniture.map((m) => m.z)), `seed ${seed}`).toBeLessThan(CURTAIN_Z);
     }
   });
 });
