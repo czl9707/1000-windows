@@ -2,20 +2,21 @@ import { describe, expect, it } from 'vitest';
 import { PLANE_DEPTH, PLANE_Z, KINDS, type FurnitureKind } from './catalogue';
 import { pieceMarks } from './drawFurniture';
 import { expandFurniture } from './furniture';
-import type { FurniturePlan, FurnishedPlane } from './furniture';
+import type { FurniturePlan, FurnitureSlot } from './furniture';
 import { innerRect } from '@/core/window-shell/shell';
 import { fork } from '@/core/randomness/rng';
 import type { FillMark, Mark } from '@/core/scene';
 
 const OPENING = innerRect(0.05);
 
-const furnished = (kind: FurnitureKind, planeIndex = 0): FurniturePlan => ({
-  planes: Array.from({ length: 5 }, (_, i) =>
+const furnished = (kind: FurnitureKind, planeIndex = 0): FurniturePlan => {
+  const planes: FurnitureSlot[] = Array.from({ length: 5 }, (_, i) =>
     i === planeIndex
-      ? ({ present: true, kind, anchorX: 0.5, widthJitter: 1, variant: 0.5 } as FurnishedPlane)
+      ? { present: true, kind, anchorX: 0.5, widthJitter: 1, variant: 0.5 }
       : { present: false },
-  ),
-});
+  );
+  return { planes };
+};
 
 const fillsOf = (marks: Mark[], role?: string) =>
   marks.filter((m): m is FillMark => m.kind === 'fill' && (role === undefined || m.role === role));

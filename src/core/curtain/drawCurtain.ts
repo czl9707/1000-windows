@@ -13,6 +13,7 @@ import type { Mark } from '@/core/scene';
 import { WEIGHTS } from '@/styling/weights';
 import type { ColorRole } from '@/styling/roles';
 import { line, rectPts, type PaneRect } from '@/core/window-shell/shell';
+import { GOLDEN_ANGLE, handLine, type HandRates } from '@/core/handrule';
 import { CURTAIN_DEPTH, CURTAIN_Z, ROD_CLEARANCE } from './catalogue';
 import type { CoveredCurtain, CurtainPlan } from './curtain';
 
@@ -22,26 +23,14 @@ export const HEM_CLEARANCE = 0.04;
 // the wobble deterministic without a stream draw.
 export const FOLD_BANDS = { panels: 3, drapes: 5, roman: 3 } as const;
 const BAND_WOBBLE = 0.08;
-const GOLDEN_ANGLE = 2.399;
 const SLAT_MIN_PITCH = 0.045;
 const ROMAN_BAND_SHARE = 0.18;
 
-// The hand rule: a run of dense lines on paper is never fully drawn — some
-// are omitted outright, and a kept line covers only part of its run; the
-// cloth fill carries the texture instead. The golden-angle sine picks the
-// omissions and the extents — three phase offsets keep the picks
-// decorrelated, and the omit threshold maps the LINE_OMIT rate onto the
-// sine's range — deterministic, no stream draw.
+// The cloth's hand reads quieter than the frame's own lines — its rates are
+// the curtain's dialect of the hand rule.
 const LINE_OMIT = 0.3;
 const LINE_MIN_SPAN = 0.55;
-
-const omitLine = (i: number): boolean => Math.sin(i * GOLDEN_ANGLE + 1.3) < 2 * LINE_OMIT - 1;
-
-const lineSpan = (i: number): [number, number] => {
-  const start = Math.abs(Math.sin(i * GOLDEN_ANGLE + 0.7)) * (1 - LINE_MIN_SPAN);
-  const end = 1 - Math.abs(Math.sin(i * GOLDEN_ANGLE + 2.1)) * (1 - LINE_MIN_SPAN);
-  return [start, end];
-};
+const HAND_RATES: HandRates = { omit: LINE_OMIT, minSpan: LINE_MIN_SPAN };
 
 const atDepth = () => CURTAIN_DEPTH;
 
@@ -53,12 +42,8 @@ function inkLine(name: string, x0: number, y0: number, x1: number, y1: number): 
   return { kind: 'stroke', pts: line(x0, y0, x1, y1, atDepth), name, widthUnits: WEIGHTS.texture, role: 'ink', z: CURTAIN_Z };
 }
 
-function handLine(name: string, i: number, x0: number, y0: number, x1: number, y1: number): Mark[] {
-  if (omitLine(i)) return [];
-  const [f0, f1] = lineSpan(i);
-  return [
-    inkLine(name, x0 + (x1 - x0) * f0, y0 + (y1 - y0) * f0, x0 + (x1 - x0) * f1, y0 + (y1 - y0) * f1),
-  ];
+function handFold(name: string, i: number, x0: number, y0: number, x1: number, y1: number): Mark[] {
+  return handLine(HAND_RATES, name, i, x0, y0, x1, y1, { depth: CURTAIN_DEPTH, z: CURTAIN_Z, widthUnits: WEIGHTS.texture });
 }
 
 function hangTop(plan: CoveredCurtain, o: PaneRect): number {
@@ -88,7 +73,7 @@ function foldBands(
     const bx0 = Math.min(Math.max(x0 + i * bandW + wobble(i), x0), x1);
     const bx1 = Math.min(Math.max(x0 + (i + 1) * bandW + wobble(i + 1), x0), x1);
     for (let pass = 0; pass < bandShade(i); pass++) marks.push(clothFill('fabric', bx0, top, bx1, bottom));
-    if (i > 0) marks.push(...handLine(`${trace}-fold-${i}`, i, bx0, top, bx0, bottom));
+    if (i > 0) marks.push(...handFold(`${trace}-fold-${i}`, i, bx0, top, bx0, bottom));
   }
   return marks;
 }
@@ -143,7 +128,7 @@ function venetian(plan: CoveredCurtain, o: PaneRect): Mark[] {
     const y = top + i * rowH;
     const slatY = y + rowH * opaqueShare;
     marks.push(clothFill('blind', o.left, y, o.right, slatY));
-    marks.push(...handLine(`venetian-slat-${i}`, i, o.left, slatY, o.right, slatY));
+    marks.push(...handFold(`venetian-slat-${i}`, i, o.left, slatY, o.right, slatY));
   }
   return marks;
 }
@@ -159,7 +144,7 @@ function roman(plan: CoveredCurtain, o: PaneRect): Mark[] {
   for (let i = 0; i < FOLD_BANDS.roman; i++) {
     const y0 = bottom - (i + 1) * bandH;
     for (let pass = 0; pass < bandShade(i); pass++) marks.push(clothFill('shade', o.left, y0, o.right, y0 + bandH));
-    marks.push(...handLine(`roman-fold-${i}`, i, o.left, y0, o.right, y0));
+    marks.push(...handFold(`roman-fold-${i}`, i, o.left, y0, o.right, y0));
   }
   return [...marks, inkLine('roman-bar', o.left, bottom, o.right, bottom)];
 }

@@ -85,3 +85,9 @@ export const PLANE_Z: readonly number[] = [-8, -9, -10, -11, -12];
 // piece, the room's perspective stated in the geometry itself (the
 // projection adds only the eye's parallax on top).
 export const PLANE_SCALE: readonly number[] = [1, 0.92, 0.84, 0.76, 0.68];
+
+// How far under the opening's bottom edge a plane's base stands, hidden
+// behind the frame's bottom rail — the lamp's standing-line pattern. Deeper
+// planes sink further: the projection pulls a deeper point toward the eye,
+// so the deeper a base sits, the more drop keeps it behind the rail.
+export const BASE_DROPS: readonly number[] = [0.14, 0.15, 0.16, 0.17, 0.18];
