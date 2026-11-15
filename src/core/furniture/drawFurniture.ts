@@ -1,6 +1,6 @@
-// The furniture drawer: one pure emitter per kind — coatStand, coatRack,
-// ladderShelf, roomDivider, desk — turning a FurniturePiece and the room
-// rectangle into the marks of one flat side-silhouette. Every piece is one
+// The furniture drawer: one pure emitter per catalogue kind, turning a
+// FurniturePiece and the room rectangle into the marks of one flat
+// side-silhouette. Every piece is one
 // uniform gray ('furniture') and nothing else dresses here — no interior
 // strokes, no second gray; what the construction needs to read (the ladder
 // shelf's boards) is part of the silhouette mass, the same gray — and the
@@ -30,6 +30,16 @@ const SIZES: Record<FurnitureKind, { w: number; h: number }> = {
   ladderShelf: { w: 0.3, h: 1.4 },
   roomDivider: { w: 0.3, h: 1.5 },
   desk: { w: 0.52, h: 0.75 },
+  bookcase: { w: 0.32, h: 1.6 },
+  wardrobe: { w: 0.5, h: 1.7 },
+  dresser: { w: 0.42, h: 0.9 },
+  armchair: { w: 0.4, h: 0.95 },
+  sofa: { w: 0.6, h: 0.9 },
+  chinaCabinet: { w: 0.34, h: 1.5 },
+  hallBench: { w: 0.36, h: 1.0 },
+  rockingChair: { w: 0.36, h: 1.0 },
+  piano: { w: 0.5, h: 1.15 },
+  easel: { w: 0.3, h: 1.5 },
 };
 
 // The hug: very close to the edge, a small gap allowed, wobbling a hair
@@ -78,6 +88,26 @@ function pieceMarks(p: FurniturePiece, room: PaneRect, w: number, h: number): Ma
       return roomDivider(p, spot);
     case 'desk':
       return desk(p, spot);
+    case 'bookcase':
+      return bookcase(p, spot);
+    case 'wardrobe':
+      return wardrobe(p, spot);
+    case 'dresser':
+      return dresser(p, spot);
+    case 'armchair':
+      return armchair(p, spot);
+    case 'sofa':
+      return sofa(p, spot);
+    case 'chinaCabinet':
+      return chinaCabinet(p, spot);
+    case 'hallBench':
+      return hallBench(p, spot);
+    case 'rockingChair':
+      return rockingChair(p, spot);
+    case 'piano':
+      return piano(p, spot);
+    case 'easel':
+      return easel(p, spot);
   }
 }
 
@@ -196,5 +226,186 @@ function desk(p: FurniturePiece, s: Spot): Mark[] {
       mass(p.plane, rect(p.plane, cx - mw / 2, deskY - standH - mh, cx + mw / 2, deskY - standH)),
     );
   }
+  return marks;
+}
+
+// A bookcase: the upright case — two side panels under a top slab, the
+// shelves between them bars of the same gray.
+function bookcase(p: FurniturePiece, s: Spot): Mark[] {
+  const sideW = 0.07 * (s.x1 - s.x0);
+  const slabH = 0.04 * s.h;
+  const marks: Mark[] = [
+    mass(p.plane, rect(p.plane, s.x0, s.topY + slabH, s.x0 + sideW, s.floorY)),
+    mass(p.plane, rect(p.plane, s.x1 - sideW, s.topY + slabH, s.x1, s.floorY)),
+    mass(p.plane, rect(p.plane, s.x0, s.topY, s.x1, s.topY + slabH)),
+  ];
+  const count = 4;
+  const shelfH = 0.02 * s.h;
+  for (let i = 0; i < count; i++) {
+    const t = (i + 1) / (count + 1);
+    const y = s.floorY + t * (s.topY + slabH - s.floorY);
+    marks.push(mass(p.plane, rect(p.plane, s.x0 + sideW, y - shelfH / 2, s.x1 - sideW, y + shelfH / 2)));
+  }
+  return marks;
+}
+
+// A wardrobe: the tall body inset under an overhanging cornice, standing on
+// a plinth — the case furniture wears.
+function wardrobe(p: FurniturePiece, s: Spot): Mark[] {
+  const lip = 0.06 * (s.x1 - s.x0);
+  const corniceH = 0.05 * s.h;
+  const plinthH = 0.06 * s.h;
+  return [
+    mass(p.plane, rect(p.plane, s.x0, s.topY, s.x1, s.topY + corniceH)),
+    mass(p.plane, rect(p.plane, s.x0 + lip, s.topY + corniceH, s.x1 - lip, s.floorY - plinthH)),
+    mass(p.plane, rect(p.plane, s.x0 + lip, s.floorY - plinthH, s.x1 - lip, s.floorY)),
+  ];
+}
+
+// A dresser: the chest with a deeper top slab over it and a narrower base
+// under it.
+function dresser(p: FurniturePiece, s: Spot): Mark[] {
+  const lip = 0.04 * (s.x1 - s.x0);
+  const slabH = 0.06 * s.h;
+  const baseH = 0.08 * s.h;
+  return [
+    mass(p.plane, rect(p.plane, s.x0, s.topY, s.x1, s.topY + slabH)),
+    mass(p.plane, rect(p.plane, s.x0, s.topY + slabH, s.x1, s.floorY - baseH)),
+    mass(p.plane, rect(p.plane, s.x0 + lip, s.floorY - baseH, s.x1 - lip, s.floorY)),
+  ];
+}
+
+// An armchair: the tall back between two arms, the seat slab carried on the
+// arms' own sides to the floor.
+function armchair(p: FurniturePiece, s: Spot): Mark[] {
+  const armW = 0.22 * (s.x1 - s.x0);
+  const seatY = s.floorY - 0.38 * s.h;
+  const underSeatH = 0.16 * s.h;
+  return [
+    mass(p.plane, rect(p.plane, s.x0 + armW, s.topY, s.x1 - armW, s.floorY - underSeatH)),
+    mass(p.plane, rect(p.plane, s.x0, s.topY + 0.3 * s.h, s.x0 + armW, s.floorY)),
+    mass(p.plane, rect(p.plane, s.x1 - armW, s.topY + 0.3 * s.h, s.x1, s.floorY)),
+    mass(p.plane, rect(p.plane, s.x0 + armW, seatY, s.x1 - armW, seatY + 0.14 * s.h)),
+  ];
+}
+
+// A sofa: the armchair's frame grown wide and low — the seat over a full
+// front base instead of legs.
+function sofa(p: FurniturePiece, s: Spot): Mark[] {
+  const armW = 0.16 * (s.x1 - s.x0);
+  return [
+    mass(p.plane, rect(p.plane, s.x0 + armW, s.topY, s.x1 - armW, s.floorY - 0.42 * s.h)),
+    mass(p.plane, rect(p.plane, s.x0, s.topY + 0.22 * s.h, s.x0 + armW, s.floorY)),
+    mass(p.plane, rect(p.plane, s.x1 - armW, s.topY + 0.22 * s.h, s.x1, s.floorY)),
+    mass(p.plane, rect(p.plane, s.x0 + armW, s.floorY - 0.5 * s.h, s.x1 - armW, s.floorY - 0.34 * s.h)),
+    mass(p.plane, rect(p.plane, s.x0 + armW, s.floorY - 0.34 * s.h, s.x1 - armW, s.floorY)),
+  ];
+}
+
+// A china cabinet: the solid chest below, the open shelves above it between
+// two side panels under a top slab.
+function chinaCabinet(p: FurniturePiece, s: Spot): Mark[] {
+  const sideW = 0.07 * (s.x1 - s.x0);
+  const slabH = 0.035 * s.h;
+  const chestTopY = s.floorY - 0.55 * s.h;
+  const marks: Mark[] = [
+    mass(p.plane, rect(p.plane, s.x0, chestTopY, s.x1, s.floorY)),
+    mass(p.plane, rect(p.plane, s.x0, s.topY, s.x1, s.topY + slabH)),
+    mass(p.plane, rect(p.plane, s.x0, s.topY + slabH, s.x0 + sideW, chestTopY)),
+    mass(p.plane, rect(p.plane, s.x1 - sideW, s.topY + slabH, s.x1, chestTopY)),
+  ];
+  const count = 2;
+  const shelfH = 0.02 * s.h;
+  for (let i = 0; i < count; i++) {
+    const t = (i + 1) / (count + 1);
+    const y = chestTopY + t * (s.topY + slabH - chestTopY);
+    marks.push(mass(p.plane, rect(p.plane, s.x0 + sideW, y - shelfH / 2, s.x1 - sideW, y + shelfH / 2)));
+  }
+  return marks;
+}
+
+// A hall bench: the seat slab on two legs, a slatted back rising to a top
+// rail.
+function hallBench(p: FurniturePiece, s: Spot): Mark[] {
+  const seatY = s.floorY - 0.42 * s.h;
+  const seatH = 0.05 * s.h;
+  const legW = 0.09 * (s.x1 - s.x0);
+  const railH = 0.04 * s.h;
+  const marks: Mark[] = [
+    mass(p.plane, rect(p.plane, s.x0, s.topY, s.x1, s.topY + railH)),
+    mass(p.plane, rect(p.plane, s.x0, seatY, s.x1, seatY + seatH)),
+    mass(p.plane, rect(p.plane, s.x0, seatY + seatH, s.x0 + legW, s.floorY)),
+    mass(p.plane, rect(p.plane, s.x1 - legW, seatY + seatH, s.x1, s.floorY)),
+  ];
+  const slats = 2;
+  const slatW = 0.07 * (s.x1 - s.x0);
+  for (let i = 0; i < slats; i++) {
+    const x = s.x0 + ((i + 1) / (slats + 1)) * (s.x1 - s.x0);
+    marks.push(mass(p.plane, rect(p.plane, x - slatW / 2, s.topY + railH, x + slatW / 2, seatY)));
+  }
+  return marks;
+}
+
+// A rocking chair: the tall narrow back, two arms, the seat — the runners
+// carrying it as two low bars on the floor.
+function rockingChair(p: FurniturePiece, s: Spot): Mark[] {
+  const armW = 0.12 * (s.x1 - s.x0);
+  const seatY = s.floorY - 0.38 * s.h;
+  const runnerH = 0.05 * s.h;
+  return [
+    mass(p.plane, rect(p.plane, s.x0 + armW, s.topY, s.x1 - armW, seatY)),
+    mass(p.plane, rect(p.plane, s.x0, s.topY + 0.35 * s.h, s.x0 + armW, s.floorY - runnerH)),
+    mass(p.plane, rect(p.plane, s.x1 - armW, s.topY + 0.35 * s.h, s.x1, s.floorY - runnerH)),
+    mass(p.plane, rect(p.plane, s.x0 + armW, seatY, s.x1 - armW, seatY + 0.08 * s.h)),
+    mass(p.plane, rect(p.plane, s.x0, s.floorY - runnerH, s.x0 + 0.4 * (s.x1 - s.x0), s.floorY)),
+    mass(p.plane, rect(p.plane, s.x1 - 0.4 * (s.x1 - s.x0), s.floorY - runnerH, s.x1, s.floorY)),
+  ];
+}
+
+// An upright piano: the tall body under a slanted lid, standing on two legs
+// with the front open below.
+function piano(p: FurniturePiece, s: Spot): Mark[] {
+  const lidDrop = 0.1 * s.h;
+  const bodyBottomY = s.floorY - 0.22 * s.h;
+  const legW = 0.1 * (s.x1 - s.x0);
+  const legTop = s.x0 + 0.08 * (s.x1 - s.x0);
+  return [
+    mass(p.plane, [
+      { x: s.x0, y: s.topY + lidDrop, z: at(p.plane)() },
+      { x: s.x1, y: s.topY, z: at(p.plane)() },
+      { x: s.x1, y: bodyBottomY, z: at(p.plane)() },
+      { x: s.x0, y: bodyBottomY, z: at(p.plane)() },
+    ]),
+    mass(p.plane, rect(p.plane, legTop, bodyBottomY, legTop + legW, s.floorY)),
+    mass(p.plane, rect(p.plane, s.x1 - legTop - legW, bodyBottomY, s.x1 - legTop, s.floorY)),
+  ];
+}
+
+// An easel: the A-frame — two legs converging to the masthead, a crossbar
+// and the tray carrying the canvas suggestion.
+function easel(p: FurniturePiece, s: Spot): Mark[] {
+  const cx = (s.x0 + s.x1) / 2;
+  const legW = 0.09 * (s.x1 - s.x0);
+  const capW = 0.5 * legW;
+  const marks: Mark[] = [
+    mass(p.plane, [
+      { x: s.x0, y: s.floorY, z: at(p.plane)() },
+      { x: s.x0 + legW, y: s.floorY, z: at(p.plane)() },
+      { x: cx + capW / 2, y: s.topY, z: at(p.plane)() },
+      { x: cx - capW / 2, y: s.topY, z: at(p.plane)() },
+    ]),
+    mass(p.plane, [
+      { x: s.x1 - legW, y: s.floorY, z: at(p.plane)() },
+      { x: s.x1, y: s.floorY, z: at(p.plane)() },
+      { x: cx + capW / 2, y: s.topY, z: at(p.plane)() },
+      { x: cx - capW / 2, y: s.topY, z: at(p.plane)() },
+    ]),
+  ];
+  const trayY = s.floorY - 0.35 * s.h;
+  const barH = 0.015 * s.h;
+  marks.push(
+    mass(p.plane, rect(p.plane, s.x0 + 0.1 * (s.x1 - s.x0), trayY, s.x1 - 0.1 * (s.x1 - s.x0), trayY + barH)),
+    mass(p.plane, rect(p.plane, s.x0 + 0.2 * (s.x1 - s.x0), s.floorY - 0.6 * s.h, s.x1 - 0.2 * (s.x1 - s.x0), s.floorY - 0.6 * s.h + barH)),
+  );
   return marks;
 }

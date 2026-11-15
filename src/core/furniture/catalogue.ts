@@ -15,7 +15,17 @@ export type FurnitureKind =
   | 'coatRack'
   | 'ladderShelf'
   | 'roomDivider'
-  | 'desk';
+  | 'desk'
+  | 'bookcase'
+  | 'wardrobe'
+  | 'dresser'
+  | 'armchair'
+  | 'sofa'
+  | 'chinaCabinet'
+  | 'hallBench'
+  | 'rockingChair'
+  | 'piano'
+  | 'easel';
 
 export const FURNITURE_KINDS: readonly { value: FurnitureKind; weight: number }[] = [
   { value: 'coatStand', weight: 3 },
@@ -23,6 +33,16 @@ export const FURNITURE_KINDS: readonly { value: FurnitureKind; weight: number }[
   { value: 'ladderShelf', weight: 2 },
   { value: 'roomDivider', weight: 2 },
   { value: 'desk', weight: 3 },
+  { value: 'bookcase', weight: 3 },
+  { value: 'wardrobe', weight: 2 },
+  { value: 'dresser', weight: 3 },
+  { value: 'armchair', weight: 3 },
+  { value: 'sofa', weight: 2 },
+  { value: 'chinaCabinet', weight: 2 },
+  { value: 'hallBench', weight: 2 },
+  { value: 'rockingChair', weight: 2 },
+  { value: 'piano', weight: 2 },
+  { value: 'easel', weight: 3 },
 ];
 
 // The room owns six depth planes; the lamp always occupies plane 1, the

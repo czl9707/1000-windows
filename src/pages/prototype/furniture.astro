@@ -7,9 +7,9 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
     <h1>Furniture bench</h1>
     <p>
       Prototype, throwaway: the eyeball bench for the furniture layer. The
-      street rolls for real; the kinds row pins one piece per window beside
-      its lamp. Day and night follow the page theme; the buttons re-roll the
-      benches in place.
+      street rolls for real; the kinds sheet gives every catalogue kind one
+      large plate of its own. Day and night follow the page theme; the
+      buttons re-roll the benches in place.
     </p>
 
     <section>
@@ -21,18 +21,27 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
 
     <section>
       <h2>The kinds</h2>
-      <canvas id="kinds" width="900" height="480"></canvas>
-      <button id="kinds-reseed" type="button">New kinds row</button>
+      <canvas id="kinds" width="900" height="1410"></canvas>
+      <button id="kinds-reseed" type="button">New kinds sheet</button>
       <span id="kinds-seed"></span>
       <p>
-        One piece per window, its lamp pinned to the opposite edge — then the
-        desk again with its monitor (the street rolls one rarely, so it is
-        pinned here), and a last plate pinning the lamp onto the same edge as
-        the room divider, so the lamp reads in front of the piece. Move the
-        pointer: the eye follows it and the room drifts by depth.
+        One plate per kind — shell, curtain, sill, and a lamp pinned to the
+        piece's opposite edge — then two extra plates: the desk again with its
+        monitor (the street rolls one rarely, so it is pinned here), and a
+        last plate pinning the lamp onto the same edge as the room divider, so
+        the lamp reads in front of the piece. Move the pointer: the eye
+        follows it and the room drifts by depth. The bar at the bottom cycles
+        a single kind — <code>?kind=&lt;name&gt;</code> in the URL — one huge
+        plate.
       </p>
     </section>
   </main>
+
+  <div id="kind-switcher">
+    <button id="kind-prev" type="button" aria-label="Previous kind">&#8592;</button>
+    <span id="kind-label">all kinds</span>
+    <button id="kind-next" type="button" aria-label="Next kind">&#8594;</button>
+  </div>
 </BaseLayout>
 
 <style>
@@ -49,6 +58,36 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
   }
   section {
     margin-bottom: 2rem;
+  }
+  #kind-switcher {
+    position: fixed;
+    bottom: 1.25rem;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 1.25rem;
+    border-radius: 999px;
+    background: var(--color-primary-foreground);
+    color: var(--color-primary-background);
+    box-shadow: 0 4px 16px rgb(0 0 0 / 0.3);
+    z-index: 10;
+  }
+  #kind-switcher button {
+    background: none;
+    border: none;
+    color: inherit;
+    font: var(--typography-button-fontWeight) var(--typography-button-fontSize)
+      var(--typography-button-fontFamily);
+    cursor: pointer;
+    padding: 0;
+  }
+  #kind-switcher span {
+    font: var(--typography-body2-fontWeight) var(--typography-body2-fontSize)
+      var(--typography-body2-fontFamily);
+    min-width: 10ch;
+    text-align: center;
   }
 </style>
 
@@ -72,12 +111,42 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
   import { pinnedLamp } from '@/core/light/light';
   import { lampMarks } from '@/core/light/drawLamp';
   import { drawFurniture } from '@/core/furniture/drawFurniture';
-  import { FURNITURE_KINDS, type Screen } from '@/core/furniture/catalogue';
+  import { FURNITURE_KINDS, type FurnitureKind, type Screen } from '@/core/furniture/catalogue';
   import { makeProjection } from '@/motion/projection';
 
   const UNIT_PITCH_X = 2.3;
-  const UNIT_PITCH_Y = 2.25;
+  const UNIT_PITCH_Y = 1.8;
+  const SHEET_COLS = 3;
   const COUNT = 6;
+
+  const KIND_ORDER = FURNITURE_KINDS.map((k) => k.value);
+
+  // ?kind=<name> narrows the kinds sheet to one huge plate; anything else
+  // shows the full sheet. Shareable, reload-stable — this is a plain Astro
+  // page, so the URL is the only state.
+  function currentKind(): FurnitureKind | null {
+    const v = new URLSearchParams(window.location.search).get('kind');
+    return (KIND_ORDER as string[]).includes(v ?? '') ? (v as FurnitureKind) : null;
+  }
+
+  function setKindParam(kind: FurnitureKind | null): void {
+    const url = new URL(window.location.href);
+    if (kind) url.searchParams.set('kind', kind);
+    else url.searchParams.delete('kind');
+    history.replaceState(null, '', url);
+  }
+
+  function cycleKind(delta: number): void {
+    const cur = currentKind();
+    const idx = cur ? KIND_ORDER.indexOf(cur) : -1;
+    const next = KIND_ORDER[(idx + delta + KIND_ORDER.length) % KIND_ORDER.length]!;
+    setKindParam(next);
+    showKindLabel();
+  }
+
+  function showKindLabel(): void {
+    document.getElementById('kind-label')!.textContent = currentKind() ?? 'all kinds';
+  }
 
   // The pointer stands in for the eye, as in the motion strip: the plates
   // drift by depth under the gaze, so the bench shows the parallax the
@@ -95,15 +164,11 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
     return Array.from({ length: COUNT }, (_, i) => new Pen({ ...DEFAULT_TUNING }, windowSeed(seed, i, 0)));
   }
 
-  function layout(ctx: CanvasRenderingContext2D, box: { width: number; height: number; dpr: number }, count: number): void {
-    const cols = 3;
-    const rows = Math.ceil(count / cols);
+  function layout(ctx: CanvasRenderingContext2D, box: { width: number; height: number; dpr: number }, cols: number, rows: number): void {
     centreUnit(ctx, box, cols * UNIT_PITCH_X, rows * UNIT_PITCH_Y);
   }
 
-  function place(ctx: CanvasRenderingContext2D, i: number, count: number): void {
-    const cols = 3;
-    const rows = Math.ceil(count / cols);
+  function place(ctx: CanvasRenderingContext2D, i: number, cols: number, rows: number): void {
     ctx.translate(
       ((i % cols) - (cols - 1) / 2) * UNIT_PITCH_X,
       (Math.floor(i / cols) - (rows - 1) / 2) * UNIT_PITCH_Y,
@@ -127,11 +192,11 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
         const box = cssBox(canvas);
         ctx.fillStyle = theme.paper;
         ctx.fillRect(0, 0, box.width * box.dpr, box.height * box.dpr);
-        layout(ctx, box, COUNT);
+        layout(ctx, box, SHEET_COLS, Math.ceil(COUNT / SHEET_COLS));
         street.forEach((pen, i) => {
           pen.setTime(time);
           ctx.save();
-          place(ctx, i, COUNT);
+          place(ctx, i, SHEET_COLS, Math.ceil(COUNT / SHEET_COLS));
           drawWindow(ctx, pen, windowPalette(pen.seed, theme), eye, theme.isNight);
           ctx.restore();
         });
@@ -143,11 +208,52 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
     });
   }
 
-  // The kinds row: one pinned piece per window standing opposite its lamp,
+  // The kinds sheet: one pinned piece per kind standing opposite its lamp,
   // the tenant layers assembled as the wall assembles them — then the desk
   // again with its monitor, and a last plate pinning the lamp onto the
   // piece's own edge, so the lamp in front of the furniture reads where it
-  // can actually overlap.
+  // can actually overlap. ?kind= collapses the sheet to that one kind, one
+  // huge plate.
+  interface KindPlate {
+    kind: FurnitureKind;
+    plane: 2 | 3 | 4 | 5 | 6;
+    side: 'left' | 'right';
+    screen: Screen | undefined;
+    lampLocation: 'innerLeft' | 'innerRight' | 'left' | 'right';
+  }
+
+  function sheetPlates(): KindPlate[] {
+    const planes = [2, 3, 4, 5, 6] as const;
+    const pins = [
+      {
+        kind: 'desk' as const,
+        plane: 4 as const,
+        side: 'right' as const,
+        screen: 'monitor' as const,
+        lampLocation: 'innerLeft' as const,
+      },
+      {
+        kind: 'roomDivider' as const,
+        plane: 3 as const,
+        side: 'left' as const,
+        screen: undefined,
+        lampLocation: 'left' as const,
+      },
+    ];
+    return [
+      ...KIND_ORDER.map((kind, i) => ({
+        kind,
+        plane: planes[i % planes.length],
+        side: (i % 2 === 0 ? 'left' : 'right') as 'left' | 'right',
+        screen: (kind === 'desk' ? 'laptop' : undefined) as Screen | undefined,
+        lampLocation: (i % 2 === 0 ? 'innerRight' : 'innerLeft') as 'innerRight' | 'innerLeft',
+      })),
+      ...pins,
+    ];
+  }
+
+  const labelFont = `${getComputedStyle(document.body).getPropertyValue('--typography-body2-fontFamily').trim() || 'sans-serif'}`;
+
   function mountKinds(canvas: HTMLCanvasElement, label: HTMLSpanElement, button: HTMLButtonElement): void {
     let seed = rollSeed();
     const show = () => (label.textContent = `seed ${seed}`);
@@ -158,27 +264,13 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
         const box = cssBox(canvas);
         ctx.fillStyle = theme.paper;
         ctx.fillRect(0, 0, box.width * box.dpr, box.height * box.dpr);
-        const kinds = FURNITURE_KINDS.map((k) => k.value);
-        const plates = [...kinds.map((kind, i) => ({
-          kind,
-          plane: ([2, 3, 4, 5, 6] as const)[i],
-          side: (i % 2 === 0 ? 'left' : 'right') as 'left' | 'right',
-          screen: (kind === 'desk' ? 'laptop' : undefined) as Screen | undefined,
-          lampLocation: (i % 2 === 0 ? 'innerRight' : 'innerLeft') as 'innerRight' | 'innerLeft',
-        })), {
-          kind: 'desk' as const,
-          plane: 4 as const,
-          side: 'right' as const,
-          screen: 'monitor' as const,
-          lampLocation: 'innerLeft' as const,
-        }, {
-          kind: 'roomDivider' as const,
-          plane: 3 as const,
-          side: 'left' as const,
-          screen: undefined,
-          lampLocation: 'left' as const,
-        }];
-        layout(ctx, box, plates.length);
+        const one = currentKind();
+        const plates = one
+          ? [sheetPlates().find((p) => p.kind === one)!]
+          : sheetPlates();
+        const cols = one ? 1 : SHEET_COLS;
+        const rows = Math.ceil(plates.length / cols);
+        layout(ctx, box, cols, rows);
         plates.forEach((p, i) => {
           const pen = new Pen({ ...DEFAULT_TUNING }, windowSeed(seed, i, 0));
           pen.setTime(time);
@@ -189,7 +281,7 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
           const sill = sillMarks(rng, opening);
           const lamp = pinnedLamp({ location: p.lampLocation });
           ctx.save();
-          place(ctx, i, plates.length);
+          place(ctx, i, cols, rows);
           execute(
             [
               ...shellMarks(plan),
@@ -204,6 +296,15 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
             makeProjection(eye),
             opening,
           );
+          ctx.restore();
+          // The kind's name under its plate, in the page's ink — a judging
+          // sheet labels its exhibits.
+          ctx.save();
+          ctx.fillStyle = theme.ink;
+          ctx.globalAlpha = 0.7;
+          ctx.font = `0.16px ${labelFont}`;
+          ctx.textAlign = 'center';
+          ctx.fillText(p.kind, 0, 0.78);
           ctx.restore();
         });
       },
@@ -226,4 +327,15 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
     el('kinds-seed'),
     el('kinds-reseed') as HTMLButtonElement,
   );
+
+  showKindLabel();
+  document.getElementById('kind-prev')!.addEventListener('click', () => cycleKind(-1));
+  document.getElementById('kind-next')!.addEventListener('click', () => cycleKind(1));
+  window.addEventListener('keydown', (e) => {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    const t = e.target as HTMLElement | null;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
+    e.preventDefault();
+    cycleKind(e.key === 'ArrowLeft' ? -1 : 1);
+  });
 </script>

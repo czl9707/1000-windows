@@ -226,6 +226,22 @@ describe('the furniture drawer', () => {
     expect(marks.length).toBe(7);
   });
 
+  it('clears the sightline — every kind reaches above the opening bottom', () => {
+    // The floor sits on the lamps' standing line, well below the opening's
+    // bottom edge: a kind reads through the window only where some point of
+    // its silhouette rises above that sightline.
+    for (const { value: kind } of FURNITURE_KINDS) {
+      const marks = drawFurniture(
+        { pieces: [{ kind, plane: 3, side: 'left', screen: 'laptop' }] },
+        OPENING,
+      );
+      const clears = marks.some(
+        (m) => m.role === 'furniture' && m.pts.some((p) => p.y < OPENING.bottom),
+      );
+      expect(clears, kind).toBe(true);
+    }
+  });
+
   it('never throws across a sweep', () => {
     for (let i = 0; i < 300; i++) {
       const rng = fork(90000 + i * 104729, 'dna');
