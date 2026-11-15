@@ -226,10 +226,11 @@ describe('the furniture drawer', () => {
     expect(marks.length).toBe(7);
   });
 
-  it('clears the sightline — every kind reaches above the opening bottom', () => {
+  it('clears the sightline — every kind shows through the window (the desk via its screen)', () => {
     // The floor sits on the lamps' standing line, well below the opening's
     // bottom edge: a kind reads through the window only where some point of
-    // its silhouette rises above that sightline.
+    // its silhouette rises above that sightline. The desk's body is wholly
+    // below it — the desk shows through its rolled screen alone.
     for (const { value: kind } of FURNITURE_KINDS) {
       const marks = drawFurniture(
         { pieces: [{ kind, plane: 3, side: 'left', screen: 'laptop' }] },

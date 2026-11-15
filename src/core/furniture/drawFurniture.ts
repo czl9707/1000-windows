@@ -1,10 +1,10 @@
 // The furniture drawer: one pure emitter per catalogue kind, turning a
 // FurniturePiece and the room rectangle into the marks of one flat
-// side-silhouette. Every piece is one
-// uniform gray ('furniture') and nothing else dresses here — no interior
-// strokes, no second gray; what the construction needs to read (the ladder
-// shelf's boards) is part of the silhouette mass, the same gray — and the
-// desk's screen is part of the construction too, never emitting.
+// side-silhouette. Every piece is one uniform gray ('furniture') and
+// nothing else dresses here — no interior strokes, no second gray; what the
+// construction needs to read (the ladder shelf's boards) is part of the
+// silhouette mass, the same gray — and the desk's screen is part of the
+// construction too, never emitting.
 //
 // The piece stands on the room's real floor, hugging its rolled edge with a
 // small gap, and is drawn whole — the room's margins and the hidden floor
@@ -122,6 +122,29 @@ function rect(plane: DepthPlane, x0: number, y0: number, x1: number, y1: number)
   return rectPts(x0, y0, x1, y1, at(plane));
 }
 
+// Evenly spaced horizontal bars filling a span — the shelf boards, the
+// cabinet rails — as silhouette masses of the same gray. The inset may
+// taper with the run (the leaning shelf's boards chase the rails).
+function barsBetween(
+  plane: DepthPlane,
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+  count: number,
+  barH: number,
+  insetAt: (t: number) => number,
+): Pt3[][] {
+  const bars: Pt3[][] = [];
+  for (let i = 0; i < count; i++) {
+    const t = (i + 1) / (count + 1);
+    const y = y0 + t * (y1 - y0);
+    const inset = insetAt(t);
+    bars.push(rect(plane, x0 + inset, y - barH / 2, x1 - inset, y + barH / 2));
+  }
+  return bars;
+}
+
 function trapezoid(plane: DepthPlane, cx: number, topY: number, topW: number, bottomY: number, bottomW: number): Pt3[] {
   return [
     { x: cx - topW / 2, y: topY, z: at(plane)() },
@@ -177,11 +200,8 @@ function ladderShelf(p: FurniturePiece, s: Spot): Mark[] {
   ];
   const count = 5;
   const boardH = 0.02 * s.h;
-  for (let i = 0; i < count; i++) {
-    const t = (i + 1) / (count + 1);
-    const y = s.floorY + t * (s.topY - s.floorY);
-    const inset = lean * (1 - t) + railW;
-    marks.push(mass(p.plane, rect(p.plane, s.x0 + inset, y - boardH / 2, s.x1 - inset, y + boardH / 2)));
+  for (const pts of barsBetween(p.plane, s.x0, s.floorY, s.x1, s.topY, count, boardH, (t) => lean * (1 - t) + railW)) {
+    marks.push(mass(p.plane, pts));
   }
   return marks;
 }
@@ -241,10 +261,8 @@ function bookcase(p: FurniturePiece, s: Spot): Mark[] {
   ];
   const count = 4;
   const shelfH = 0.02 * s.h;
-  for (let i = 0; i < count; i++) {
-    const t = (i + 1) / (count + 1);
-    const y = s.floorY + t * (s.topY + slabH - s.floorY);
-    marks.push(mass(p.plane, rect(p.plane, s.x0 + sideW, y - shelfH / 2, s.x1 - sideW, y + shelfH / 2)));
+  for (const pts of barsBetween(p.plane, s.x0, s.floorY, s.x1, s.topY + slabH, count, shelfH, () => sideW)) {
+    marks.push(mass(p.plane, pts));
   }
   return marks;
 }
@@ -316,10 +334,8 @@ function chinaCabinet(p: FurniturePiece, s: Spot): Mark[] {
   ];
   const count = 2;
   const shelfH = 0.02 * s.h;
-  for (let i = 0; i < count; i++) {
-    const t = (i + 1) / (count + 1);
-    const y = chestTopY + t * (s.topY + slabH - chestTopY);
-    marks.push(mass(p.plane, rect(p.plane, s.x0 + sideW, y - shelfH / 2, s.x1 - sideW, y + shelfH / 2)));
+  for (const pts of barsBetween(p.plane, s.x0, chestTopY, s.x1, s.topY + slabH, count, shelfH, () => sideW)) {
+    marks.push(mass(p.plane, pts));
   }
   return marks;
 }

@@ -39,7 +39,7 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
 
   <div id="kind-switcher">
     <button id="kind-prev" type="button" aria-label="Previous kind">&#8592;</button>
-    <span id="kind-label">all kinds</span>
+    <button id="kind-label" type="button" aria-label="Back to the full sheet">all kinds</button>
     <button id="kind-next" type="button" aria-label="Next kind">&#8594;</button>
   </div>
 </BaseLayout>
@@ -83,11 +83,11 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
     cursor: pointer;
     padding: 0;
   }
-  #kind-switcher span {
-    font: var(--typography-body2-fontWeight) var(--typography-body2-fontSize)
-      var(--typography-body2-fontFamily);
+  /* The label doubles as the way back to the full sheet. */
+  #kind-label {
     min-width: 10ch;
     text-align: center;
+    text-decoration: underline;
   }
 </style>
 
@@ -331,6 +331,10 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
   showKindLabel();
   document.getElementById('kind-prev')!.addEventListener('click', () => cycleKind(-1));
   document.getElementById('kind-next')!.addEventListener('click', () => cycleKind(1));
+  document.getElementById('kind-label')!.addEventListener('click', () => {
+    setKindParam(null);
+    showKindLabel();
+  });
   window.addEventListener('keydown', (e) => {
     if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
     const t = e.target as HTMLElement | null;
