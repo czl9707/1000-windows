@@ -24,6 +24,12 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
       <canvas id="kinds" width="900" height="480"></canvas>
       <button id="kinds-reseed" type="button">New kinds row</button>
       <span id="kinds-seed"></span>
+      <p>
+        One piece per window, its lamp pinned to the opposite edge — except
+        the last plate, which pins the lamp onto the same edge as the room
+        divider, so the lamp reads in front of the piece. Move the pointer:
+        the eye follows it and the room drifts by depth.
+      </p>
     </section>
   </main>
 </BaseLayout>
@@ -66,11 +72,23 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
   import { lampMarks } from '@/core/light/drawLamp';
   import { drawFurniture } from '@/core/furniture/drawFurniture';
   import { FURNITURE_KINDS, type Screen } from '@/core/furniture/catalogue';
-  import { makeProjection, CENTRE_EYE } from '@/motion/projection';
+  import { makeProjection } from '@/motion/projection';
 
   const UNIT_PITCH_X = 2.3;
   const UNIT_PITCH_Y = 2.25;
   const COUNT = 6;
+
+  // The pointer stands in for the eye, as in the motion strip: the plates
+  // drift by depth under the gaze, so the bench shows the parallax the
+  // pieces are drawn past the opening to survive.
+  function pointerEye(): (canvas: HTMLCanvasElement) => { x: number; y: number } {
+    const pointer = { x: 0, y: 0 };
+    window.addEventListener('pointermove', (e) => {
+      pointer.x = e.clientX / window.innerWidth - 0.5;
+      pointer.y = e.clientY / window.innerHeight - 0.5;
+    });
+    return () => ({ ...pointer });
+  }
 
   function pens(seed: number): Pen[] {
     return Array.from({ length: COUNT }, (_, i) => new Pen({ ...DEFAULT_TUNING }, windowSeed(seed, i, 0)));
@@ -102,72 +120,86 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
     };
     show();
     let street = pens(seed);
-    createDemoLoop(canvas, (ctx, time, theme: Theme) => {
-      const box = cssBox(canvas);
-      ctx.fillStyle = theme.paper;
-      ctx.fillRect(0, 0, box.width * box.dpr, box.height * box.dpr);
-      layout(ctx, box);
-      street.forEach((pen, i) => {
-        pen.setTime(time);
-        ctx.save();
-        place(ctx, i);
-        drawWindow(ctx, pen, windowPalette(pen.seed, theme), CENTRE_EYE, theme.isNight);
-        ctx.restore();
-      });
-    });
+    createDemoLoop(
+      canvas,
+      (ctx, time, theme: Theme, eye) => {
+        const box = cssBox(canvas);
+        ctx.fillStyle = theme.paper;
+        ctx.fillRect(0, 0, box.width * box.dpr, box.height * box.dpr);
+        layout(ctx, box);
+        street.forEach((pen, i) => {
+          pen.setTime(time);
+          ctx.save();
+          place(ctx, i);
+          drawWindow(ctx, pen, windowPalette(pen.seed, theme), eye, theme.isNight);
+          ctx.restore();
+        });
+      },
+      pointerEye(),
+    );
     button.addEventListener('click', () => {
       street = rebuild();
     });
   }
 
   // The kinds row: one pinned piece per window standing opposite its lamp,
-  // the tenant layers rolled for real so the occlusions read as they will
-  // on the wall.
+  // the tenant layers assembled as the wall assembles them — and a sixth
+  // plate pinning the lamp onto the piece's own edge, so the lamp in front
+  // of the furniture reads where it can actually overlap.
   function mountKinds(canvas: HTMLCanvasElement, label: HTMLSpanElement, button: HTMLButtonElement): void {
     let seed = rollSeed();
     const show = () => (label.textContent = `seed ${seed}`);
     show();
-    createDemoLoop(canvas, (ctx, time, theme: Theme) => {
-      const box = cssBox(canvas);
-      ctx.fillStyle = theme.paper;
-      ctx.fillRect(0, 0, box.width * box.dpr, box.height * box.dpr);
-      layout(ctx, box);
-      const kinds = FURNITURE_KINDS.map((k) => k.value);
-      kinds.forEach((kind, i) => {
-        const pen = new Pen({ ...DEFAULT_TUNING }, windowSeed(seed, i, 0));
-        pen.setTime(time);
-        const plan = expandShell(pen.seed);
-        const opening = innerRect(plan.faceWidth);
-        const rng = fork(pen.seed, 'dna');
-        const curtain = curtainMarks(rng, opening);
-        const sill = sillMarks(rng, opening);
-        const lamp = pinnedLamp({ location: i % 2 === 0 ? 'innerRight' : 'innerLeft' });
-        const screen: Screen | undefined = kind === 'desk' ? 'laptop' : undefined;
-        const planes = [2, 3, 4, 5, 6] as const;
-        const piece = {
+    createDemoLoop(
+      canvas,
+      (ctx, time, theme: Theme, eye) => {
+        const box = cssBox(canvas);
+        ctx.fillStyle = theme.paper;
+        ctx.fillRect(0, 0, box.width * box.dpr, box.height * box.dpr);
+        layout(ctx, box);
+        const kinds = FURNITURE_KINDS.map((k) => k.value);
+        const plates = [...kinds.map((kind, i) => ({
           kind,
-          plane: planes[i],
-          side: i % 2 === 0 ? ('left' as const) : ('right' as const),
-          screen,
-        };
-        ctx.save();
-        place(ctx, i);
-        execute(
-          [
-            ...shellMarks(plan),
-            ...lampMarks(lamp, opening, theme.isNight),
-            ...drawFurniture({ pieces: [piece] }, opening),
-            ...curtain,
-            ...sill,
-          ],
-          pen,
-          ctx,
-          windowPalette(pen.seed, theme),
-          makeProjection(CENTRE_EYE),
-        );
-        ctx.restore();
-      });
-    });
+          plane: ([2, 3, 4, 5, 6] as const)[i],
+          side: (i % 2 === 0 ? 'left' : 'right') as 'left' | 'right',
+          screen: (kind === 'desk' ? 'laptop' : undefined) as Screen | undefined,
+          lampLocation: (i % 2 === 0 ? 'innerRight' : 'innerLeft') as 'innerRight' | 'innerLeft',
+        })), {
+          kind: 'roomDivider' as const,
+          plane: 3 as const,
+          side: 'left' as const,
+          screen: undefined,
+          lampLocation: 'left' as const,
+        }];
+        plates.forEach((p, i) => {
+          const pen = new Pen({ ...DEFAULT_TUNING }, windowSeed(seed, i, 0));
+          pen.setTime(time);
+          const plan = expandShell(pen.seed);
+          const opening = innerRect(plan.faceWidth);
+          const rng = fork(pen.seed, 'dna');
+          const curtain = curtainMarks(rng, opening);
+          const sill = sillMarks(rng, opening);
+          const lamp = pinnedLamp({ location: p.lampLocation });
+          ctx.save();
+          place(ctx, i);
+          execute(
+            [
+              ...shellMarks(plan),
+              ...lampMarks(lamp, opening, theme.isNight),
+              ...drawFurniture({ pieces: [{ kind: p.kind, plane: p.plane, side: p.side, screen: p.screen }] }, opening),
+              ...curtain,
+              ...sill,
+            ],
+            pen,
+            ctx,
+            windowPalette(pen.seed, theme),
+            makeProjection(eye),
+          );
+          ctx.restore();
+        });
+      },
+      pointerEye(),
+    );
     button.addEventListener('click', () => {
       seed = rollSeed();
       show();
