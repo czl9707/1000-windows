@@ -10,9 +10,7 @@
 // small gap, and is drawn whole — the room's margins and the hidden floor
 // included — never clipped here: the walk's draw stage clips the interior
 // to the opening after projection, so the parallax drift shifts the room
-// under a fixed frame and never bares a hard cut. Trace names are bare ids
-// unique within a window, prefixed per piece `furn<plane>-`; the planes are
-// distinct, so the prefixes cannot collide.
+// under a fixed frame and never bares a hard cut.
 import type { Mark } from '@/core/scene';
 import { GOLDEN_ANGLE } from '@/core/scene/hand';
 import type { Pt3 } from '@/motion/projection';
