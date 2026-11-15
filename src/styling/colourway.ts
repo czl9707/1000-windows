@@ -247,9 +247,6 @@ const ROLE_RESOLVERS: Record<ColorRole, (ctx: RoleContext) => ResolvedColor> = {
   ambient: warmthResolver((tuning) => tuning.ambientAlpha),
   aura: warmthResolver((tuning) => tuning.auraAlpha),
   veil: ({ theme, tuning }) => ({ color: theme.paper, alpha: tuning.veilAlpha }),
-  // The furniture gray reads the theme pair alone — no colourway roll, no
-  // per-seed difference: the mix constant is the whole decision, and a
-  // theme flip re-derives it by construction.
   furniture: ({ theme }) => ({ color: mixCss(theme.paper, theme.ink, FURNITURE_INK_MIX), alpha: OCCLUDE }),
 };
 // The window's own palette: theme-bound roles resolve from the theme's two
