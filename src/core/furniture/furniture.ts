@@ -37,6 +37,14 @@ const COUNT_WITHOUT_LAMP = [
 // same-edge rooms stay possible.
 const OPPOSITE_BIAS = 2;
 
+// One pick out of a shrinking pool: the roll consumes the entry, so the
+// next pick in the same room never repeats it.
+function takeWeighted<T>(rng: Rng, pool: { value: T; weight: number }[]): T {
+  const picked = rng.weighted(pool);
+  pool.splice(pool.findIndex((entry) => entry.value === picked), 1);
+  return picked;
+}
+
 // The furniture rolls on the caller's DNA stream, appended after the light
 // block: the tenant walk hands the live generator, so layers appended after
 // this one keep their draw order.
@@ -46,10 +54,9 @@ export function expandFurniture(rng: Rng, lampOwned: boolean): FurniturePlan {
   const planes = FURNITURE_PLANES.map((p) => ({ value: p, weight: 1 }));
   const pieces: FurniturePiece[] = [];
   for (let n = 0; n < count; n++) {
-    const kind: FurnitureKind = rng.weighted(kinds);
-    kinds.splice(kinds.findIndex((k) => k.value === kind), 1);
-    const plane: DepthPlane = rng.weighted(planes);
-    planes.splice(planes.findIndex((p) => p.value === plane), 1);
+    const kind = takeWeighted(rng, kinds);
+    const plane = takeWeighted(rng, planes);
+    const firstSide = pieces[0]!.side;
     const sides: { value: 'left' | 'right'; weight: number }[] =
       n === 0
         ? [
@@ -57,8 +64,8 @@ export function expandFurniture(rng: Rng, lampOwned: boolean): FurniturePlan {
             { value: 'right', weight: 1 },
           ]
         : [
-            { value: pieces[0]!.side === 'left' ? 'right' : 'left', weight: OPPOSITE_BIAS },
-            { value: pieces[0]!.side, weight: 1 },
+            { value: firstSide === 'left' ? 'right' : 'left', weight: OPPOSITE_BIAS },
+            { value: firstSide, weight: 1 },
           ];
     pieces.push({ kind, plane, side: rng.weighted(sides) });
   }

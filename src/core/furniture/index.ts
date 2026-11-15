@@ -4,4 +4,4 @@
 // the constructions, the room rectangle) lives on the child modules; import
 // it there directly.
 export { expandFurniture } from './furniture';
-export type { FurniturePlan, FurniturePiece } from './furniture';
+export type { FurniturePlan } from './furniture';
