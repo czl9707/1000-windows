@@ -329,10 +329,10 @@ describe('the furniture behind the glass', () => {
   // The lamp counts toward the cap regardless of theme, so flipping day to
   // night re-dresses the scene and never re-rolls the room.
   it('keeps the furniture when the theme flips', () => {
+    const key = (m: { kind: string; role: string; z: number; pts: { x: number; y: number; z: number }[] }) =>
+      `${m.kind}|${m.role}|${m.z}|${m.pts.map((p) => `${p.x},${p.y},${p.z}`).join(';')}`;
     for (let i = 0; i < 100; i++) {
       const seed = 98000 + i * 104729;
-      const key = (m: { kind: string; role: string; z: number; pts: { x: number; y: number; z: number }[] }) =>
-        `${m.kind}|${m.role}|${m.z}|${m.pts.map((p) => `${p.x},${p.y},${p.z}`).join(';')}`;
       const day = windowSceneMarks(seed, expandShell(seed), false).filter(
         (m) => m.z < LIGHT_Z && m.z > SHELL_Z.backing,
       );
