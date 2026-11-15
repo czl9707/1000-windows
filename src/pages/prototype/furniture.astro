@@ -38,7 +38,7 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
     width: 100%;
     height: auto;
     display: block;
-    border: 1px solid var(--color-ink);
+    border: var(--border);
   }
   section {
     margin-bottom: 2rem;
@@ -102,12 +102,13 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
     };
     show();
     let street = pens(seed);
-    createDemoLoop(canvas, (ctx, _time, theme: Theme) => {
+    createDemoLoop(canvas, (ctx, time, theme: Theme) => {
       const box = cssBox(canvas);
       ctx.fillStyle = theme.paper;
       ctx.fillRect(0, 0, box.width * box.dpr, box.height * box.dpr);
       layout(ctx, box);
       street.forEach((pen, i) => {
+        pen.setTime(time);
         ctx.save();
         place(ctx, i);
         drawWindow(ctx, pen, windowPalette(pen.seed, theme), CENTRE_EYE, theme.isNight);
@@ -126,7 +127,7 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
     let seed = rollSeed();
     const show = () => (label.textContent = `seed ${seed}`);
     show();
-    const loop = createDemoLoop(canvas, (ctx, _time, theme: Theme) => {
+    createDemoLoop(canvas, (ctx, time, theme: Theme) => {
       const box = cssBox(canvas);
       ctx.fillStyle = theme.paper;
       ctx.fillRect(0, 0, box.width * box.dpr, box.height * box.dpr);
@@ -134,6 +135,7 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
       const kinds = FURNITURE_KINDS.map((k) => k.value);
       kinds.forEach((kind, i) => {
         const pen = new Pen({ ...DEFAULT_TUNING }, windowSeed(seed, i, 0));
+        pen.setTime(time);
         const plan = expandShell(pen.seed);
         const opening = innerRect(plan.faceWidth);
         const rng = fork(pen.seed, 'dna');
