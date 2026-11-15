@@ -15,7 +15,6 @@ import {
   type Palette,
   type ResolvedColor,
   type Theme,
-  FURNITURE_DETAIL_INK_MIX,
   FURNITURE_INK_MIX,
   GLASS_WASH,
   OCCLUDE,
@@ -220,15 +219,6 @@ const warmthResolver =
     return { color, alpha: alphaOf(tuning) };
   };
 
-// The furniture grays resolve from the theme pair alone — no colourway roll,
-// no per-seed difference: the mix constant is the whole decision, and a
-// theme flip re-derives both grays by construction.
-const grayResolver = (inkMix: number) =>
-  (ctx: RoleContext): ResolvedColor => {
-    const { theme } = ctx;
-    return { color: mixCss(theme.paper, theme.ink, inkMix), alpha: OCCLUDE };
-  };
-
 // One resolver per role, so a new role is one map row: theme-bound roles read
 // the theme pair, tinted roles resolve their colourway group through a tint.
 // A role missing from the map fails the compile — and a caller casting past
@@ -257,8 +247,10 @@ const ROLE_RESOLVERS: Record<ColorRole, (ctx: RoleContext) => ResolvedColor> = {
   ambient: warmthResolver((tuning) => tuning.ambientAlpha),
   aura: warmthResolver((tuning) => tuning.auraAlpha),
   veil: ({ theme, tuning }) => ({ color: theme.paper, alpha: tuning.veilAlpha }),
-  furniture: grayResolver(FURNITURE_INK_MIX),
-  furnitureDetail: grayResolver(FURNITURE_DETAIL_INK_MIX),
+  // The furniture gray reads the theme pair alone — no colourway roll, no
+  // per-seed difference: the mix constant is the whole decision, and a
+  // theme flip re-derives it by construction.
+  furniture: ({ theme }) => ({ color: mixCss(theme.paper, theme.ink, FURNITURE_INK_MIX), alpha: OCCLUDE }),
 };
 // The window's own palette: theme-bound roles resolve from the theme's two
 // colours; tinted roles resolve from the colourway. A role with no

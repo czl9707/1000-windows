@@ -25,10 +25,11 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
       <button id="kinds-reseed" type="button">New kinds row</button>
       <span id="kinds-seed"></span>
       <p>
-        One piece per window, its lamp pinned to the opposite edge — except
-        the last plate, which pins the lamp onto the same edge as the room
-        divider, so the lamp reads in front of the piece. Move the pointer:
-        the eye follows it and the room drifts by depth.
+        One piece per window, its lamp pinned to the opposite edge — then the
+        desk again with its monitor (the street rolls one rarely, so it is
+        pinned here), and a last plate pinning the lamp onto the same edge as
+        the room divider, so the lamp reads in front of the piece. Move the
+        pointer: the eye follows it and the room drifts by depth.
       </p>
     </section>
   </main>
@@ -94,15 +95,15 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
     return Array.from({ length: COUNT }, (_, i) => new Pen({ ...DEFAULT_TUNING }, windowSeed(seed, i, 0)));
   }
 
-  function layout(ctx: CanvasRenderingContext2D, box: { width: number; height: number; dpr: number }): void {
+  function layout(ctx: CanvasRenderingContext2D, box: { width: number; height: number; dpr: number }, count: number): void {
     const cols = 3;
-    const rows = Math.ceil(COUNT / cols);
+    const rows = Math.ceil(count / cols);
     centreUnit(ctx, box, cols * UNIT_PITCH_X, rows * UNIT_PITCH_Y);
   }
 
-  function place(ctx: CanvasRenderingContext2D, i: number): void {
+  function place(ctx: CanvasRenderingContext2D, i: number, count: number): void {
     const cols = 3;
-    const rows = Math.ceil(COUNT / cols);
+    const rows = Math.ceil(count / cols);
     ctx.translate(
       ((i % cols) - (cols - 1) / 2) * UNIT_PITCH_X,
       (Math.floor(i / cols) - (rows - 1) / 2) * UNIT_PITCH_Y,
@@ -126,11 +127,11 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
         const box = cssBox(canvas);
         ctx.fillStyle = theme.paper;
         ctx.fillRect(0, 0, box.width * box.dpr, box.height * box.dpr);
-        layout(ctx, box);
+        layout(ctx, box, COUNT);
         street.forEach((pen, i) => {
           pen.setTime(time);
           ctx.save();
-          place(ctx, i);
+          place(ctx, i, COUNT);
           drawWindow(ctx, pen, windowPalette(pen.seed, theme), eye, theme.isNight);
           ctx.restore();
         });
@@ -143,9 +144,10 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
   }
 
   // The kinds row: one pinned piece per window standing opposite its lamp,
-  // the tenant layers assembled as the wall assembles them — and a sixth
-  // plate pinning the lamp onto the piece's own edge, so the lamp in front
-  // of the furniture reads where it can actually overlap.
+  // the tenant layers assembled as the wall assembles them — then the desk
+  // again with its monitor, and a last plate pinning the lamp onto the
+  // piece's own edge, so the lamp in front of the furniture reads where it
+  // can actually overlap.
   function mountKinds(canvas: HTMLCanvasElement, label: HTMLSpanElement, button: HTMLButtonElement): void {
     let seed = rollSeed();
     const show = () => (label.textContent = `seed ${seed}`);
@@ -156,7 +158,6 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
         const box = cssBox(canvas);
         ctx.fillStyle = theme.paper;
         ctx.fillRect(0, 0, box.width * box.dpr, box.height * box.dpr);
-        layout(ctx, box);
         const kinds = FURNITURE_KINDS.map((k) => k.value);
         const plates = [...kinds.map((kind, i) => ({
           kind,
@@ -165,12 +166,19 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
           screen: (kind === 'desk' ? 'laptop' : undefined) as Screen | undefined,
           lampLocation: (i % 2 === 0 ? 'innerRight' : 'innerLeft') as 'innerRight' | 'innerLeft',
         })), {
+          kind: 'desk' as const,
+          plane: 4 as const,
+          side: 'right' as const,
+          screen: 'monitor' as const,
+          lampLocation: 'innerLeft' as const,
+        }, {
           kind: 'roomDivider' as const,
           plane: 3 as const,
           side: 'left' as const,
           screen: undefined,
           lampLocation: 'left' as const,
         }];
+        layout(ctx, box, plates.length);
         plates.forEach((p, i) => {
           const pen = new Pen({ ...DEFAULT_TUNING }, windowSeed(seed, i, 0));
           pen.setTime(time);
@@ -181,7 +189,7 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
           const sill = sillMarks(rng, opening);
           const lamp = pinnedLamp({ location: p.lampLocation });
           ctx.save();
-          place(ctx, i);
+          place(ctx, i, plates.length);
           execute(
             [
               ...shellMarks(plan),

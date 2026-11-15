@@ -184,13 +184,13 @@ describe('the furniture drawer', () => {
     expect(PLANE_DEPTH[2]).toBeLessThan(LIGHT_DEPTH);
   });
 
-  it('keeps to the two furniture roles, the screen in the same gray, emitting no light', () => {
+  it('keeps to the one furniture gray, emitting no light', () => {
     for (let i = 0; i < 200; i++) {
       const rng = fork(87000 + i * 104729, 'dna');
       const plan = expandFurniture(rng, false);
       const marks = drawFurniture(plan, OPENING);
       for (const role of roles(marks)) {
-        expect(['furniture', 'furnitureDetail']).toContain(role);
+        expect(role).toBe('furniture');
       }
     }
     // The desk's screen is part of the desk's silhouette — the same gray as
@@ -216,21 +216,14 @@ describe('the furniture drawer', () => {
     expect(screenW(monitor)).toBeCloseTo(0.35 * (4 / 3), 6);
   });
 
-  it('obeys the hand rule on the boards of a ladder shelf', () => {
+  it('carries the ladder shelf as one silhouette — rails and boards, no strokes', () => {
     const marks = drawFurniture(
       { pieces: [{ kind: 'ladderShelf', plane: 5, side: 'left' }] },
       OPENING,
     );
-    const boards = marks.filter((m) => m.kind === 'stroke' && m.name.includes('board'));
-    // Five boards designed; the hand rule omits some outright — the worked
-    // example for this count of dense lines leaves three.
-    expect(boards.length).toBe(3);
-    const widths = boards.map(
-      (m) => Math.max(...m.pts.map((p) => p.x)) - Math.min(...m.pts.map((p) => p.x)),
-    );
-    const shelfW = 0.3 * (OPENING.right - OPENING.left);
-    // A kept line runs over only part of its span at least somewhere.
-    expect(widths.some((w) => w < shelfW * 0.9)).toBe(true);
+    expect(marks.every((m) => m.kind === 'fill')).toBe(true);
+    // Five boards between the rails, all the same gray.
+    expect(marks.length).toBe(7);
   });
 
   it('names its traces uniquely and never throws across a sweep', () => {
