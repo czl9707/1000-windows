@@ -16,7 +16,7 @@
 import type { Mark } from '@/core/scene';
 import { GOLDEN_ANGLE } from '@/core/scene/hand';
 import type { Pt3 } from '@/motion/projection';
-import { line, rectPts, type PaneRect } from '@/core/window-shell/shell';
+import { rectPts, type PaneRect } from '@/core/window-shell/shell';
 import { PLANE_DEPTH, PLANE_Z, type DepthPlane, type FurnitureKind } from './catalogue';
 import { roomOf } from './room';
 import type { FurniturePiece, FurniturePlan } from './furniture';
