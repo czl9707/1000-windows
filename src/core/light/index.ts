@@ -10,6 +10,7 @@ import { lampMarks } from './drawLamp';
 import type { LampPlan } from './light';
 
 export { expandLight } from './light';
+export { lampMarks } from './drawLamp';
 export type { LampPlan } from './light';
 
 export function lightMarks(rng: Rng, opening: PaneRect, night: boolean): Mark[] {
