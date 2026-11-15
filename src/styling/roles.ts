@@ -65,7 +65,9 @@ export const OCCLUDE = 1;
 
 // The furniture grays, as the share of ink mixed into the theme paper: the
 // silhouette sits well below the paper's lightness, the detail strokes well
-// above the silhouette — two distinct grays, no colourway roll.
+// above it. Night swaps which of paper and ink is light, so the two grays
+// swap which of them is lighter — the detail keeps its contrast, as the
+// ink lines do.
 export const FURNITURE_INK_MIX = 0.35;
 export const FURNITURE_DETAIL_INK_MIX = 0.14;
 

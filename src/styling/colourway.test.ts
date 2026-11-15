@@ -302,8 +302,6 @@ describe('the furniture roles', () => {
     expect(bodyO.c).toBeLessThan(0.02);
     expect(detailO.c).toBeLessThan(0.02);
     expect(detailO.l).toBeGreaterThan(bodyO.l);
-    // The silhouette reads darker than the paper ground, the detail lighter
-    // than the body: two distinct grays either side of the silhouette.
     expect(bodyO.l).toBeLessThan(cssToOklch(LIGHT.paper).l);
   });
 
@@ -324,5 +322,13 @@ describe('the furniture roles', () => {
       cssToOklch(day('furniture').color).l,
     );
     expect(night('furniture').alpha).toBe(1);
+    // The theme itself inverts which of paper and ink is light, so the two
+    // grays swap which of them is lighter — the day's light detail strokes
+    // read as dark strokes on the night silhouette. What must hold both
+    // ways is the contrast: the detail stays apart from the body.
+    const bodyL = cssToOklch(night('furniture').color).l;
+    const detailL = cssToOklch(night('furnitureDetail').color).l;
+    expect(detailL).toBeLessThan(bodyL);
+    expect(bodyL - detailL).toBeGreaterThan(0.05);
   });
 });
