@@ -8,12 +8,15 @@
 // the glass".
 import type { PaneRect } from '@/core/window-shell/shell';
 
-// The margins, as shares of the opening's own measures: a small growth on
-// every side, the floor a tenth of the opening's height below its bottom
-// edge — enough that a desk still clears the sightline into view.
+// The side and top margins, as shares of the opening's own measures.
 const SIDE_MARGIN = 0.14;
 const TOP_MARGIN = 0.08;
-const FLOOR_DROP = 0.1;
+
+// The room's floor sits this far below the sightline — the standing line
+// the light layer's lamps already stand on (FLOOR_DROP there). One room,
+// one floor; a guard test pins the two constants together, and the pieces'
+// upper bodies clear the sightline the way the lamp shades do.
+export const ROOM_FLOOR_DROP = 0.85;
 
 export function roomOf(o: PaneRect): PaneRect {
   const w = o.right - o.left;
@@ -22,6 +25,6 @@ export function roomOf(o: PaneRect): PaneRect {
     left: o.left - SIDE_MARGIN * w,
     right: o.right + SIDE_MARGIN * w,
     top: o.top - TOP_MARGIN * h,
-    bottom: o.bottom + FLOOR_DROP * h,
+    bottom: o.bottom + ROOM_FLOOR_DROP,
   };
 }

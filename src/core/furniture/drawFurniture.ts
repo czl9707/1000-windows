@@ -2,36 +2,50 @@
 // ladderShelf, roomDivider, desk — turning a FurniturePiece and the room
 // rectangle into the marks of one flat side-silhouette. Every piece is one
 // uniform gray mass ('furniture') whose interior detail strokes read in the
-// lighter gray ('furnitureDetail'); nothing else dresses here. The desk's
-// screen is part of the construction and never emits — it paints in the
-// lamp structure's dark, the interior paint that skips the night mix, so a
-// screen reads dark at both themes while the light layer owns all light.
+// lighter gray ('furnitureDetail'); nothing else dresses here — the desk's
+// screen is part of the construction and never emits, painting the same
+// silhouette gray as its desk.
 //
 // The piece stands on the room's real floor, hugging its rolled edge with a
-// small gap, and is drawn whole — never clipped to the opening — so the
-// focal point's parallax drift never bares a hard cut; the frame face hides
-// what the wall should not show. Repeated interior strokes (shelf boards,
-// hook rows, lattice rows) obey the hand rule, deterministic on the
-// golden-angle sine, no stream draw. Trace names are bare ids unique within
-// a window, prefixed per piece `furn<plane>-`; the planes are distinct, so
-// the prefixes cannot collide.
+// small gap, and is drawn past the opening — the margins the room grows —
+// but clipped to the window box, so nothing lands on the wall around the
+// window; the frame face hides the margin band, and projection keeps a
+// box-clipped mark inside the box at any parallax drift (deeper planes
+// scale inward). Repeated interior strokes (shelf boards, hook rows,
+// lattice rows) obey the hand rule, deterministic on the golden-angle sine,
+// no stream draw. Trace names are bare ids unique within a window, prefixed
+// per piece `furn<plane>-`; the planes are distinct, so the prefixes cannot
+// collide.
 import type { Mark } from '@/core/scene';
+import { clipPoly, clipPolyline } from '@/core/scene/clip';
 import { GOLDEN_ANGLE, omitLine, lineSpan } from '@/core/scene/hand';
 import type { Pt3 } from '@/motion/projection';
 import { WEIGHTS } from '@/styling/weights';
-import { line, rectPts, type PaneRect } from '@/core/window-shell/shell';
+import { BOX, line, rectPts, type PaneRect } from '@/core/window-shell/shell';
 import { PLANE_DEPTH, PLANE_Z, type DepthPlane, type FurnitureKind } from './catalogue';
 import { roomOf } from './room';
 import type { FurniturePiece, FurniturePlan } from './furniture';
 
-// Kind constants of the silhouette, in unit measure as shares of the
-// opening's own width and height — every height stays under the opening's.
+// The window box: as far out as furniture may reach before the wall takes
+// over. Clipped here, never at the opening — the frame band belongs to the
+// room's margins.
+const BOX_RECT: PaneRect = {
+  left: -BOX.halfW,
+  right: BOX.halfW,
+  top: -BOX.halfH,
+  bottom: BOX.halfH,
+};
+
+// Kind constants of the silhouette, in unit measure: widths as shares of
+// the opening's own width, heights absolute — the pieces are as tall as
+// their real bodies, the floor sits at the room's depth, so only the upper
+// body clears the sightline the way the lamp shades do.
 const SIZES: Record<FurnitureKind, { w: number; h: number }> = {
-  coatStand: { w: 0.16, h: 0.8 },
-  coatRack: { w: 0.26, h: 0.66 },
-  ladderShelf: { w: 0.3, h: 0.85 },
-  roomDivider: { w: 0.3, h: 0.95 },
-  desk: { w: 0.52, h: 0.42 },
+  coatStand: { w: 0.16, h: 1.4 },
+  coatRack: { w: 0.26, h: 1.3 },
+  ladderShelf: { w: 0.3, h: 1.4 },
+  roomDivider: { w: 0.3, h: 1.5 },
+  desk: { w: 0.52, h: 0.75 },
 };
 
 // The hug: very close to the edge, a small gap allowed, wobbling a hair
@@ -64,7 +78,13 @@ export function drawFurniture(plan: FurniturePlan, opening: PaneRect): Mark[] {
   const room = roomOf(opening);
   const w = opening.right - opening.left;
   const h = opening.bottom - opening.top;
-  return plan.pieces.flatMap((p) => pieceMarks(p, room, w, h));
+  const drawn: Mark[] = [];
+  for (const mark of plan.pieces.flatMap((p) => pieceMarks(p, room, w, h))) {
+    const pts =
+      mark.kind === 'stroke' ? clipPolyline(mark.pts, BOX_RECT) : clipPoly(mark.pts, BOX_RECT);
+    if (pts.length >= (mark.kind === 'stroke' ? 2 : 3)) drawn.push({ ...mark, pts });
+  }
+  return drawn;
 }
 
 function pieceMarks(p: FurniturePiece, room: PaneRect, w: number, h: number): Mark[] {
@@ -128,13 +148,6 @@ function handDetail(name: string, i: number, plane: DepthPlane, x0: number, y0: 
       y0 + (y1 - y0) * f1,
     ),
   ];
-}
-
-// The screen's paint: the interior's dark — the lamp structure's role, the
-// one interior paint that skips the night mix — so the screen reads dark at
-// both themes.
-function lampPaint(plane: DepthPlane, pts: Pt3[]): Mark {
-  return { kind: 'fill', pts, role: 'lamp', z: z(plane) };
 }
 
 function rect(plane: DepthPlane, x0: number, y0: number, x1: number, y1: number): Pt3[] {
@@ -241,8 +254,9 @@ function roomDivider(p: FurniturePiece, s: Spot): Mark[] {
   return marks;
 }
 
-// A desk: the slab on two legs, the rolled screen sitting on the slab in
-// the interior's dark paint — a small dark shape that never emits.
+// A desk: the slab on two legs, the rolled screen sitting on the slab —
+// part of the desk's silhouette, the same gray as every piece, never a
+// light source. The monitor wears the typical desktop ratio.
 function desk(p: FurniturePiece, s: Spot): Mark[] {
   const pre = `furn${p.plane}`;
   const slabH = 0.035 * s.h;
@@ -255,16 +269,17 @@ function desk(p: FurniturePiece, s: Spot): Mark[] {
     mass(p.plane, rect(p.plane, s.x1 - 0.02 * s.w - legW, deskY + slabH, s.x1 - 0.02 * s.w, s.floorY)),
   ];
   if (p.screen === 'laptop') {
-    const lw = 0.16 * s.w;
-    const lh = 0.11 * s.h;
-    marks.push(lampPaint(p.plane, rect(p.plane, cx - lw / 2, deskY - lh, cx + lw / 2, deskY)));
+    const lw = 0.32;
+    const lh = 0.2;
+    marks.push(mass(p.plane, rect(p.plane, cx - lw / 2, deskY - lh, cx + lw / 2, deskY)));
   } else if (p.screen === 'monitor') {
-    const mw = 0.27 * s.w;
-    const mh = 0.17 * s.h;
+    const standH = 0.04;
+    const mh = 0.35;
+    const mw = mh * (4 / 3);
     const standW = 0.03 * s.w;
     marks.push(
-      lampPaint(p.plane, rect(p.plane, cx - standW / 2, deskY - 0.03 * s.h, cx + standW / 2, deskY)),
-      lampPaint(p.plane, rect(p.plane, cx - mw / 2, deskY - 0.03 * s.h - mh, cx + mw / 2, deskY - 0.03 * s.h)),
+      mass(p.plane, rect(p.plane, cx - standW / 2, deskY - standH, cx + standW / 2, deskY)),
+      mass(p.plane, rect(p.plane, cx - mw / 2, deskY - standH - mh, cx + mw / 2, deskY - standH)),
     );
   }
   return marks;

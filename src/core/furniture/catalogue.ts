@@ -31,7 +31,8 @@ export type DepthPlane = 2 | 3 | 4 | 5 | 6;
 export const FURNITURE_PLANES: readonly DepthPlane[] = [2, 3, 4, 5, 6];
 
 // The desk's screen is part of the desk construction, never a light source —
-// the light layer owns all light — so it reads as a small dark shape.
+// the light layer owns all light — and wears the same silhouette gray as
+// its desk.
 export type Screen = 'laptop' | 'monitor';
 export const SCREENS: readonly { value: Screen; weight: number }[] = [
   { value: 'laptop', weight: 2 },

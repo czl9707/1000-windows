@@ -12,6 +12,7 @@
 // No mark names a colour or a strength — styling resolves the roles. Trace
 // names are bare ids unique within a window, prefixed `lamp-`.
 import type { Mark } from '@/core/scene';
+import { clipPoly, clipPolyline } from '@/core/scene/clip';
 import type { Pt3 } from '@/motion/projection';
 import { WEIGHTS } from '@/styling/weights';
 import { line, rectPts, type PaneRect } from '@/core/window-shell/shell';
@@ -71,83 +72,8 @@ function trapezoid(cx: number, topY: number, topW: number, bottomY: number, bott
   ];
 }
 
-// Clipping, in unit measure. A stroke is cut into the segments the opening
-// contains; a fill is intersected with the opening — never clamped, which
-// would squash a shape into a sliver along the edge.
-function clippedSegment(a: Pt3, b: Pt3, o: PaneRect): [Pt3, Pt3] | null {
-  let t0 = 0;
-  let t1 = 1;
-  const dx = b.x - a.x;
-  const dy = b.y - a.y;
-  const bounds: [number, number][] = [
-    [-dx, a.x - o.left],
-    [dx, o.right - a.x],
-    [-dy, a.y - o.top],
-    [dy, o.bottom - a.y],
-  ];
-  for (const [p, q] of bounds) {
-    if (p === 0) {
-      if (q < 0) return null;
-      continue;
-    }
-    const t = q / p;
-    if (p < 0) {
-      if (t > t1) return null;
-      if (t > t0) t0 = t;
-    } else {
-      if (t < t0) return null;
-      if (t < t1) t1 = t;
-    }
-  }
-  const at = (t: number): Pt3 => ({ x: a.x + dx * t, y: a.y + dy * t, z: a.z });
-  return [at(t0), at(t1)];
-}
-
-function clippedPolyline(pts: Pt3[], o: PaneRect): Pt3[] {
-  const out: Pt3[] = [];
-  for (let i = 0; i + 1 < pts.length; i++) {
-    const seg = clippedSegment(pts[i], pts[i + 1], o);
-    if (!seg) continue;
-    const head = out[out.length - 1];
-    if (head === undefined || Math.abs(head.x - seg[0].x) > 1e-9 || Math.abs(head.y - seg[0].y) > 1e-9) {
-      out.push(seg[0]);
-    }
-    out.push(seg[1]);
-  }
-  return out;
-}
-
-function clippedPoly(poly: Pt3[], o: PaneRect): Pt3[] {
-  const planes = [
-    { axis: 'x' as const, limit: o.left, keepAbove: true },
-    { axis: 'x' as const, limit: o.right, keepAbove: false },
-    { axis: 'y' as const, limit: o.top, keepAbove: true },
-    { axis: 'y' as const, limit: o.bottom, keepAbove: false },
-  ];
-  let current = poly;
-  for (const plane of planes) {
-    const next: Pt3[] = [];
-    for (let i = 0; i < current.length; i++) {
-      const a = current[i];
-      const b = current[(i + 1) % current.length];
-      const inside = (p: Pt3) =>
-        plane.keepAbove ? p[plane.axis] >= plane.limit : p[plane.axis] <= plane.limit;
-      const crossing = (): Pt3 => {
-        const t = (plane.limit - a[plane.axis]) / (b[plane.axis] - a[plane.axis]);
-        return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t, z: a.z };
-      };
-      if (inside(a)) {
-        next.push(a);
-        if (!inside(b)) next.push(crossing());
-      } else if (inside(b)) {
-        next.push(crossing());
-      }
-    }
-    current = next;
-    if (current.length === 0) return [];
-  }
-  return current;
-}
+// Clipping lives on the scene: the lamp cuts to the opening with the same
+// Sutherland–Hodgman the furniture cuts to the window box with.
 
 // The aura falls off in nested passes of one shape: the same warmth role
 // drawn at shrinking scale about the emitter's own point — never about the
@@ -165,7 +91,7 @@ function scaleAbout(pts: Pt3[], anchor: Pt3, factor: number): Pt3[] {
 }
 
 function aura(pts: Pt3[], anchor: Pt3, o: PaneRect): Mark[] {
-  return AURA_PASSES.map((pass) => fill('aura', clippedPoly(scaleAbout(pts, anchor, pass), o)));
+  return AURA_PASSES.map((pass) => fill('aura', clipPoly(scaleAbout(pts, anchor, pass), o)));
 }
 
 // Which way the arc reaches: the facing mirrors the arm, its head, and the
@@ -302,7 +228,7 @@ export function lampMarks(plan: LampPlan, o: PaneRect, night: boolean): Mark[] {
   const drawn: Mark[] = [];
   for (const mark of marks) {
     const pts =
-      mark.kind === 'stroke' ? clippedPolyline(mark.pts, o) : clippedPoly(mark.pts, o);
+      mark.kind === 'stroke' ? clipPolyline(mark.pts, o) : clipPoly(mark.pts, o);
     if (pts.length >= (mark.kind === 'stroke' ? 2 : 3)) drawn.push({ ...mark, pts });
   }
   if (lit) {

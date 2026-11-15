@@ -3,9 +3,9 @@ import { fork } from '@/core/randomness/rng';
 import { FURNITURE_KINDS, PLANE_DEPTH, PLANE_Z } from './catalogue';
 import { expandFurniture, type FurniturePiece, type FurniturePlan } from './furniture';
 import { drawFurniture } from './drawFurniture';
-import { roomOf } from './room';
-import { innerRect, SHELL_Z, type PaneRect } from '@/core/window-shell/shell';
-import { LIGHT_DEPTH, LIGHT_Z } from '@/core/light/catalogue';
+import { roomOf, ROOM_FLOOR_DROP } from './room';
+import { BOX, innerRect, SHELL_Z, type PaneRect } from '@/core/window-shell/shell';
+import { FLOOR_DROP as LAMP_FLOOR_DROP, LIGHT_DEPTH, LIGHT_Z } from '@/core/light/catalogue';
 import type { Mark } from '@/core/scene';
 
 // The furniture plan rolls off the DNA stream appended after the light
@@ -124,8 +124,15 @@ describe('the furniture drawer', () => {
     expect(drawFurniture({ pieces: [] }, OPENING)).toEqual([]);
   });
 
-  it('stands every kind on the room floor line below the opening', () => {
-    const floorY = OPENING.bottom + 0.1 * (OPENING.bottom - OPENING.top);
+  it('keeps the room floor on the lamps standing line', () => {
+    // One room, one floor: the furniture's floor is the line the light
+    // layer's lamps already stand on, pinned here so the copies cannot
+    // drift.
+    expect(ROOM_FLOOR_DROP).toBe(LAMP_FLOOR_DROP);
+    expect(roomOf(OPENING).bottom).toBeCloseTo(OPENING.bottom + LAMP_FLOOR_DROP, 12);
+  });
+
+  it('runs every kind down past the box toward the room floor', () => {
     for (const { value: kind } of FURNITURE_KINDS) {
       const marks = drawFurniture(
         { pieces: [{ kind, plane: 3, side: 'left', screen: 'laptop' }] },
@@ -134,7 +141,22 @@ describe('the furniture drawer', () => {
       expect(marks.length, kind).toBeGreaterThan(0);
       expect(roles(marks)).toContain('furniture');
       const maxY = Math.max(...marks.flatMap((m) => m.pts.map((p) => p.y)));
-      expect(maxY).toBeCloseTo(floorY, 6);
+      // The legs run to the room floor, most of an opening below the
+      // sightline; the box clip is all the wall ever sees of the cut.
+      expect(maxY, kind).toBeCloseTo(BOX.halfH, 6);
+    }
+  });
+
+  it('lands nothing on the wall around the window', () => {
+    for (let i = 0; i < 300; i++) {
+      const rng = fork(91000 + i * 104729, 'dna');
+      const marks = drawFurniture(expandFurniture(rng, false), OPENING);
+      for (const m of marks) {
+        for (const p of m.pts) {
+          expect(Math.abs(p.x)).toBeLessThanOrEqual(BOX.halfW + EPS);
+          expect(Math.abs(p.y)).toBeLessThanOrEqual(BOX.halfH + EPS);
+        }
+      }
     }
   });
 
@@ -177,32 +199,32 @@ describe('the furniture drawer', () => {
     expect(PLANE_DEPTH[2]).toBeLessThan(LIGHT_DEPTH);
   });
 
-  it('keeps to the furniture grays and the dark screen paint, emitting no light', () => {
+  it('keeps to the two furniture roles, the screen in the same gray, emitting no light', () => {
     for (let i = 0; i < 200; i++) {
       const rng = fork(87000 + i * 104729, 'dna');
       const plan = expandFurniture(rng, false);
       const marks = drawFurniture(plan, OPENING);
       for (const role of roles(marks)) {
-        expect(['furniture', 'furnitureDetail', 'lamp']).toContain(role);
+        expect(['furniture', 'furnitureDetail']).toContain(role);
       }
     }
-    // The laptop or monitor reads as a small dark shape on the desk top —
-    // the lamp structure's paint, which skips the night mix and stays dark.
+    // The desk's screen is part of the desk's silhouette — the same gray as
+    // every piece — and the monitor wears the typical desktop ratio.
     const laptop = drawFurniture(
       { pieces: [{ kind: 'desk', plane: 2, side: 'right', screen: 'laptop' }] },
       OPENING,
     );
-    const screen = laptop.filter((m) => m.role === 'lamp');
-    expect(screen.length).toBeGreaterThan(0);
     const monitor = drawFurniture(
       { pieces: [{ kind: 'desk', plane: 2, side: 'right', screen: 'monitor' }] },
       OPENING,
     );
     const screenW = (marks: Mark[]) => {
-      const xs = marks.filter((m) => m.role === 'lamp').flatMap((m) => m.pts.map((p) => p.x));
+      const xs = marks.filter((m) => m.role === 'furniture').flatMap((m) => m.pts.map((p) => p.x));
       return Math.max(...xs) - Math.min(...xs);
     };
+    // The monitor's panel: 0.35 tall, 4:3 wide.
     expect(screenW(monitor)).toBeGreaterThan(screenW(laptop));
+    expect(screenW(monitor)).toBeCloseTo(0.35 * (4 / 3), 6);
   });
 
   it('obeys the hand rule on the boards of a ladder shelf', () => {
@@ -211,9 +233,11 @@ describe('the furniture drawer', () => {
       OPENING,
     );
     const boards = marks.filter((m) => m.kind === 'stroke' && m.name.includes('board'));
-    // Five boards designed; the hand rule omits some outright — the worked
-    // example for this count of dense lines leaves three.
-    expect(boards.length).toBe(3);
+    // Five boards designed; the hand rule omits some outright, and the box
+    // clip keeps only what the sightline shows — either way fewer kept
+    // lines than the run holds.
+    expect(boards.length).toBeLessThan(5);
+    expect(boards.length).toBeGreaterThan(0);
     const widths = boards.map(
       (m) => Math.max(...m.pts.map((p) => p.x)) - Math.min(...m.pts.map((p) => p.x)),
     );
