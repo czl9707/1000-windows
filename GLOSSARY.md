@@ -14,7 +14,7 @@ Who lives behind one window — the window's identity as a whole: occupant (if a
 
 ## Furniture
 
-The insider layer's standing pieces — what the room behind the glass holds. A room owns zero to two pieces, plain pieces with no dominant one among them; the lamp counts toward that cap whenever the room owns one. Each piece hugs one edge of the room and stands on the room's real floor at its own depth plane, drawn as one uniform gray silhouette with its detail strokes in light gray. Furniture is tenant identity, not state.
+The insider layer's standing pieces — what the room behind the glass holds. A room owns zero to two pieces, plain pieces with no dominant one among them; the lamp counts toward that cap whenever the room owns one. Each piece hugs one edge of the room and stands on the room's real floor at its own depth plane, drawn as one uniform gray silhouette with its detail strokes in light gray. A desk's screen belongs to the desk's construction and never emits — a small dark shape that stays dark at both themes. Furniture is tenant identity, not state.
 
 ## Curtain
 The window covering — cloth or blind hung behind the glass. A tenant trait: some windows carry one, some stand bare. Four kinds — panels, drapes, venetian, roman — each a named construction with its own ceiling on how much of the opening it may cover; coverage rolls in discrete levels — bare, lightly dressed, half, full — mostly bare or light, a rare window full. Its dense line work obeys the hand rule, and the hanging cloth (panels, drapes) hangs on verticals alone. The curtain's density is curtain identity, not a light trait.

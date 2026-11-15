@@ -16,6 +16,7 @@
 // a window, prefixed per piece `furn<plane>-`; the planes are distinct, so
 // the prefixes cannot collide.
 import type { Mark } from '@/core/scene';
+import { GOLDEN_ANGLE, omitLine, lineSpan } from '@/core/scene/hand';
 import type { Pt3 } from '@/motion/projection';
 import { WEIGHTS } from '@/styling/weights';
 import { line, rectPts, type PaneRect } from '@/core/window-shell/shell';
@@ -37,21 +38,16 @@ const SIZES: Record<FurnitureKind, { w: number; h: number }> = {
 // with the plane — deterministic, no stream draw.
 const GAP_BASE = 0.03;
 const GAP_WOBBLE = 0.03;
-const GOLDEN_ANGLE = 2.399;
 
-// The hand rule on the repeated interior strokes: some are omitted outright,
-// a kept line covers only part of its run; the mass carries the texture.
+// The hand rule's rates on the repeated interior strokes: some are omitted
+// outright, a kept line covers only part of its run; the mass carries the
+// texture.
 const DETAIL_OMIT = 0.3;
 const DETAIL_MIN_SPAN = 0.6;
 
-const omitDetail = (i: number): boolean =>
-  Math.sin(i * GOLDEN_ANGLE + 1.3) < 2 * DETAIL_OMIT - 1;
+const omitDetail = (i: number): boolean => omitLine(i, DETAIL_OMIT);
 
-const detailSpan = (i: number): [number, number] => {
-  const start = Math.abs(Math.sin(i * GOLDEN_ANGLE + 0.7)) * (1 - DETAIL_MIN_SPAN);
-  const end = 1 - Math.abs(Math.sin(i * GOLDEN_ANGLE + 2.1)) * (1 - DETAIL_MIN_SPAN);
-  return [start, end];
-};
+const detailSpan = (i: number): [number, number] => lineSpan(i, DETAIL_MIN_SPAN);
 
 // Where a piece stands: its footprint hugged to the rolled edge, its base
 // on the floor line, its top from the kind's own height.
@@ -134,7 +130,10 @@ function handDetail(name: string, i: number, plane: DepthPlane, x0: number, y0: 
   ];
 }
 
-function dark(plane: DepthPlane, pts: Pt3[]): Mark {
+// The screen's paint: the interior's dark — the lamp structure's role, the
+// one interior paint that skips the night mix — so the screen reads dark at
+// both themes.
+function lampPaint(plane: DepthPlane, pts: Pt3[]): Mark {
   return { kind: 'fill', pts, role: 'lamp', z: z(plane) };
 }
 
@@ -161,7 +160,7 @@ function coatStand(p: FurniturePiece, s: Spot): Mark[] {
   const crown: Mark[] = [];
   for (let i = 0; i < 4; i++) {
     const hx = cx + (i / 3 - 0.5) * 0.8 * (s.x1 - s.x0);
-    crown.push(detailLine(`${pre}-hook-${i}`, p.plane, hx, s.topY, hx, s.topY + 0.06 * s.h));
+    crown.push(...handDetail(`${pre}-hook-${i}`, i, p.plane, hx, s.topY, hx, s.topY + 0.06 * s.h));
   }
   return [
     mass(p.plane, rect(p.plane, cx - poleW / 2, s.topY, cx + poleW / 2, s.floorY - footH)),
@@ -258,14 +257,14 @@ function desk(p: FurniturePiece, s: Spot): Mark[] {
   if (p.screen === 'laptop') {
     const lw = 0.16 * s.w;
     const lh = 0.11 * s.h;
-    marks.push(dark(p.plane, rect(p.plane, cx - lw / 2, deskY - lh, cx + lw / 2, deskY)));
+    marks.push(lampPaint(p.plane, rect(p.plane, cx - lw / 2, deskY - lh, cx + lw / 2, deskY)));
   } else if (p.screen === 'monitor') {
     const mw = 0.27 * s.w;
     const mh = 0.17 * s.h;
     const standW = 0.03 * s.w;
     marks.push(
-      dark(p.plane, rect(p.plane, cx - standW / 2, deskY - 0.03 * s.h, cx + standW / 2, deskY)),
-      dark(p.plane, rect(p.plane, cx - mw / 2, deskY - 0.03 * s.h - mh, cx + mw / 2, deskY - 0.03 * s.h)),
+      lampPaint(p.plane, rect(p.plane, cx - standW / 2, deskY - 0.03 * s.h, cx + standW / 2, deskY)),
+      lampPaint(p.plane, rect(p.plane, cx - mw / 2, deskY - 0.03 * s.h - mh, cx + mw / 2, deskY - 0.03 * s.h)),
     );
   }
   return marks;

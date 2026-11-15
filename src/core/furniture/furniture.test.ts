@@ -5,7 +5,7 @@ import { expandFurniture, type FurniturePiece, type FurniturePlan } from './furn
 import { drawFurniture } from './drawFurniture';
 import { roomOf } from './room';
 import { innerRect, SHELL_Z, type PaneRect } from '@/core/window-shell/shell';
-import { LIGHT_Z } from '@/core/light/catalogue';
+import { LIGHT_DEPTH, LIGHT_Z } from '@/core/light/catalogue';
 import type { Mark } from '@/core/scene';
 
 // The furniture plan rolls off the DNA stream appended after the light
@@ -172,6 +172,9 @@ describe('the furniture drawer', () => {
     }
     expect(PLANE_Z[6]).toBeLessThan(PLANE_Z[2]);
     expect(PLANE_DEPTH[2]).toBeGreaterThan(PLANE_DEPTH[6]);
+    // Plane 1 is the lamp's: the furniture sits behind it, deeper in the
+    // room, so its depth is the more negative.
+    expect(PLANE_DEPTH[2]).toBeLessThan(LIGHT_DEPTH);
   });
 
   it('keeps to the furniture grays and the dark screen paint, emitting no light', () => {
