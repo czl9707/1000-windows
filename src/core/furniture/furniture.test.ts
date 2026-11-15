@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { fork } from '@/core/randomness/rng';
-import { FURNITURE_KINDS } from './catalogue';
-import { expandFurniture } from './furniture';
+import { FURNITURE_KINDS, PLANE_DEPTH, PLANE_Z } from './catalogue';
+import { expandFurniture, type FurniturePiece, type FurniturePlan } from './furniture';
+import { drawFurniture } from './drawFurniture';
+import { roomOf } from './room';
+import { innerRect, SHELL_Z, type PaneRect } from '@/core/window-shell/shell';
+import { LIGHT_Z } from '@/core/light/catalogue';
+import type { Mark } from '@/core/scene';
 
 // The furniture plan rolls off the DNA stream appended after the light
 // block. The lamp counts toward the room's cap whenever the room owns one —
@@ -85,5 +90,142 @@ describe('the furniture plan roll', () => {
     expect(second).toBeGreaterThan(200);
     expect(opposite / second).toBeGreaterThan(0.55);
     expect(opposite / second).toBeLessThan(0.95);
+  });
+
+  it('rolls a screen for a desk piece and nothing for the other kinds', () => {
+    for (let i = 0; i < 800; i++) {
+      const plan = expandFurniture(fork(84000 + i * 104729, 'dna'), false);
+      for (const piece of plan.pieces) {
+        if (piece.kind === 'desk') {
+          expect(['laptop', 'monitor']).toContain(piece.screen);
+        } else {
+          expect(piece.screen).toBeUndefined();
+        }
+      }
+    }
+  });
+});
+
+// The drawer: the room rectangle with its real floor under edge-hugging
+// pieces, drawn even where the wall hides them, on the planes' own sort
+// keys — back to front, always under the light block.
+const OPENING: PaneRect = innerRect(0.07);
+const ROOM = roomOf(OPENING);
+const EPS = 1e-9;
+
+const piece = (over: Partial<FurniturePiece>): FurniturePlan => ({
+  pieces: [{ kind: 'coatStand', plane: 4, side: 'left', ...over }],
+});
+
+const roles = (marks: Mark[]) => marks.map((m) => m.role);
+
+describe('the furniture drawer', () => {
+  it('draws nothing for an empty room', () => {
+    expect(drawFurniture({ pieces: [] }, OPENING)).toEqual([]);
+  });
+
+  it('stands every kind on the room floor line below the opening', () => {
+    const floorY = OPENING.bottom + 0.1 * (OPENING.bottom - OPENING.top);
+    for (const { value: kind } of FURNITURE_KINDS) {
+      const marks = drawFurniture(
+        { pieces: [{ kind, plane: 3, side: 'left', screen: 'laptop' }] },
+        OPENING,
+      );
+      expect(marks.length, kind).toBeGreaterThan(0);
+      expect(roles(marks)).toContain('furniture');
+      const maxY = Math.max(...marks.flatMap((m) => m.pts.map((p) => p.y)));
+      expect(maxY).toBeCloseTo(floorY, 6);
+    }
+  });
+
+  it('hugs its rolled edge with a small gap inside the room rectangle', () => {
+    for (const side of ['left', 'right'] as const) {
+      const marks = drawFurniture(piece({ side, kind: 'roomDivider' }), OPENING);
+      const minX = Math.min(...marks.flatMap((m) => m.pts.map((p) => p.x)));
+      const maxX = Math.max(...marks.flatMap((m) => m.pts.map((p) => p.x)));
+      const hug = 0.1 * (OPENING.right - OPENING.left);
+      if (side === 'left') {
+        expect(minX).toBeGreaterThanOrEqual(ROOM.left - EPS);
+        expect(minX).toBeLessThanOrEqual(ROOM.left + hug);
+      } else {
+        expect(maxX).toBeLessThanOrEqual(ROOM.right + EPS);
+        expect(maxX).toBeGreaterThanOrEqual(ROOM.right - hug);
+      }
+    }
+  });
+
+  it('draws past the opening — no clipping bares a hard cut', () => {
+    const marks = drawFurniture(piece({ side: 'left', kind: 'roomDivider' }), OPENING);
+    expect(Math.min(...marks.flatMap((m) => m.pts.map((p) => p.x)))).toBeLessThan(OPENING.left);
+  });
+
+  it('sorts its planes back to front, always under the light block and over the backing', () => {
+    for (const plane of [2, 3, 4, 5, 6] as const) {
+      const marks = drawFurniture(piece({ plane }), OPENING);
+      expect(marks.length).toBeGreaterThan(0);
+      for (const m of marks) {
+        expect(m.z).toBe(PLANE_Z[plane]);
+        for (const p of m.pts) expect(p.z).toBe(PLANE_DEPTH[plane]);
+        expect(m.z).toBeLessThan(LIGHT_Z);
+        expect(m.z).toBeGreaterThan(SHELL_Z.backing);
+      }
+    }
+    expect(PLANE_Z[6]).toBeLessThan(PLANE_Z[2]);
+    expect(PLANE_DEPTH[2]).toBeGreaterThan(PLANE_DEPTH[6]);
+  });
+
+  it('keeps to the furniture grays and the dark screen paint, emitting no light', () => {
+    for (let i = 0; i < 200; i++) {
+      const rng = fork(87000 + i * 104729, 'dna');
+      const plan = expandFurniture(rng, false);
+      const marks = drawFurniture(plan, OPENING);
+      for (const role of roles(marks)) {
+        expect(['furniture', 'furnitureDetail', 'lamp']).toContain(role);
+      }
+    }
+    // The laptop or monitor reads as a small dark shape on the desk top —
+    // the lamp structure's paint, which skips the night mix and stays dark.
+    const laptop = drawFurniture(
+      { pieces: [{ kind: 'desk', plane: 2, side: 'right', screen: 'laptop' }] },
+      OPENING,
+    );
+    const screen = laptop.filter((m) => m.role === 'lamp');
+    expect(screen.length).toBeGreaterThan(0);
+    const monitor = drawFurniture(
+      { pieces: [{ kind: 'desk', plane: 2, side: 'right', screen: 'monitor' }] },
+      OPENING,
+    );
+    const screenW = (marks: Mark[]) => {
+      const xs = marks.filter((m) => m.role === 'lamp').flatMap((m) => m.pts.map((p) => p.x));
+      return Math.max(...xs) - Math.min(...xs);
+    };
+    expect(screenW(monitor)).toBeGreaterThan(screenW(laptop));
+  });
+
+  it('obeys the hand rule on the boards of a ladder shelf', () => {
+    const marks = drawFurniture(
+      { pieces: [{ kind: 'ladderShelf', plane: 5, side: 'left' }] },
+      OPENING,
+    );
+    const boards = marks.filter((m) => m.kind === 'stroke' && m.name.includes('board'));
+    // Five boards designed; the hand rule omits some outright — the worked
+    // example for this count of dense lines leaves three.
+    expect(boards.length).toBe(3);
+    const widths = boards.map(
+      (m) => Math.max(...m.pts.map((p) => p.x)) - Math.min(...m.pts.map((p) => p.x)),
+    );
+    const shelfW = 0.3 * (OPENING.right - OPENING.left);
+    // A kept line runs over only part of its span at least somewhere.
+    expect(widths.some((w) => w < shelfW * 0.9)).toBe(true);
+  });
+
+  it('names its traces uniquely and never throws across a sweep', () => {
+    for (let i = 0; i < 300; i++) {
+      const rng = fork(90000 + i * 104729, 'dna');
+      const plan = expandFurniture(rng, false);
+      const marks = drawFurniture(plan, OPENING);
+      const names = marks.filter((m) => m.kind === 'stroke').map((m) => m.name);
+      expect(new Set(names).size).toBe(names.length);
+    }
   });
 });

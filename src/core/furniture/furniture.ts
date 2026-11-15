@@ -7,14 +7,18 @@ import type { Rng } from '@/core/randomness/rng';
 import {
   FURNITURE_KINDS,
   FURNITURE_PLANES,
+  SCREENS,
   type DepthPlane,
   type FurnitureKind,
+  type Screen,
 } from './catalogue';
 
 export interface FurniturePiece {
   kind: FurnitureKind;
   plane: DepthPlane;
   side: 'left' | 'right';
+  // The desk's rolled screen; undefined for every other kind.
+  screen?: Screen;
 }
 
 export interface FurniturePlan {
@@ -56,7 +60,6 @@ export function expandFurniture(rng: Rng, lampOwned: boolean): FurniturePlan {
   for (let n = 0; n < count; n++) {
     const kind = takeWeighted(rng, kinds);
     const plane = takeWeighted(rng, planes);
-    const firstSide = pieces[0]!.side;
     const sides: { value: 'left' | 'right'; weight: number }[] =
       n === 0
         ? [
@@ -64,10 +67,18 @@ export function expandFurniture(rng: Rng, lampOwned: boolean): FurniturePlan {
             { value: 'right', weight: 1 },
           ]
         : [
-            { value: firstSide === 'left' ? 'right' : 'left', weight: OPPOSITE_BIAS },
-            { value: firstSide, weight: 1 },
+            {
+              value: pieces[0]!.side === 'left' ? 'right' : 'left',
+              weight: OPPOSITE_BIAS,
+            },
+            { value: pieces[0]!.side, weight: 1 },
           ];
-    pieces.push({ kind, plane, side: rng.weighted(sides) });
+    pieces.push({
+      kind,
+      plane,
+      side: rng.weighted(sides),
+      ...(kind === 'desk' ? { screen: rng.weighted(SCREENS) } : {}),
+    });
   }
   return { pieces };
 }
