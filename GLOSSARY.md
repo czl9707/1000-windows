@@ -12,8 +12,9 @@ The per-window random value, derived deterministically from the meta-seed and th
 ## Tenant
 Who lives behind one window — the window's identity as a whole: occupant (if any), furniture, curtain, plants, animals, and light. "A window seed is a tenant."
 
-## Dominant element
-The single most readable thing in a window scene (an occupant silhouette, a cat on the sill, a lone lamp). Every window has at most one; it carries the story at a glance. Everything else in the window is supporting props.
+## Furniture
+
+The insider layer's standing pieces — what the room behind the glass holds. A room owns zero to two pieces, plain pieces with no dominant one among them; the lamp counts toward that cap whenever the room owns one. Each piece hugs one edge of the room and stands on the room's real floor at its own depth plane, drawn as one uniform gray silhouette with its detail strokes in light gray. Furniture is tenant identity, not state.
 
 ## Curtain
 The window covering — cloth or blind hung behind the glass. A tenant trait: some windows carry one, some stand bare. Four kinds — panels, drapes, venetian, roman — each a named construction with its own ceiling on how much of the opening it may cover; coverage rolls in discrete levels — bare, lightly dressed, half, full — mostly bare or light, a rare window full. Its dense line work obeys the hand rule, and the hanging cloth (panels, drapes) hangs on verticals alone. The curtain's density is curtain identity, not a light trait.
@@ -31,7 +32,7 @@ What the site's dark theme means for the wall: the same tenants and the same sce
 How dense line work is drawn on paper: a run of dense lines is never fully drawn — some are omitted outright, and a kept line runs over only part of its span, the fill carrying the texture instead. Picked by the golden-angle sine, deterministic, no stream draw. Object edges (hems, bars, rails, the roman's rod) are not dense line work and draw full.
 
 ## Light gene
-A per-window inherited trait describing the apartment's lighting: whether the room owns a lamp (two rooms in three do), whether it burns (even odds among owned lamps), and the warm tone and strength of its colour. Identity, not global state — the gene rolls off the window seed regardless of theme, and draws only under the night theme: nobody turns a lamp on in daylight. A lit room's lamp takes the dominant-element slot; a lampless room is simply a dark one. The lamp's emitting part keeps its own colour whenever off; the sill items stand in front of a lit lamp, so they keep their unlit faces.
+A per-window inherited trait describing the apartment's lighting: whether the room owns a lamp (two rooms in three do), whether it burns (even odds among owned lamps), and the warm tone and strength of its colour. Identity, not global state — the gene rolls off the window seed regardless of theme, and draws only under the night theme: nobody turns a lamp on in daylight. The lamp always occupies the room's frontmost depth plane, standing in front of every furniture piece; a lampless room is simply a dark one. The lamp's emitting part keeps its own colour whenever off; the sill items stand in front of a lit lamp, so they keep their unlit faces.
 
 ## Aura
 The lamp's local light in a lit room: a glow whose shape follows the lamp construction — a shade throws its cone, a bare bulb radiates its pool. Drawn as flat low-alpha washes laid directly over the layers behind it, ink lines included, and kept inside the opening. The falloff is nested passes anchored on the emitting part, so the glow fades away from the lamp and never drifts off it when the opening clips the shape. A `Still` mark: it never boils.
