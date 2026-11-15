@@ -285,3 +285,44 @@ describe('windowPalette', () => {
     expect(() => palette('nonsense')).toThrow();
   });
 });
+
+describe('the furniture roles', () => {
+  // The furniture wears no colourway: one uniform gray silhouette with its
+  // detail strokes in a lighter gray, both derived from the theme pair so a
+  // theme flip re-resolves them without any furniture-specific rule.
+  it('dresses the silhouette opaque and the detail strokes lighter, both neutral grays', () => {
+    const palette = windowPalette(42, LIGHT);
+    const body = palette('furniture');
+    const detail = palette('furnitureDetail');
+    expect(body.alpha).toBe(1);
+    const bodyO = cssToOklch(body.color);
+    const detailO = cssToOklch(detail.color);
+    // Grays mixed from the theme pair inherit the theme's own tint (the
+    // paper is warm), so the bound sits above any colourway row's chroma.
+    expect(bodyO.c).toBeLessThan(0.02);
+    expect(detailO.c).toBeLessThan(0.02);
+    expect(detailO.l).toBeGreaterThan(bodyO.l);
+    // The silhouette reads darker than the paper ground, the detail lighter
+    // than the body: two distinct grays either side of the silhouette.
+    expect(bodyO.l).toBeLessThan(cssToOklch(LIGHT.paper).l);
+  });
+
+  it('does not roll per seed — every window wears the same grays', () => {
+    const a = windowPalette(42, LIGHT);
+    const b = windowPalette(9000 + 13 * 7919, LIGHT);
+    expect(a('furniture').color).toBe(b('furniture').color);
+    expect(a('furnitureDetail').color).toBe(b('furnitureDetail').color);
+  });
+
+  it('re-resolves both grays on the night theme', () => {
+    const day = windowPalette(42, LIGHT);
+    const night = windowPalette(42, DARK);
+    expect(night('furniture').color).not.toBe(day('furniture').color);
+    expect(night('furnitureDetail').color).not.toBe(day('furnitureDetail').color);
+    // Night sinks toward the dark ground: the silhouette darker than by day.
+    expect(cssToOklch(night('furniture').color).l).toBeLessThan(
+      cssToOklch(day('furniture').color).l,
+    );
+    expect(night('furniture').alpha).toBe(1);
+  });
+});

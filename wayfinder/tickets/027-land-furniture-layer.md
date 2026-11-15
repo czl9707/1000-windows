@@ -1,7 +1,7 @@
 ---
 title: Land the furniture layer
 labels: [wayfinder:task]
-assignee:
+assignee: zane
 state: open
 blocked-by: [018]
 ---

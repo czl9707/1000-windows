@@ -31,7 +31,13 @@ export type ColorRole =
   | "light"
   | "ambient"
   | "aura"
-  | "veil";
+  | "veil"
+  // The furniture roles carry no colourway: 'furniture' is the room's pieces
+  // as one uniform gray silhouette, 'furnitureDetail' the interior detail
+  // strokes in a lighter gray — both mixed from the theme pair, so a theme
+  // flip re-resolves them.
+  | "furniture"
+  | "furnitureDetail";
 
 // The theme's colours and its night flag, read off the page (demoLoop reads
 // the CSS tokens and the theme attribute, and hands them down with every
@@ -56,6 +62,12 @@ export const GLASS_WASH = 0.05;
 // Occluding fills go down opaque: they exist to hide the wall and the layers
 // behind an add-on, so anything less lets lines ghost through.
 export const OCCLUDE = 1;
+
+// The furniture grays, as the share of ink mixed into the theme paper: the
+// silhouette sits well below the paper's lightness, the detail strokes well
+// above the silhouette — two distinct grays, no colourway roll.
+export const FURNITURE_INK_MIX = 0.35;
+export const FURNITURE_DETAIL_INK_MIX = 0.14;
 
 // Rebuilt each frame from the theme's colours and the window's colourway, so
 // a theme switch re-renders the same scene in the new colours.
