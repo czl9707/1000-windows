@@ -1,14 +1,15 @@
 // Clipping, in unit measure: strokes cut into the segments the rect
 // contains, fills intersected with it — never clamped, which would squash
 // a shape into a sliver along the edge. The scene's shared Sutherland–
-// Hodgman; a layer hands its own rect (the lamp clips to the opening, the
-// furniture to the window box).
-import type { Pt3 } from '@/motion/projection';
-
+// Hodgman; a layer hands its own rect (the lamp clips to the opening
+// pre-projection, the walk's draw stage clips the interior to the aperture
+// post-projection). Points may carry a depth; the interpolated points keep
+// whatever the segment endpoints held.
+type ClipPoint = { x: number; y: number; z?: number };
 type Rect = { left: number; top: number; right: number; bottom: number };
 
-export function clipPolyline(pts: Pt3[], o: Rect): Pt3[] {
-  const out: Pt3[] = [];
+export function clipPolyline<T extends ClipPoint>(pts: T[], o: Rect): T[] {
+  const out: ClipPoint[] = [];
   for (let i = 0; i + 1 < pts.length; i++) {
     const seg = clipSegment(pts[i], pts[i + 1], o);
     if (!seg) continue;
@@ -18,27 +19,31 @@ export function clipPolyline(pts: Pt3[], o: Rect): Pt3[] {
     }
     out.push(seg[1]);
   }
-  return out;
+  return out as T[];
 }
 
-export function clipPoly(poly: Pt3[], o: Rect): Pt3[] {
+export function clipPoly<T extends ClipPoint>(poly: T[], o: Rect): T[] {
   const planes = [
     { axis: 'x' as const, limit: o.left, keepAbove: true },
     { axis: 'x' as const, limit: o.right, keepAbove: false },
     { axis: 'y' as const, limit: o.top, keepAbove: true },
     { axis: 'y' as const, limit: o.bottom, keepAbove: false },
   ];
-  let current = poly;
+  let current: ClipPoint[] = poly;
   for (const plane of planes) {
-    const next: Pt3[] = [];
+    const next: ClipPoint[] = [];
     for (let i = 0; i < current.length; i++) {
       const a = current[i];
       const b = current[(i + 1) % current.length];
-      const inside = (p: Pt3) =>
+      const inside = (p: ClipPoint) =>
         plane.keepAbove ? p[plane.axis] >= plane.limit : p[plane.axis] <= plane.limit;
-      const crossing = (): Pt3 => {
+      const crossing = (): ClipPoint => {
         const t = (plane.limit - a[plane.axis]) / (b[plane.axis] - a[plane.axis]);
-        return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t, z: a.z };
+        return {
+          x: a.x + (b.x - a.x) * t,
+          y: a.y + (b.y - a.y) * t,
+          ...(a.z !== undefined && b.z !== undefined ? { z: a.z + (b.z - a.z) * t } : {}),
+        };
       };
       if (inside(a)) {
         next.push(a);
@@ -48,12 +53,16 @@ export function clipPoly(poly: Pt3[], o: Rect): Pt3[] {
       }
     }
     current = next;
-    if (current.length === 0) return [];
+    if (current.length === 0) return [] as T[];
   }
-  return current;
+  return current as T[];
 }
 
-function clipSegment(a: Pt3, b: Pt3, o: Rect): [Pt3, Pt3] | null {
+export function pointInRect(p: ClipPoint, o: Rect): boolean {
+  return p.x >= o.left && p.x <= o.right && p.y >= o.top && p.y <= o.bottom;
+}
+
+function clipSegment(a: ClipPoint, b: ClipPoint, o: Rect): [ClipPoint, ClipPoint] | null {
   let t0 = 0;
   let t1 = 1;
   const dx = b.x - a.x;
@@ -78,6 +87,10 @@ function clipSegment(a: Pt3, b: Pt3, o: Rect): [Pt3, Pt3] | null {
       if (t < t1) t1 = t;
     }
   }
-  const at = (t: number): Pt3 => ({ x: a.x + dx * t, y: a.y + dy * t, z: a.z });
+  const at = (t: number): ClipPoint => ({
+    x: a.x + dx * t,
+    y: a.y + dy * t,
+    ...(a.z !== undefined && b.z !== undefined ? { z: a.z + (b.z - a.z) * t } : {}),
+  });
   return [at(t0), at(t1)];
 }

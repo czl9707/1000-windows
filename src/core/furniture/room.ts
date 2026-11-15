@@ -7,16 +7,15 @@
 // carry it. Decided in the wayfinder ticket "Furniture — the room behind
 // the glass".
 import type { PaneRect } from '@/core/window-shell/shell';
+import { FLOOR_DROP } from '@/core/light/catalogue';
 
 // The side and top margins, as shares of the opening's own measures.
 const SIDE_MARGIN = 0.14;
 const TOP_MARGIN = 0.08;
 
-// The room's floor sits this far below the sightline — the standing line
-// the light layer's lamps already stand on (FLOOR_DROP there). One room,
-// one floor; a guard test pins the two constants together, and the pieces'
-// upper bodies clear the sightline the way the lamp shades do.
-export const ROOM_FLOOR_DROP = 0.85;
+// The room's floor is the standing line the light layer's lamps already
+// stand on — one room, one floor, imported so the two layers cannot drift.
+export const ROOM_FLOOR_DROP = FLOOR_DROP;
 
 export function roomOf(o: PaneRect): PaneRect {
   const w = o.right - o.left;

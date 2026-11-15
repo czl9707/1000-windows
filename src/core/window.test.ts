@@ -344,6 +344,30 @@ describe('the furniture behind the glass', () => {
   });
 });
 
+describe('the aperture', () => {
+  // The frame occludes at the wall plane: whatever the parallax drift
+  // carries, the interior clips to the opening after projection — the
+  // furniture drawn whole past the opening never lands on the wall around
+  // the window, even for a window far off the screen's centre.
+  it('keeps the interior inside the opening at an off-centre eye', () => {
+    for (let i = 0; i < 100; i++) {
+      const seed = 102000 + i * 104729;
+      const pen = new RecordingPen(seed);
+      drawWindow(NOOP_CTX, pen, PALETTE, { x: 2.5, y: 1.5 }, false);
+      const opening = innerRect(expandShell(seed).faceWidth);
+      const furn = pen.strokes.filter((s) => s.name.startsWith('furn'));
+      for (const s of furn) {
+        for (const p of s.pts) {
+          expect(p.x).toBeGreaterThanOrEqual(opening.left - 1e-9);
+          expect(p.x).toBeLessThanOrEqual(opening.right + 1e-9);
+          expect(p.y).toBeGreaterThanOrEqual(opening.top - 1e-9);
+          expect(p.y).toBeLessThanOrEqual(opening.bottom + 1e-9);
+        }
+      }
+    }
+  });
+});
+
 describe('tuning immutability', () => {
   it('does not mutate the caller tuning object', () => {
     const tuning: Tuning = { ...DEFAULT_TUNING };

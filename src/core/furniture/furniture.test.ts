@@ -4,7 +4,7 @@ import { FURNITURE_KINDS, PLANE_DEPTH, PLANE_Z } from './catalogue';
 import { expandFurniture, type FurniturePiece, type FurniturePlan } from './furniture';
 import { drawFurniture } from './drawFurniture';
 import { roomOf, ROOM_FLOOR_DROP } from './room';
-import { BOX, innerRect, SHELL_Z, type PaneRect } from '@/core/window-shell/shell';
+import { innerRect, SHELL_Z, type PaneRect } from '@/core/window-shell/shell';
 import { FLOOR_DROP as LAMP_FLOOR_DROP, LIGHT_DEPTH, LIGHT_Z } from '@/core/light/catalogue';
 import type { Mark } from '@/core/scene';
 
@@ -126,13 +126,11 @@ describe('the furniture drawer', () => {
 
   it('keeps the room floor on the lamps standing line', () => {
     // One room, one floor: the furniture's floor is the line the light
-    // layer's lamps already stand on, pinned here so the copies cannot
-    // drift.
-    expect(ROOM_FLOOR_DROP).toBe(LAMP_FLOOR_DROP);
+    // layer's lamps already stand on, imported rather than copied.
     expect(roomOf(OPENING).bottom).toBeCloseTo(OPENING.bottom + LAMP_FLOOR_DROP, 12);
   });
 
-  it('runs every kind down past the box toward the room floor', () => {
+  it('stands every kind on the room floor line below the opening', () => {
     for (const { value: kind } of FURNITURE_KINDS) {
       const marks = drawFurniture(
         { pieces: [{ kind, plane: 3, side: 'left', screen: 'laptop' }] },
@@ -141,22 +139,9 @@ describe('the furniture drawer', () => {
       expect(marks.length, kind).toBeGreaterThan(0);
       expect(roles(marks)).toContain('furniture');
       const maxY = Math.max(...marks.flatMap((m) => m.pts.map((p) => p.y)));
-      // The legs run to the room floor, most of an opening below the
-      // sightline; the box clip is all the wall ever sees of the cut.
-      expect(maxY, kind).toBeCloseTo(BOX.halfH, 6);
-    }
-  });
-
-  it('lands nothing on the wall around the window', () => {
-    for (let i = 0; i < 300; i++) {
-      const rng = fork(91000 + i * 104729, 'dna');
-      const marks = drawFurniture(expandFurniture(rng, false), OPENING);
-      for (const m of marks) {
-        for (const p of m.pts) {
-          expect(Math.abs(p.x)).toBeLessThanOrEqual(BOX.halfW + EPS);
-          expect(Math.abs(p.y)).toBeLessThanOrEqual(BOX.halfH + EPS);
-        }
-      }
+      // The pieces are drawn whole — the hidden floor included — and the
+      // walk's draw stage clips them at the opening after projection.
+      expect(maxY, kind).toBeCloseTo(ROOM.bottom, 6);
     }
   });
 
@@ -218,11 +203,15 @@ describe('the furniture drawer', () => {
       { pieces: [{ kind: 'desk', plane: 2, side: 'right', screen: 'monitor' }] },
       OPENING,
     );
+    // The screen sits atop the desk: the topmost furniture fill in the
+    // plate is the screen itself.
     const screenW = (marks: Mark[]) => {
-      const xs = marks.filter((m) => m.role === 'furniture').flatMap((m) => m.pts.map((p) => p.x));
+      const screen = marks
+        .filter((m) => m.role === 'furniture')
+        .reduce((top, m) => (Math.min(...m.pts.map((p) => p.y)) < Math.min(...top.pts.map((p) => p.y)) ? m : top));
+      const xs = screen.pts.map((p) => p.x);
       return Math.max(...xs) - Math.min(...xs);
     };
-    // The monitor's panel: 0.35 tall, 4:3 wide.
     expect(screenW(monitor)).toBeGreaterThan(screenW(laptop));
     expect(screenW(monitor)).toBeCloseTo(0.35 * (4 / 3), 6);
   });
@@ -233,11 +222,9 @@ describe('the furniture drawer', () => {
       OPENING,
     );
     const boards = marks.filter((m) => m.kind === 'stroke' && m.name.includes('board'));
-    // Five boards designed; the hand rule omits some outright, and the box
-    // clip keeps only what the sightline shows — either way fewer kept
-    // lines than the run holds.
-    expect(boards.length).toBeLessThan(5);
-    expect(boards.length).toBeGreaterThan(0);
+    // Five boards designed; the hand rule omits some outright — the worked
+    // example for this count of dense lines leaves three.
+    expect(boards.length).toBe(3);
     const widths = boards.map(
       (m) => Math.max(...m.pts.map((p) => p.x)) - Math.min(...m.pts.map((p) => p.x)),
     );

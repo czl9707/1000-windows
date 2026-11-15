@@ -48,11 +48,15 @@ export function drawWindow(
   eye: Eye,
   night: boolean,
 ): void {
+  const plan = expandShell(pen.seed);
   execute(
-    windowSceneMarks(pen.seed, expandShell(pen.seed), night),
+    windowSceneMarks(pen.seed, plan, night),
     pen,
     ctx,
     palette,
     makeProjection(eye),
+    // The frame occludes at the wall plane: the interior clips to the
+    // opening after projection, whatever the parallax drift carries.
+    innerRect(plan.faceWidth),
   );
 }

@@ -7,39 +7,28 @@
 // silhouette gray as its desk.
 //
 // The piece stands on the room's real floor, hugging its rolled edge with a
-// small gap, and is drawn past the opening — the margins the room grows —
-// but clipped to the window box, so nothing lands on the wall around the
-// window; the frame face hides the margin band, and projection keeps a
-// box-clipped mark inside the box at any parallax drift (deeper planes
-// scale inward). Repeated interior strokes (shelf boards, hook rows,
-// lattice rows) obey the hand rule, deterministic on the golden-angle sine,
-// no stream draw. Trace names are bare ids unique within a window, prefixed
-// per piece `furn<plane>-`; the planes are distinct, so the prefixes cannot
-// collide.
+// small gap, and is drawn whole — the room's margins and the hidden floor
+// included — never clipped here: the walk's draw stage clips the interior
+// to the opening after projection, so the parallax drift shifts the room
+// under a fixed frame and never bares a hard cut. Repeated interior strokes
+// (shelf boards, hook rows, lattice rows) obey the hand rule,
+// deterministic on the golden-angle sine, no stream draw. Trace names are
+// bare ids unique within a window, prefixed per piece `furn<plane>-`; the
+// planes are distinct, so the prefixes cannot collide.
 import type { Mark } from '@/core/scene';
-import { clipPoly, clipPolyline } from '@/core/scene/clip';
 import { GOLDEN_ANGLE, omitLine, lineSpan } from '@/core/scene/hand';
 import type { Pt3 } from '@/motion/projection';
 import { WEIGHTS } from '@/styling/weights';
-import { BOX, line, rectPts, type PaneRect } from '@/core/window-shell/shell';
+import { line, rectPts, type PaneRect } from '@/core/window-shell/shell';
 import { PLANE_DEPTH, PLANE_Z, type DepthPlane, type FurnitureKind } from './catalogue';
 import { roomOf } from './room';
 import type { FurniturePiece, FurniturePlan } from './furniture';
 
-// The window box: as far out as furniture may reach before the wall takes
-// over. Clipped here, never at the opening — the frame band belongs to the
-// room's margins.
-const BOX_RECT: PaneRect = {
-  left: -BOX.halfW,
-  right: BOX.halfW,
-  top: -BOX.halfH,
-  bottom: BOX.halfH,
-};
-
-// Kind constants of the silhouette, in unit measure: widths as shares of
-// the opening's own width, heights absolute — the pieces are as tall as
-// their real bodies, the floor sits at the room's depth, so only the upper
-// body clears the sightline the way the lamp shades do.
+// Kind constants of the silhouette, in unit measure: a piece's width as a
+// share of the opening's own width, its height absolute — the pieces are as
+// tall as their real bodies, the floor sits at the room's depth, so only
+// the upper body clears the sightline the way the lamp shades do. The
+// desk's screens are absolute throughout.
 const SIZES: Record<FurnitureKind, { w: number; h: number }> = {
   coatStand: { w: 0.16, h: 1.4 },
   coatRack: { w: 0.26, h: 1.3 },
@@ -78,13 +67,7 @@ export function drawFurniture(plan: FurniturePlan, opening: PaneRect): Mark[] {
   const room = roomOf(opening);
   const w = opening.right - opening.left;
   const h = opening.bottom - opening.top;
-  const drawn: Mark[] = [];
-  for (const mark of plan.pieces.flatMap((p) => pieceMarks(p, room, w, h))) {
-    const pts =
-      mark.kind === 'stroke' ? clipPolyline(mark.pts, BOX_RECT) : clipPoly(mark.pts, BOX_RECT);
-    if (pts.length >= (mark.kind === 'stroke' ? 2 : 3)) drawn.push({ ...mark, pts });
-  }
-  return drawn;
+  return plan.pieces.flatMap((p) => pieceMarks(p, room, w, h));
 }
 
 function pieceMarks(p: FurniturePiece, room: PaneRect, w: number, h: number): Mark[] {
@@ -276,7 +259,7 @@ function desk(p: FurniturePiece, s: Spot): Mark[] {
     const standH = 0.04;
     const mh = 0.35;
     const mw = mh * (4 / 3);
-    const standW = 0.03 * s.w;
+    const standW = 0.03;
     marks.push(
       mass(p.plane, rect(p.plane, cx - standW / 2, deskY - standH, cx + standW / 2, deskY)),
       mass(p.plane, rect(p.plane, cx - mw / 2, deskY - standH - mh, cx + mw / 2, deskY - standH)),
