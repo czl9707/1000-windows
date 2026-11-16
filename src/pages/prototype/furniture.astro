@@ -106,7 +106,6 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
   import { drawWindow } from '@/core/window';
   import { shellMarks, expandShell } from '@/core/window-shell';
   import { innerRect } from '@/core/window-shell/shell';
-  import { curtainMarks } from '@/core/curtain';
   import { sillMarks } from '@/core/sill';
   import { pinnedLamp } from '@/core/light/light';
   import { lampMarks } from '@/core/light/drawLamp';
@@ -120,6 +119,17 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
   const COUNT = 6;
 
   const KIND_ORDER = FURNITURE_KINDS.map((k) => k.value);
+
+  // ?theme=day|night pins the bench's colours — furniture judges best in
+  // daylight, and the page otherwise follows the browser's own theme.
+  const THEME_PINS = {
+    day: { ink: 'rgb(33 37 41)', paper: 'rgb(229 222 214)', isNight: false },
+    night: { ink: 'rgb(233 236 239)', paper: 'rgb(0 0 0)', isNight: true },
+  } as const;
+  const benchTheme = (theme: Theme): Theme => {
+    const v = new URLSearchParams(window.location.search).get('theme');
+    return v === 'day' || v === 'night' ? THEME_PINS[v] : theme;
+  };
 
   // ?kind=<name> narrows the kinds sheet to one huge plate; anything else
   // shows the full sheet. Shareable, reload-stable — this is a plain Astro
@@ -188,7 +198,8 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
     let street = pens(seed);
     createDemoLoop(
       canvas,
-      (ctx, time, theme: Theme, eye) => {
+      (ctx, time, pageTheme: Theme, eye) => {
+        const theme = benchTheme(pageTheme);
         const box = cssBox(canvas);
         ctx.fillStyle = theme.paper;
         ctx.fillRect(0, 0, box.width * box.dpr, box.height * box.dpr);
@@ -260,7 +271,8 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
     show();
     createDemoLoop(
       canvas,
-      (ctx, time, theme: Theme, eye) => {
+      (ctx, time, pageTheme: Theme, eye) => {
+        const theme = benchTheme(pageTheme);
         const box = cssBox(canvas);
         ctx.fillStyle = theme.paper;
         ctx.fillRect(0, 0, box.width * box.dpr, box.height * box.dpr);
@@ -278,17 +290,18 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
           const plan = expandShell(pen.seed);
           const opening = innerRect(plan.faceWidth);
           const rng = fork(pen.seed, 'dna');
-          const curtain = curtainMarks(rng, opening);
           const sill = sillMarks(rng, opening);
           const lamp = pinnedLamp({ location: p.lampLocation });
           ctx.save();
           place(ctx, i, cols, rows);
+          // No curtain here: the sheet judges furniture, and a rolled
+          // curtain covering its own plate defeats the plate. The street
+          // keeps the real rolls.
           execute(
             [
               ...shellMarks(plan),
               ...lampMarks(lamp, opening, theme.isNight),
               ...drawFurniture({ pieces: [{ kind: p.kind, plane: p.plane, side: p.side, screen: p.screen }] }, opening),
-              ...curtain,
               ...sill,
             ],
             pen,

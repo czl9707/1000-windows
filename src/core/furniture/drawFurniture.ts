@@ -29,7 +29,7 @@ const SIZES: Record<FurnitureKind, { w: number; h: number }> = {
   coatRack: { w: 0.26, h: 1.3 },
   ladderShelf: { w: 0.3, h: 1.4 },
   roomDivider: { w: 0.3, h: 1.5 },
-  desk: { w: 0.52, h: 0.75 },
+  desk: { w: 0.52, h: 1.0 },
   bookcase: { w: 0.32, h: 1.6 },
   wardrobe: { w: 0.5, h: 1.5 },
   dresser: { w: 0.42, h: 0.9 },
@@ -238,7 +238,10 @@ function roomDivider(p: FurniturePiece, s: Spot): Mark[] {
 
 // A desk: the slab on two legs, the rolled screen sitting on the slab —
 // part of the desk's silhouette, the same gray as every piece, never a
-// light source. The monitor wears the typical desktop ratio.
+// light source. The monitor wears the typical desktop ratio. The body
+// stands a touch taller than the light layer's lamp desk, so the slab's
+// top edge clears the sightline and the screen reads sitting on a desk
+// instead of floating over the sill.
 function desk(p: FurniturePiece, s: Spot): Mark[] {
   const slabH = 0.035 * s.h;
   const deskY = s.topY;
