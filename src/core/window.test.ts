@@ -14,6 +14,9 @@ import { drawWindow } from './window';
 import { expandSill } from './sill';
 import { SILL_ITEM_Z } from './sill/catalogue';
 import { expandCurtain } from './curtain';
+import { expandLight, type LampPlan } from './light';
+import { LIGHT_Z } from './light/catalogue';
+import { expandFurniture } from './furniture';
 import { clothMarks } from './curtain/drawCurtain';
 import { fork } from './randomness/rng';
 import { windowSceneMarks } from './window';
@@ -292,6 +295,75 @@ describe('the tenant behind the glass', () => {
       const onLedge = marks.filter((m) => m.z === SILL_ITEM_Z);
       expect(onLedge.length > 0, `seed ${seed}`).toBe(present);
       expect(onLedge.every((m) => m.pts.every((p) => p.z < 0)), `seed ${seed} behind the wall`).toBe(true);
+    }
+  });
+});
+
+describe('the furniture behind the glass', () => {
+  // The furniture block appends after the light on the DNA stream: the roll
+  // read from the post-light position must predict whether the assembled
+  // scene carries furniture — a block inserted earlier would shift the
+  // prediction and the marks apart.
+  it('rolls its pieces after the light and draws them between backing and light', () => {
+    for (let i = 0; i < 300; i++) {
+      const seed = 94000 + i * 104729;
+      const rng = fork(seed, 'dna');
+      expandCurtain(rng);
+      expandSill(rng);
+      const lamp: LampPlan = expandLight(rng);
+      const plan = expandFurniture(rng, lamp.present);
+      const marks = windowSceneMarks(seed, expandShell(seed), false);
+      const furniture = marks.filter(
+        (m) => m.z < LIGHT_Z && m.z > SHELL_Z.backing,
+      );
+      expect(furniture.length > 0, `seed ${seed}`).toBe(plan.pieces.length > 0);
+      // The room draws back to front under the light block, over the shell
+      // backing — the planes' own sort buckets.
+      for (const m of furniture) {
+        expect(m.z).toBeGreaterThan(SHELL_Z.backing);
+        expect(m.z).toBeLessThan(LIGHT_Z);
+      }
+    }
+  });
+
+  // The lamp counts toward the cap regardless of theme, so flipping day to
+  // night re-dresses the scene and never re-rolls the room.
+  it('keeps the furniture when the theme flips', () => {
+    const key = (m: { kind: string; role: string; z: number; pts: { x: number; y: number; z: number }[] }) =>
+      `${m.kind}|${m.role}|${m.z}|${m.pts.map((p) => `${p.x},${p.y},${p.z}`).join(';')}`;
+    for (let i = 0; i < 100; i++) {
+      const seed = 98000 + i * 104729;
+      const day = windowSceneMarks(seed, expandShell(seed), false).filter(
+        (m) => m.z < LIGHT_Z && m.z > SHELL_Z.backing,
+      );
+      const night = windowSceneMarks(seed, expandShell(seed), true).filter(
+        (m) => m.z < LIGHT_Z && m.z > SHELL_Z.backing,
+      );
+      expect(day.map(key)).toEqual(night.map(key));
+    }
+  });
+});
+
+describe('the aperture', () => {
+  // The frame occludes at the wall plane: whatever the parallax drift
+  // carries, the interior clips to the opening after projection — the
+  // furniture drawn whole past the opening never lands on the wall around
+  // the window, even for a window far off the screen's centre.
+  it('keeps the interior inside the opening at an off-centre eye', () => {
+    for (let i = 0; i < 100; i++) {
+      const seed = 102000 + i * 104729;
+      const pen = new RecordingPen(seed);
+      drawWindow(NOOP_CTX, pen, PALETTE, { x: 2.5, y: 1.5 }, false);
+      const opening = innerRect(expandShell(seed).faceWidth);
+      const furn = pen.strokes.filter((s) => s.name.startsWith('furn'));
+      for (const s of furn) {
+        for (const p of s.pts) {
+          expect(p.x).toBeGreaterThanOrEqual(opening.left - 1e-9);
+          expect(p.x).toBeLessThanOrEqual(opening.right + 1e-9);
+          expect(p.y).toBeGreaterThanOrEqual(opening.top - 1e-9);
+          expect(p.y).toBeLessThanOrEqual(opening.bottom + 1e-9);
+        }
+      }
     }
   });
 });

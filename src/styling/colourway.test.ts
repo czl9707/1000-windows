@@ -285,3 +285,35 @@ describe('windowPalette', () => {
     expect(() => palette('nonsense')).toThrow();
   });
 });
+
+describe('the furniture role', () => {
+  // The furniture wears no colourway: one uniform gray silhouette derived
+  // from the theme pair, so a theme flip re-resolves it without any
+  // furniture-specific rule.
+  it('dresses the silhouette opaque and neutral', () => {
+    const body = windowPalette(42, LIGHT)('furniture');
+    expect(body.alpha).toBe(1);
+    const bodyO = cssToOklch(body.color);
+    // A gray mixed from the theme pair inherits the theme's own tint (the
+    // paper is warm), so the bound sits above any colourway row's chroma.
+    expect(bodyO.c).toBeLessThan(0.02);
+    expect(bodyO.l).toBeLessThan(cssToOklch(LIGHT.paper).l);
+  });
+
+  it('does not roll per seed — every window wears the same gray', () => {
+    const a = windowPalette(42, LIGHT);
+    const b = windowPalette(9000 + 13 * 7919, LIGHT);
+    expect(a('furniture').color).toBe(b('furniture').color);
+  });
+
+  it('re-resolves the gray on the night theme', () => {
+    const day = windowPalette(42, LIGHT);
+    const night = windowPalette(42, DARK);
+    expect(night('furniture').color).not.toBe(day('furniture').color);
+    // Night sinks toward the dark ground: the silhouette darker than by day.
+    expect(cssToOklch(night('furniture').color).l).toBeLessThan(
+      cssToOklch(day('furniture').color).l,
+    );
+    expect(night('furniture').alpha).toBe(1);
+  });
+});
