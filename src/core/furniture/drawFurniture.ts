@@ -40,8 +40,8 @@ const SIZES: Record<FurnitureKind, { w: number; h: number }> = {
 };
 
 // The hug: very close to the edge, a small gap allowed, wobbling a hair
-// with the plane — deterministic, no stream draw. The coat stand steps
-// back from the wall a little, as its kind does.
+// with the plane — deterministic, no stream draw. A coat stand's real
+// geometry stands off the wall, so its kind carries a setback.
 const GAP_BASE = 0.03;
 const GAP_WOBBLE = 0.03;
 const COAT_STAND_SETBACK = 0.05;
@@ -171,7 +171,7 @@ function coatStand(p: FurniturePiece, s: Spot): Mark[] {
       { x: cx + spread - legW, y: s.floorY, z: at(p.plane)() },
     ]),
   ];
-  // The hooks: two pegs a side, staggered, reaching out from the crown.
+  // The hooks reach out from the crown, where a coat stand's arms live.
   const pegL = 0.34 * (s.x1 - s.x0);
   const pegH = 0.022 * s.h;
   for (let i = 0; i < 4; i++) {
