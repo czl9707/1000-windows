@@ -1,0 +1,521 @@
+---
+import BaseLayout from '@/components/layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="Plant bench">
+  <main>
+    <h1>Plant bench</h1>
+    <p>
+      Prototype, throwaway: candidate furniture-sized plant kinds, drawn in
+      the furniture layer's language — one flat gray silhouette standing on
+      the room floor, judged in a real window. The sheet gives every
+      candidate one large plate; the strip shows the same windows at street
+      density, the pass/fail view — a kind that cannot read there drops.
+      Daylight pinned; the button re-rolls in place.
+    </p>
+
+    <section>
+      <h2>The kinds</h2>
+      <canvas id="kinds" width="900" height="1300"></canvas>
+      <button id="kinds-reseed" type="button">New sheet</button>
+      <span id="kinds-seed"></span>
+    </section>
+
+    <section>
+      <h2>The street strip</h2>
+      <canvas id="strip" width="900" height="290"></canvas>
+      <p>Same windows, five to a row at half pitch — the far-wall density.</p>
+    </section>
+  </main>
+</BaseLayout>
+
+<style>
+  main {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 1rem;
+  }
+  canvas {
+    width: 100%;
+    height: auto;
+    display: block;
+    border: var(--border);
+  }
+  section {
+    margin-bottom: 2rem;
+  }
+</style>
+
+<script>
+  // PROTOTYPE, throwaway: candidate plant constructions for the furniture
+  // catalogue, drawn with the same marks the furniture drawer emits —
+  // flat 'furniture' gray masses on a depth plane, absolute heights, floor
+  // line. The valid kinds graduate into src/core/furniture; this page does
+  // not survive the milestone.
+  import { createDemoLoop, cssBox } from '@/components/demoLoop';
+  import { Pen } from '@/pen/pen';
+  import { DEFAULT_TUNING } from '@/pen/tuning';
+  import { rollSeed } from '@/components/mount';
+  import type { Theme } from '@/styling/roles';
+  import { windowPalette } from '@/styling/colourway';
+  import { fork, windowSeed } from '@/core/randomness/rng';
+  import { execute } from '@/core/scene';
+  import { shellMarks, expandShell } from '@/core/window-shell';
+  import { innerRect } from '@/core/window-shell/shell';
+  import { sillMarks } from '@/core/sill';
+  import { pinnedLamp } from '@/core/light/light';
+  import { lampMarks } from '@/core/light/drawLamp';
+  import type { Mark } from '@/core/scene';
+  import type { Pt3 } from '@/motion/projection';
+  import { rectPts, type PaneRect } from '@/core/window-shell/shell';
+  import { PLANE_DEPTH, PLANE_Z, type DepthPlane } from '@/core/furniture/catalogue';
+  import { roomOf } from '@/core/furniture/room';
+  import { makeProjection } from '@/motion/projection';
+
+  const UNIT_PITCH_X = 2.3;
+  const UNIT_PITCH_Y = 1.8;
+
+  // Daylight pinned: furniture judges best with the lamps dark.
+  document.body.setAttribute('data-theme', 'light');
+
+  // The spot a candidate draws in: its own footprint and its own height —
+  // every fraction below measures the piece, never the opening.
+  interface Spot {
+    x0: number;
+    x1: number;
+    floorY: number;
+    topY: number;
+    w: number;
+    h: number;
+  }
+
+  // The candidate record: silhouette constants in the furniture measure —
+  // width a share of the opening, height absolute. Every height clears the
+  // floor's 0.85 drop: a plant that never clears the sightline is
+  // invisible, the trap the furniture ticket already fell into.
+  interface Candidate {
+    name: string;
+    w: number;
+    h: number;
+    draw: (plane: DepthPlane, s: Spot) => Mark[];
+  }
+
+  const at = (plane: DepthPlane) => () => PLANE_DEPTH[plane];
+  const z = (plane: DepthPlane) => PLANE_Z[plane];
+  const mass = (plane: DepthPlane, pts: Pt3[]): Mark => ({ kind: 'fill', pts, role: 'furniture', z: z(plane) });
+  const rect = (plane: DepthPlane, x0: number, y0: number, x1: number, y1: number): Pt3[] =>
+    rectPts(x0, y0, x1, y1, at(plane));
+  const cxOf = (s: Spot) => (s.x0 + s.x1) / 2;
+
+  function trapezoid(plane: DepthPlane, cx: number, topY: number, topW: number, bottomY: number, bottomW: number): Pt3[] {
+    return [
+      { x: cx - topW / 2, y: topY, z: at(plane)() },
+      { x: cx + topW / 2, y: topY, z: at(plane)() },
+      { x: cx + bottomW / 2, y: bottomY, z: at(plane)() },
+      { x: cx - bottomW / 2, y: bottomY, z: at(plane)() },
+    ];
+  }
+
+  // A rough convex blob — the leaf mass, the canopy — jittered around an
+  // ellipse by a fixed phase so the prototype draws without a stream.
+  function blob(plane: DepthPlane, cx: number, cy: number, rx: number, ry: number, n: number, phase: number): Pt3[] {
+    const pts: Pt3[] = [];
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2;
+      const jitter = 0.75 + 0.5 * Math.abs(Math.sin(phase + i * 2.4));
+      pts.push({
+        x: cx + Math.cos(a) * rx * jitter,
+        y: cy + Math.sin(a) * ry * jitter,
+        z: at(plane)(),
+      });
+    }
+    return pts;
+  }
+
+  // A tapered spike from a base point to a tip — fronds, blades, cactus ribs.
+  function spike(plane: DepthPlane, x0: number, y0: number, x1: number, y1: number, w: number): Pt3[] {
+    const dx = x1 - x0;
+    const dy = y1 - y0;
+    const len = Math.hypot(dx, dy) || 1;
+    const nx = -dy / len;
+    const ny = dx / len;
+    return [
+      { x: x0 + nx * w, y: y0 + ny * w, z: at(plane)() },
+      { x: x1, y: y1, z: at(plane)() },
+      { x: x0 - nx * w, y: y0 - ny * w, z: at(plane)() },
+    ];
+  }
+
+  const CANDIDATES: Candidate[] = [
+    // Broad split leaves on stems from one pot — the big corner plant. The
+    // leaves ride high, at and above the sightline.
+    {
+      name: 'monstera',
+      w: 0.3,
+      h: 1.35,
+      draw: (plane, s) => {
+        const cx = cxOf(s);
+        const potTop = s.floorY - 0.12 * s.h;
+        const marks: Mark[] = [mass(plane, trapezoid(plane, cx, potTop, 0.6 * s.w, s.floorY, 0.5 * s.w))];
+        const stems = 5;
+        for (let i = 0; i < stems; i++) {
+          const t = i / (stems - 1);
+          const tipX = cx + (t - 0.5) * 0.9 * s.w;
+          const leafCy = s.topY + 0.1 * s.h + Math.abs(Math.sin(i * 2.2)) * 0.16 * s.h;
+          marks.push(mass(plane, spike(plane, cx, potTop, tipX, leafCy + 0.08 * s.h, 0.03 * s.w)));
+          marks.push(mass(plane, blob(plane, tipX, leafCy, 0.3 * s.w, 0.11 * s.h, 9, i * 3.1)));
+        }
+        return marks;
+      },
+    },
+    // Oval leaves in a vase crown around a bare trunk — the rubber tree.
+    // The trunk stays visible under the crown, the leaves tier outward.
+    {
+      name: 'rubberTree',
+      w: 0.24,
+      h: 1.5,
+      draw: (plane, s) => {
+        const cx = cxOf(s);
+        const trunkW = 0.2 * s.w;
+        const marks: Mark[] = [
+          mass(plane, trapezoid(plane, cx, s.floorY - 0.12 * s.h, 0.55 * s.w, s.floorY, 0.45 * s.w)),
+          mass(plane, rect(plane, cx - trunkW / 2, s.topY + 0.3 * s.h, cx + trunkW / 2, s.floorY - 0.1 * s.h)),
+        ];
+        const tiers = 4;
+        for (let tier = 0; tier < tiers; tier++) {
+          const t = tier / (tiers - 1);
+          const ly = s.topY + 0.06 * s.h + t * 0.24 * s.h;
+          const spread = 0.28 * s.w + t * 0.55 * s.w;
+          for (const side of [-1, 1]) {
+            marks.push(mass(plane, blob(plane, cx + side * spread, ly, 0.34 * s.w, 0.07 * s.h, 8, tier * 2.7 + side)));
+          }
+        }
+        return marks;
+      },
+    },
+    // Arched fronds radiating from a slim trunk's crown — the palm. The
+    // crown rides high so the spray clears the sightline with room.
+    {
+      name: 'palm',
+      w: 0.28,
+      h: 1.6,
+      draw: (plane, s) => {
+        const cx = cxOf(s);
+        const trunkW = 0.09 * s.w;
+        const crownY = s.topY + 0.16 * s.h;
+        const marks: Mark[] = [
+          mass(plane, trapezoid(plane, cx, s.floorY - 0.1 * s.h, 0.45 * s.w, s.floorY, 0.38 * s.w)),
+          mass(plane, rect(plane, cx - trunkW / 2, crownY, cx + trunkW / 2, s.floorY - 0.08 * s.h)),
+        ];
+        const fronds = 8;
+        for (let i = 0; i < fronds; i++) {
+          const a = Math.PI + (i / (fronds - 1)) * Math.PI;
+          const tipX = cx + Math.cos(a) * 0.65 * s.w;
+          const tipY = crownY + Math.sin(a) * 0.08 * s.h;
+          marks.push(mass(plane, spike(plane, cx, crownY, tipX, tipY, 0.06 * s.w)));
+        }
+        return marks;
+      },
+    },
+    // Round leaves at staggered heights up the trunk — the fiddle-leaf fig,
+    // fewer and rounder than the rubber tree's tiers.
+    {
+      name: 'fiddleFig',
+      w: 0.22,
+      h: 1.5,
+      draw: (plane, s) => {
+        const cx = cxOf(s);
+        const trunkW = 0.12 * s.w;
+        const marks: Mark[] = [
+          mass(plane, trapezoid(plane, cx, s.floorY - 0.12 * s.h, 0.45 * s.w, s.floorY, 0.38 * s.w)),
+          mass(plane, rect(plane, cx - trunkW / 2, s.topY + 0.2 * s.h, cx + trunkW / 2, s.floorY - 0.1 * s.h)),
+        ];
+        const leaves = 6;
+        for (let i = 0; i < leaves; i++) {
+          const t = i / (leaves - 1);
+          const ly = s.topY + 0.04 * s.h + t * 0.42 * s.h;
+          const side = i % 2 === 0 ? -1 : 1;
+          const lx = cx + side * (0.3 * s.w + Math.abs(Math.sin(i * 1.9)) * 0.14 * s.w);
+          marks.push(mass(plane, blob(plane, lx, ly, 0.38 * s.w, 0.1 * s.h, 10, i * 2.1)));
+        }
+        return marks;
+      },
+    },
+    // A saguaro round a barrel companion: the tall column with two arms
+    // reaching up, the barrel a low round mass beside it. The arms make
+    // the column read as cactus, as a bare stick it reads as nothing.
+    {
+      name: 'cactusRow',
+      w: 0.3,
+      h: 1.5,
+      draw: (plane, s) => {
+        const marks: Mark[] = [];
+        const sagX = cxOf(s) - 0.22 * s.w;
+        const barrelX = cxOf(s) + 0.28 * s.w;
+        const potTop = s.floorY - 0.08 * s.h;
+        marks.push(
+          mass(plane, trapezoid(plane, sagX, potTop, 0.34 * s.w, s.floorY, 0.28 * s.w)),
+          mass(plane, trapezoid(plane, barrelX, potTop, 0.3 * s.w, s.floorY, 0.26 * s.w)),
+        );
+        const trunkW = 0.32 * s.w;
+        marks.push(mass(plane, trapezoid(plane, sagX, s.topY + 0.02 * s.h, trunkW * 0.85, potTop, trunkW)));
+        const armH = 0.28 * s.h;
+        for (const [side, rise] of [
+          [-1, 0.6],
+          [1, 0.48],
+        ] as const) {
+          const armBaseY = potTop - rise * s.h;
+          const ax = sagX + side * (trunkW / 2 + 0.14 * s.w);
+          marks.push(
+            mass(plane, spike(plane, sagX + side * trunkW * 0.4, armBaseY + 0.1 * s.h, ax, armBaseY, 0.1 * s.w)),
+            mass(plane, spike(plane, ax, armBaseY, ax, armBaseY - armH, 0.18 * s.w)),
+          );
+        }
+        const r = 0.22 * s.w;
+        marks.push(mass(plane, blob(plane, barrelX, potTop - r * 1.3, r, r, 11, 1.4)));
+        return marks;
+      },
+    },
+    // Tall pointed blades in a low pot — the snake plant, grown tall so
+    // the blade tips stand well into the opening.
+    {
+      name: 'snakePlant',
+      w: 0.2,
+      h: 1.4,
+      draw: (plane, s) => {
+        const cx = cxOf(s);
+        const marks: Mark[] = [mass(plane, trapezoid(plane, cx, s.floorY - 0.08 * s.h, 0.6 * s.w, s.floorY, 0.5 * s.w))];
+        const blades = 7;
+        const baseY = s.floorY - 0.06 * s.h;
+        for (let i = 0; i < blades; i++) {
+          const t = i / (blades - 1);
+          const bx = s.x0 + 0.14 * s.w + t * 0.72 * s.w;
+          const bh = (0.55 + Math.abs(Math.sin(i * 2.6)) * 0.42) * (s.h - 0.08 * s.h);
+          marks.push(mass(plane, spike(plane, bx, baseY, bx + (t - 0.5) * 0.12 * s.w, baseY - bh, 0.28 * s.w)));
+        }
+        return marks;
+      },
+    },
+    // A thick trunk with spiky rosettes — the yucca, the crown big enough
+    // to read as a burst, not a whisker.
+    {
+      name: 'yucca',
+      w: 0.22,
+      h: 1.45,
+      draw: (plane, s) => {
+        const cx = cxOf(s);
+        const trunkW = 0.16 * s.w;
+        const marks: Mark[] = [
+          mass(plane, trapezoid(plane, cx, s.floorY - 0.1 * s.h, 0.5 * s.w, s.floorY, 0.42 * s.w)),
+          mass(plane, rect(plane, cx - trunkW / 2, s.topY + 0.24 * s.h, cx + trunkW / 2, s.floorY - 0.08 * s.h)),
+        ];
+        const rosettes = [
+          { cx: cx, cy: s.topY + 0.08 * s.h, r: 0.68 * s.w },
+          { cx: cx - 0.34 * s.w, cy: s.topY + 0.26 * s.h, r: 0.45 * s.w },
+          { cx: cx + 0.32 * s.w, cy: s.topY + 0.28 * s.h, r: 0.42 * s.w },
+        ];
+        for (const ro of rosettes) {
+          const rays = 9;
+          for (let i = 0; i < rays; i++) {
+            const a = Math.PI + (i / (rays - 1)) * Math.PI;
+            marks.push(mass(plane, spike(plane, ro.cx, ro.cy, ro.cx + Math.cos(a) * ro.r, ro.cy + Math.sin(a) * ro.r * 0.7, 0.05 * s.w)));
+          }
+        }
+        return marks;
+      },
+    },
+    // A trunk under one rounded canopy — the olive. The crown rides high,
+    // a third of it clear of the sightline.
+    {
+      name: 'olive',
+      w: 0.26,
+      h: 1.6,
+      draw: (plane, s) => {
+        const cx = cxOf(s);
+        const trunkTopY = s.topY + 0.36 * s.h;
+        const marks: Mark[] = [
+          mass(plane, trapezoid(plane, cx, s.floorY - 0.1 * s.h, 0.5 * s.w, s.floorY, 0.4 * s.w)),
+          mass(plane, trapezoid(plane, cx + 0.04 * s.w, trunkTopY, 0.1 * s.w, s.floorY - 0.1 * s.h, 0.2 * s.w)),
+          mass(plane, blob(plane, cx, s.topY + 0.18 * s.h, 0.68 * s.w, 0.2 * s.h, 12, 0.9)),
+        ];
+        return marks;
+      },
+    },
+    // Arching sprays from a pot — the fern, tips carried high on long
+    // stalks so the spray clears the sightline; the strip judges it.
+    {
+      name: 'fern',
+      w: 0.34,
+      h: 1.35,
+      draw: (plane, s) => {
+        const cx = cxOf(s);
+        const marks: Mark[] = [mass(plane, trapezoid(plane, cx, s.floorY - 0.08 * s.h, 0.45 * s.w, s.floorY, 0.38 * s.w))];
+        const fronds = 9;
+        for (let i = 0; i < fronds; i++) {
+          const t = i / (fronds - 1);
+          const tipX = s.x0 + 0.08 * s.w + t * 0.84 * s.w;
+          const tipY = s.topY + 0.04 * s.h + Math.abs(t - 0.5) * 0.3 * s.h;
+          marks.push(mass(plane, spike(plane, cx, s.floorY - 0.06 * s.h, tipX, tipY, 0.16 * s.w)));
+        }
+        return marks;
+      },
+    },
+    // Broad upright paddles on short stems — the banana.
+    {
+      name: 'banana',
+      w: 0.28,
+      h: 1.45,
+      draw: (plane, s) => {
+        const cx = cxOf(s);
+        const marks: Mark[] = [mass(plane, trapezoid(plane, cx, s.floorY - 0.1 * s.h, 0.55 * s.w, s.floorY, 0.45 * s.w))];
+        const paddles = 6;
+        for (let i = 0; i < paddles; i++) {
+          const t = i / (paddles - 1);
+          const side = i % 2 === 0 ? -1 : 1;
+          const tipX = cx + side * (0.2 * s.w + t * 0.22 * s.w);
+          const tipY = s.topY + (i === 0 ? 0.02 : 0.08 + Math.abs(Math.sin(i * 1.7)) * 0.1) * s.h;
+          marks.push(mass(plane, blob(plane, tipX, tipY + 0.15 * s.h, 0.3 * s.w, 0.17 * s.h, 8, i * 3.3)));
+          marks.push(mass(plane, spike(plane, cx, s.floorY - 0.08 * s.h, tipX, tipY + 0.26 * s.h, 0.03 * s.w)));
+        }
+        return marks;
+      },
+    },
+  ];
+
+  const KINDS_SHEET_COLS = 3;
+  const STRIP_COLS = 5;
+
+  // The layout in the open, so labels can come back in screen space: the
+  // same fit centreUnit computes, kept here to place names under plates
+  // without rasterizing them at a fraction of a pixel.
+  function fit(box: { width: number; height: number; dpr: number }, cols: number, rows: number) {
+    const scale = Math.min(box.width / (cols * UNIT_PITCH_X), box.height / (rows * UNIT_PITCH_Y));
+    return { scale: box.dpr * scale, cx: (box.width * box.dpr) / 2, cy: (box.height * box.dpr) / 2 };
+  }
+
+  function plateOrigin(g: ReturnType<typeof fit>, i: number, cols: number, rows: number) {
+    const ox = ((i % cols) - (cols - 1) / 2) * UNIT_PITCH_X;
+    const oy = (Math.floor(i / cols) - (rows - 1) / 2) * UNIT_PITCH_Y;
+    return { ox, oy };
+  }
+
+  // The pointer stands in for the eye, as in every bench.
+  function pointerEye(): (canvas: HTMLCanvasElement) => { x: number; y: number } {
+    const pointer = { x: 0, y: 0 };
+    window.addEventListener('pointermove', (e) => {
+      pointer.x = e.clientX / window.innerWidth - 0.5;
+      pointer.y = e.clientY / window.innerHeight - 0.5;
+    });
+    return () => ({ ...pointer });
+  }
+
+  const labelFont = `${getComputedStyle(document.body).getPropertyValue('--typography-body2-fontFamily').trim() || 'sans-serif'}`;
+
+  // One window scene per candidate: shell, lamp pinned opposite the plant,
+  // the plant on plane 3, sill. No curtain — a rolled curtain would cover
+  // the plate it is meant to sit beside.
+  function plantPlate(c: Candidate, seed: number, i: number, theme: Theme, time: number, ctx: CanvasRenderingContext2D): void {
+    const pen = new Pen({ ...DEFAULT_TUNING }, windowSeed(seed, i, 0));
+    pen.setTime(time);
+    const plan = expandShell(pen.seed);
+    const opening = innerRect(plan.faceWidth);
+    const rng = fork(pen.seed, 'dna');
+    const sill = sillMarks(rng, opening);
+    const lamp = pinnedLamp({ location: i % 2 === 0 ? 'innerRight' : 'innerLeft' });
+    const room = roomOf(opening);
+    const w = opening.right - opening.left;
+    const x0 = i % 2 === 0 ? room.right - 0.05 * w - c.w * w : room.left + 0.05 * w;
+    const spot: Spot = { x0, x1: x0 + c.w * w, floorY: room.bottom, topY: room.bottom - c.h, w: c.w * w, h: c.h };
+    execute(
+      [
+        ...shellMarks(plan),
+        ...lampMarks(lamp, opening, theme.isNight),
+        ...c.draw(3, spot),
+        ...sill,
+      ],
+      pen,
+      ctx,
+      windowPalette(pen.seed, theme),
+      makeProjection({ x: 0, y: 0 }),
+      opening,
+    );
+  }
+
+  function mountKinds(canvas: HTMLCanvasElement, label: HTMLSpanElement, button: HTMLButtonElement): void {
+    let seed = rollSeed();
+    const show = () => (label.textContent = `seed ${seed}`);
+    show();
+    createDemoLoop(
+      canvas,
+      (ctx, time, theme: Theme) => {
+        const box = cssBox(canvas);
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.fillStyle = theme.paper;
+        ctx.fillRect(0, 0, box.width * box.dpr, box.height * box.dpr);
+        const rows = Math.ceil(CANDIDATES.length / KINDS_SHEET_COLS);
+        const g = fit(box, KINDS_SHEET_COLS, rows);
+        ctx.setTransform(g.scale, 0, 0, g.scale, g.cx, g.cy);
+        CANDIDATES.forEach((c, i) => {
+          const { ox, oy } = plateOrigin(g, i, KINDS_SHEET_COLS, rows);
+          ctx.save();
+          ctx.translate(ox, oy);
+          plantPlate(c, seed, i, theme, time, ctx);
+          ctx.restore();
+        });
+        // The names, in screen space below each plate.
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.fillStyle = theme.ink;
+        ctx.globalAlpha = 0.75;
+        ctx.font = `${Math.max(10, 0.16 * g.scale)}px ${labelFont}`;
+        ctx.textAlign = 'center';
+        CANDIDATES.forEach((c, i) => {
+          const { ox, oy } = plateOrigin(g, i, KINDS_SHEET_COLS, rows);
+          ctx.fillText(c.name, g.cx + ox * g.scale, g.cy + oy * g.scale + 0.82 * g.scale);
+        });
+        ctx.globalAlpha = 1;
+      },
+      pointerEye(),
+    );
+    button.addEventListener('click', () => {
+      seed = rollSeed();
+      show();
+    });
+  }
+
+  function mountStrip(canvas: HTMLCanvasElement): void {
+    createDemoLoop(
+      canvas,
+      (ctx, time, theme: Theme) => {
+        const box = cssBox(canvas);
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.fillStyle = theme.paper;
+        ctx.fillRect(0, 0, box.width * box.dpr, box.height * box.dpr);
+        const rows = Math.ceil(CANDIDATES.length / STRIP_COLS);
+        const g = fit(box, STRIP_COLS, rows);
+        ctx.setTransform(g.scale, 0, 0, g.scale, g.cx, g.cy);
+        CANDIDATES.forEach((c, i) => {
+          const { ox, oy } = plateOrigin(g, i, STRIP_COLS, rows);
+          ctx.save();
+          ctx.translate(ox, oy);
+          plantPlate(c, 424242, i, theme, time, ctx);
+          ctx.restore();
+        });
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.fillStyle = theme.ink;
+        ctx.globalAlpha = 0.75;
+        ctx.font = `${Math.max(9, 0.14 * g.scale)}px ${labelFont}`;
+        ctx.textAlign = 'center';
+        CANDIDATES.forEach((c, i) => {
+          const { ox } = plateOrigin(g, i, STRIP_COLS, rows);
+          ctx.fillText(c.name, g.cx + ox * g.scale, g.cy + 1.02 * g.scale);
+        });
+        ctx.globalAlpha = 1;
+      },
+      pointerEye(),
+    );
+  }
+
+  const el = (id: string) => document.getElementById(id)!;
+  mountKinds(el('kinds') as HTMLCanvasElement, el('kinds-seed'), el('kinds-reseed') as HTMLButtonElement);
+  mountStrip(el('strip') as HTMLCanvasElement);
+</script>
