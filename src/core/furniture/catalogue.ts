@@ -32,7 +32,10 @@ export const FURNITURE_KINDS: readonly { value: FurnitureKind; weight: number }[
   { value: 'coatRack', weight: 2 },
   { value: 'ladderShelf', weight: 2 },
   { value: 'roomDivider', weight: 2 },
-  { value: 'desk', weight: 3 },
+  // The desk carries extra weight: it is the one kind whose body sits below
+  // the sightline, its screen the only thing the window shows — a rarer
+  // desk reads as no desk at all.
+  { value: 'desk', weight: 6 },
   { value: 'bookcase', weight: 3 },
   { value: 'wardrobe', weight: 2 },
   { value: 'dresser', weight: 3 },
@@ -56,7 +59,7 @@ export const FURNITURE_PLANES: readonly DepthPlane[] = [2, 3, 4, 5, 6];
 export type Screen = 'laptop' | 'monitor';
 export const SCREENS: readonly { value: Screen; weight: number }[] = [
   { value: 'laptop', weight: 2 },
-  { value: 'monitor', weight: 1 },
+  { value: 'monitor', weight: 2 },
 ];
 
 // Where each plane sits, in unit measure: plane 2 just behind the lamp's
