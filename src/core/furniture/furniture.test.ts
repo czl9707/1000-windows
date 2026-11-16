@@ -250,6 +250,23 @@ describe('the furniture drawer', () => {
     }
   });
 
+  it('stands spreading crowns further in than the furniture hug', () => {
+    // A plant's crown spreads past its footprint; a crown hugging the wall
+    // draws half behind it. Every plant kind carries the longer gap the
+    // bench needed, on both edges.
+    for (const { value: kind } of FURNITURE_KINDS.filter((k) =>
+      ['monstera', 'palm', 'yucca', 'olive'].includes(k.value),
+    )) {
+      const left = drawFurniture({ pieces: [{ kind, plane: 3, side: 'left' }] }, OPENING);
+      const right = drawFurniture({ pieces: [{ kind, plane: 3, side: 'right' }] }, OPENING);
+      const minX = Math.min(...left.flatMap((m) => m.pts.map((p) => p.x)));
+      const maxX = Math.max(...right.flatMap((m) => m.pts.map((p) => p.x)));
+      const hug = 0.1 * (OPENING.right - OPENING.left);
+      expect(minX, kind).toBeGreaterThan(ROOM.left + hug);
+      expect(maxX, kind).toBeLessThan(ROOM.right - hug);
+    }
+  });
+
   it('never throws across a sweep', () => {
     for (let i = 0; i < 300; i++) {
       const rng = fork(90000 + i * 104729, 'dna');
