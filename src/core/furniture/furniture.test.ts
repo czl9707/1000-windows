@@ -213,7 +213,7 @@ describe('the furniture drawer', () => {
       return Math.max(...xs) - Math.min(...xs);
     };
     expect(screenW(monitor)).toBeGreaterThan(screenW(laptop));
-    expect(screenW(monitor)).toBeCloseTo(0.35 * (4 / 3), 6);
+    expect(screenW(monitor)).toBeCloseTo(0.45 * (4 / 3), 6);
   });
 
   it('carries the ladder shelf as one silhouette — rails and boards, no strokes', () => {

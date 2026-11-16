@@ -265,10 +265,11 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
         ctx.fillStyle = theme.paper;
         ctx.fillRect(0, 0, box.width * box.dpr, box.height * box.dpr);
         const one = currentKind();
+        // The desk pins twice (laptop, monitor): a kind's every plate shows.
         const plates = one
-          ? [sheetPlates().find((p) => p.kind === one)!]
+          ? sheetPlates().filter((p) => p.kind === one)
           : sheetPlates();
-        const cols = one ? 1 : SHEET_COLS;
+        const cols = one ? plates.length : SHEET_COLS;
         const rows = Math.ceil(plates.length / cols);
         layout(ctx, box, cols, rows);
         plates.forEach((p, i) => {

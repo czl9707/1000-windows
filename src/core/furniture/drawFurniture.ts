@@ -31,21 +31,20 @@ const SIZES: Record<FurnitureKind, { w: number; h: number }> = {
   roomDivider: { w: 0.3, h: 1.5 },
   desk: { w: 0.52, h: 0.75 },
   bookcase: { w: 0.32, h: 1.6 },
-  wardrobe: { w: 0.5, h: 1.7 },
+  wardrobe: { w: 0.5, h: 1.5 },
   dresser: { w: 0.42, h: 0.9 },
-  armchair: { w: 0.4, h: 0.95 },
-  sofa: { w: 0.6, h: 0.9 },
   chinaCabinet: { w: 0.34, h: 1.5 },
   hallBench: { w: 0.36, h: 1.0 },
-  rockingChair: { w: 0.36, h: 1.0 },
   piano: { w: 0.5, h: 1.15 },
   easel: { w: 0.3, h: 1.5 },
 };
 
 // The hug: very close to the edge, a small gap allowed, wobbling a hair
-// with the plane — deterministic, no stream draw.
+// with the plane — deterministic, no stream draw. The coat stand steps
+// back from the wall a little, as its kind does.
 const GAP_BASE = 0.03;
 const GAP_WOBBLE = 0.03;
+const COAT_STAND_SETBACK = 0.05;
 
 // Where a piece stands: its footprint hugged to the rolled edge, its base
 // on the floor line, its top from the kind's own height.
@@ -67,7 +66,8 @@ export function drawFurniture(plan: FurniturePlan, opening: PaneRect): Mark[] {
 
 function pieceMarks(p: FurniturePiece, room: PaneRect, w: number, h: number): Mark[] {
   const size = SIZES[p.kind];
-  const gap = (GAP_BASE + Math.abs(Math.sin(p.plane * GOLDEN_ANGLE)) * GAP_WOBBLE) * w;
+  const setback = p.kind === 'coatStand' ? COAT_STAND_SETBACK * w : 0;
+  const gap = (GAP_BASE + Math.abs(Math.sin(p.plane * GOLDEN_ANGLE)) * GAP_WOBBLE) * w + setback;
   const x0 = p.side === 'left' ? room.left + gap : room.right - gap - size.w * w;
   const spot: Spot = {
     x0,
@@ -94,16 +94,10 @@ function pieceMarks(p: FurniturePiece, room: PaneRect, w: number, h: number): Ma
       return wardrobe(p, spot);
     case 'dresser':
       return dresser(p, spot);
-    case 'armchair':
-      return armchair(p, spot);
-    case 'sofa':
-      return sofa(p, spot);
     case 'chinaCabinet':
       return chinaCabinet(p, spot);
     case 'hallBench':
       return hallBench(p, spot);
-    case 'rockingChair':
-      return rockingChair(p, spot);
     case 'piano':
       return piano(p, spot);
     case 'easel':
@@ -154,17 +148,39 @@ function trapezoid(plane: DepthPlane, cx: number, topY: number, topW: number, bo
   ];
 }
 
-// A coat stand: the pole mass on its splayed foot, a crown cap carrying the
-// hooks' suggestion in the silhouette itself.
+// A coat stand: the slim pole on splayed legs, the hooks as peg masses
+// reaching out sideways at staggered heights — nothing lamp-like about it.
 function coatStand(p: FurniturePiece, s: Spot): Mark[] {
   const cx = (s.x0 + s.x1) / 2;
-  const poleW = 0.18 * (s.x1 - s.x0);
-  const footH = 0.09 * s.h;
-  return [
-    mass(p.plane, trapezoid(p.plane, cx, s.topY, 0.85 * (s.x1 - s.x0), s.topY + 0.05 * s.h, 0.3 * (s.x1 - s.x0))),
-    mass(p.plane, rect(p.plane, cx - poleW / 2, s.topY + 0.05 * s.h, cx + poleW / 2, s.floorY - footH)),
-    mass(p.plane, trapezoid(p.plane, cx, s.floorY - footH, poleW, s.floorY, 0.55 * (s.x1 - s.x0))),
+  const poleW = 0.12 * (s.x1 - s.x0);
+  const footH = 0.07 * s.h;
+  const spread = 0.42 * (s.x1 - s.x0);
+  const legW = 0.05 * (s.x1 - s.x0);
+  const marks: Mark[] = [
+    mass(p.plane, rect(p.plane, cx - poleW / 2, s.topY, cx + poleW / 2, s.floorY - footH)),
+    mass(p.plane, [
+      { x: cx - poleW / 2, y: s.floorY - footH, z: at(p.plane)() },
+      { x: cx, y: s.floorY - footH, z: at(p.plane)() },
+      { x: cx - spread + legW, y: s.floorY, z: at(p.plane)() },
+      { x: cx - spread, y: s.floorY, z: at(p.plane)() },
+    ]),
+    mass(p.plane, [
+      { x: cx, y: s.floorY - footH, z: at(p.plane)() },
+      { x: cx + poleW / 2, y: s.floorY - footH, z: at(p.plane)() },
+      { x: cx + spread, y: s.floorY, z: at(p.plane)() },
+      { x: cx + spread - legW, y: s.floorY, z: at(p.plane)() },
+    ]),
   ];
+  // The hooks: two pegs a side, staggered, reaching out from the crown.
+  const pegL = 0.34 * (s.x1 - s.x0);
+  const pegH = 0.022 * s.h;
+  for (let i = 0; i < 4; i++) {
+    const side = i % 2 === 0 ? -1 : 1;
+    const py = s.topY + 0.03 * s.h + Math.floor(i / 2) * 0.06 * s.h;
+    const px = side < 0 ? cx - poleW / 2 - pegL : cx + poleW / 2;
+    marks.push(mass(p.plane, rect(p.plane, px, py, px + pegL, py + pegH)));
+  }
+  return marks;
 }
 
 // A coat rack: the hall-tree frame — two posts under a shelf slab, all
@@ -206,10 +222,11 @@ function ladderShelf(p: FurniturePiece, s: Spot): Mark[] {
   return marks;
 }
 
-// A room divider: three tall panels side by side, all silhouette.
+// A room divider: three tall panels side by side, nearly touching — the
+// gaps read as folds, not separate boards.
 function roomDivider(p: FurniturePiece, s: Spot): Mark[] {
   const panels = 3;
-  const panelGap = 0.015 * s.w;
+  const panelGap = 0.006 * s.w;
   const panelW = ((s.x1 - s.x0) - (panels - 1) * panelGap) / panels;
   const marks: Mark[] = [];
   for (let k = 0; k < panels; k++) {
@@ -233,12 +250,12 @@ function desk(p: FurniturePiece, s: Spot): Mark[] {
     mass(p.plane, rect(p.plane, s.x1 - 0.02 * s.w - legW, deskY + slabH, s.x1 - 0.02 * s.w, s.floorY)),
   ];
   if (p.screen === 'laptop') {
-    const lw = 0.32;
-    const lh = 0.2;
+    const lw = 0.34;
+    const lh = 0.26;
     marks.push(mass(p.plane, rect(p.plane, cx - lw / 2, deskY - lh, cx + lw / 2, deskY)));
   } else if (p.screen === 'monitor') {
-    const standH = 0.04;
-    const mh = 0.35;
+    const standH = 0.05;
+    const mh = 0.45;
     const mw = mh * (4 / 3);
     const standW = 0.03;
     marks.push(
@@ -293,33 +310,6 @@ function dresser(p: FurniturePiece, s: Spot): Mark[] {
   ];
 }
 
-// An armchair: the tall back between two arms, the seat slab carried on the
-// arms' own sides to the floor.
-function armchair(p: FurniturePiece, s: Spot): Mark[] {
-  const armW = 0.22 * (s.x1 - s.x0);
-  const seatY = s.floorY - 0.38 * s.h;
-  const underSeatH = 0.16 * s.h;
-  return [
-    mass(p.plane, rect(p.plane, s.x0 + armW, s.topY, s.x1 - armW, s.floorY - underSeatH)),
-    mass(p.plane, rect(p.plane, s.x0, s.topY + 0.3 * s.h, s.x0 + armW, s.floorY)),
-    mass(p.plane, rect(p.plane, s.x1 - armW, s.topY + 0.3 * s.h, s.x1, s.floorY)),
-    mass(p.plane, rect(p.plane, s.x0 + armW, seatY, s.x1 - armW, seatY + 0.14 * s.h)),
-  ];
-}
-
-// A sofa: the armchair's frame grown wide and low — the seat over a full
-// front base instead of legs.
-function sofa(p: FurniturePiece, s: Spot): Mark[] {
-  const armW = 0.16 * (s.x1 - s.x0);
-  return [
-    mass(p.plane, rect(p.plane, s.x0 + armW, s.topY, s.x1 - armW, s.floorY - 0.42 * s.h)),
-    mass(p.plane, rect(p.plane, s.x0, s.topY + 0.22 * s.h, s.x0 + armW, s.floorY)),
-    mass(p.plane, rect(p.plane, s.x1 - armW, s.topY + 0.22 * s.h, s.x1, s.floorY)),
-    mass(p.plane, rect(p.plane, s.x0 + armW, s.floorY - 0.5 * s.h, s.x1 - armW, s.floorY - 0.34 * s.h)),
-    mass(p.plane, rect(p.plane, s.x0 + armW, s.floorY - 0.34 * s.h, s.x1 - armW, s.floorY)),
-  ];
-}
-
 // A china cabinet: the solid chest below, the open shelves above it between
 // two side panels under a top slab.
 function chinaCabinet(p: FurniturePiece, s: Spot): Mark[] {
@@ -360,22 +350,6 @@ function hallBench(p: FurniturePiece, s: Spot): Mark[] {
     marks.push(mass(p.plane, rect(p.plane, x - slatW / 2, s.topY + railH, x + slatW / 2, seatY)));
   }
   return marks;
-}
-
-// A rocking chair: the tall narrow back, two arms, the seat — the runners
-// carrying it as two low bars on the floor.
-function rockingChair(p: FurniturePiece, s: Spot): Mark[] {
-  const armW = 0.12 * (s.x1 - s.x0);
-  const seatY = s.floorY - 0.38 * s.h;
-  const runnerH = 0.05 * s.h;
-  return [
-    mass(p.plane, rect(p.plane, s.x0 + armW, s.topY, s.x1 - armW, seatY)),
-    mass(p.plane, rect(p.plane, s.x0, s.topY + 0.35 * s.h, s.x0 + armW, s.floorY - runnerH)),
-    mass(p.plane, rect(p.plane, s.x1 - armW, s.topY + 0.35 * s.h, s.x1, s.floorY - runnerH)),
-    mass(p.plane, rect(p.plane, s.x0 + armW, seatY, s.x1 - armW, seatY + 0.08 * s.h)),
-    mass(p.plane, rect(p.plane, s.x0, s.floorY - runnerH, s.x0 + 0.4 * (s.x1 - s.x0), s.floorY)),
-    mass(p.plane, rect(p.plane, s.x1 - 0.4 * (s.x1 - s.x0), s.floorY - runnerH, s.x1, s.floorY)),
-  ];
 }
 
 // An upright piano: the tall body under a slanted lid, standing on two legs

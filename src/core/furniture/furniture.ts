@@ -26,15 +26,16 @@ export interface FurniturePlan {
 }
 
 // The cap's two sides: a lamp room rolls zero or one piece, a lampless room
-// zero, one, or two. Weights are street constants, tuned at build.
+// zero, one, or two. Weights are street constants, tuned at build — nudged
+// toward more furnished rooms at the eyeball bench.
 const COUNT_WITH_LAMP = [
-  { value: 0, weight: 3 },
+  { value: 0, weight: 2 },
   { value: 1, weight: 2 },
 ];
 const COUNT_WITHOUT_LAMP = [
-  { value: 0, weight: 5 },
+  { value: 0, weight: 4 },
   { value: 1, weight: 4 },
-  { value: 2, weight: 2 },
+  { value: 2, weight: 3 },
 ];
 
 // The second piece hugs the opposite edge most of the time — a soft bias,
