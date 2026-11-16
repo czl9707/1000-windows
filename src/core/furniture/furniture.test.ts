@@ -226,11 +226,12 @@ describe('the furniture drawer', () => {
     expect(marks.length).toBe(7);
   });
 
-  it('clears the sightline — every kind shows through the window (the desk via its screen)', () => {
+  it('clears the sightline — every kind shows through the window, the desk with its slab', () => {
     // The floor sits on the lamps' standing line, well below the opening's
     // bottom edge: a kind reads through the window only where some point of
-    // its silhouette rises above that sightline. The desk's body is wholly
-    // below it — the desk shows through its rolled screen alone.
+    // its silhouette rises above that sightline. The desk's slab must clear
+    // it too — a screen floating over an invisible desk is the failure the
+    // eyeball caught once.
     for (const { value: kind } of FURNITURE_KINDS) {
       const marks = drawFurniture(
         { pieces: [{ kind, plane: 3, side: 'left', screen: 'laptop' }] },
@@ -240,6 +241,12 @@ describe('the furniture drawer', () => {
         (m) => m.role === 'furniture' && m.pts.some((p) => p.y < OPENING.bottom),
       );
       expect(clears, kind).toBe(true);
+      if (kind === 'desk') {
+        const slabClears = marks.some(
+          (m) => m.role === 'furniture' && m.pts.some((p) => p.y < OPENING.bottom - 0.05),
+        );
+        expect(slabClears, 'the desk slab itself clears the sightline').toBe(true);
+      }
     }
   });
 

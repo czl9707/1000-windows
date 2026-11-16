@@ -3,7 +3,7 @@
 // dominant one among them — the lamp counts toward that cap whenever the
 // room owns one, even in daylight where it draws nothing, so a theme flip
 // never re-randomizes the roll.
-import type { Rng } from "@/core/randomness/rng";
+import type { Rng } from '@/core/randomness/rng';
 import {
   FURNITURE_KINDS,
   FURNITURE_PLANES,
@@ -11,12 +11,12 @@ import {
   type DepthPlane,
   type FurnitureKind,
   type Screen,
-} from "./catalogue";
+} from './catalogue';
 
 export interface FurniturePiece {
   kind: FurnitureKind;
   plane: DepthPlane;
-  side: "left" | "right";
+  side: 'left' | 'right';
   // The desk's rolled screen; undefined for every other kind.
   screen?: Screen;
 }
@@ -29,7 +29,7 @@ export interface FurniturePlan {
 // zero, one, or two. Weights are street constants, tuned at build — nudged
 // toward more furnished rooms at the eyeball bench.
 const COUNT_WITH_LAMP = [
-  { value: 0, weight: 1 },
+  { value: 0, weight: 2 },
   { value: 1, weight: 2 },
 ];
 const COUNT_WITHOUT_LAMP = [
@@ -64,15 +64,15 @@ export function expandFurniture(rng: Rng, lampOwned: boolean): FurniturePlan {
   for (let n = 0; n < count; n++) {
     const kind = takeWeighted(rng, kinds);
     const plane = takeWeighted(rng, planes);
-    const sides: { value: "left" | "right"; weight: number }[] =
+    const sides: { value: 'left' | 'right'; weight: number }[] =
       n === 0
         ? [
-            { value: "left", weight: 1 },
-            { value: "right", weight: 1 },
+            { value: 'left', weight: 1 },
+            { value: 'right', weight: 1 },
           ]
         : [
             {
-              value: pieces[0]!.side === "left" ? "right" : "left",
+              value: pieces[0]!.side === 'left' ? 'right' : 'left',
               weight: OPPOSITE_BIAS,
             },
             { value: pieces[0]!.side, weight: 1 },
@@ -81,7 +81,7 @@ export function expandFurniture(rng: Rng, lampOwned: boolean): FurniturePlan {
       kind,
       plane,
       side: rng.weighted(sides),
-      ...(kind === "desk" ? { screen: rng.weighted(SCREENS) } : {}),
+      ...(kind === 'desk' ? { screen: rng.weighted(SCREENS) } : {}),
     });
   }
   return { pieces };
