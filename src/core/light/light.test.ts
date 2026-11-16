@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { fork } from '@/core/randomness/rng';
-import { innerRect } from '@/core/window-shell/shell';
+import { innerRect, SHELL_Z } from '@/core/window-shell/shell';
 import { expandCurtain, curtainMarks } from '@/core/curtain';
 import { expandSill, sillMarks } from '@/core/sill';
 import { windowSceneMarks } from '@/core/window';
@@ -275,8 +275,13 @@ describe('the light block in the assembled scene', () => {
     for (let i = 0; i < 100; i++) {
       const seed = 90000 + i * 104729;
       const plan = planFor(seed);
-      const assembled = windowSceneMarks(seed, plan, true).filter((m) => m.z !== LIGHT_Z);
-      // The walk without the light block: the same fork consumed by the
+      // The furniture and light blocks sort between the backing and
+      // LIGHT_Z; this walk pins the backing and the two blocks in front of
+      // them.
+      const assembled = windowSceneMarks(seed, plan, true).filter(
+        (m) => m.z > LIGHT_Z || m.z === SHELL_Z.backing,
+      );
+      // The walk without the later blocks: the same fork consumed by the
       // curtain and sill alone, over the shell's own opening.
       const rng = fork(seed, 'dna');
       const opening = innerRect(plan.faceWidth);

@@ -10,6 +10,7 @@
 // Every curtain line draws at the texture weight, the lightest in the
 // catalogue: the cloth's hand reads quieter than the frame's own lines.
 import type { Mark } from '@/core/scene';
+import { omitLine as omitLineAt, lineSpan as lineSpanAt } from '@/core/scene/hand';
 import { WEIGHTS } from '@/styling/weights';
 import type { ColorRole } from '@/styling/roles';
 import { line, rectPts, type PaneRect } from '@/core/window-shell/shell';
@@ -28,20 +29,14 @@ const ROMAN_BAND_SHARE = 0.18;
 
 // The hand rule: a run of dense lines on paper is never fully drawn — some
 // are omitted outright, and a kept line covers only part of its run; the
-// cloth fill carries the texture instead. The golden-angle sine picks the
-// omissions and the extents — three phase offsets keep the picks
-// decorrelated, and the omit threshold maps the LINE_OMIT rate onto the
-// sine's range — deterministic, no stream draw.
+// cloth fill carries the texture instead. The picking itself is the scene's
+// shared golden-angle sine; the cloth brings its own rates.
 const LINE_OMIT = 0.3;
 const LINE_MIN_SPAN = 0.55;
 
-const omitLine = (i: number): boolean => Math.sin(i * GOLDEN_ANGLE + 1.3) < 2 * LINE_OMIT - 1;
+const omitLine = (i: number): boolean => omitLineAt(i, LINE_OMIT);
 
-const lineSpan = (i: number): [number, number] => {
-  const start = Math.abs(Math.sin(i * GOLDEN_ANGLE + 0.7)) * (1 - LINE_MIN_SPAN);
-  const end = 1 - Math.abs(Math.sin(i * GOLDEN_ANGLE + 2.1)) * (1 - LINE_MIN_SPAN);
-  return [start, end];
-};
+const lineSpan = (i: number): [number, number] => lineSpanAt(i, LINE_MIN_SPAN);
 
 const atDepth = () => CURTAIN_DEPTH;
 

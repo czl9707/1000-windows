@@ -15,6 +15,7 @@ import {
   type Palette,
   type ResolvedColor,
   type Theme,
+  FURNITURE_INK_MIX,
   GLASS_WASH,
   OCCLUDE,
 } from "./roles";
@@ -246,6 +247,7 @@ const ROLE_RESOLVERS: Record<ColorRole, (ctx: RoleContext) => ResolvedColor> = {
   ambient: warmthResolver((tuning) => tuning.ambientAlpha),
   aura: warmthResolver((tuning) => tuning.auraAlpha),
   veil: ({ theme, tuning }) => ({ color: theme.paper, alpha: tuning.veilAlpha }),
+  furniture: ({ theme }) => ({ color: mixCss(theme.paper, theme.ink, FURNITURE_INK_MIX), alpha: OCCLUDE }),
 };
 // The window's own palette: theme-bound roles resolve from the theme's two
 // colours; tinted roles resolve from the colourway. A role with no
