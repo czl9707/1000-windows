@@ -22,7 +22,11 @@ export type FurnitureKind =
   | 'chinaCabinet'
   | 'hallBench'
   | 'piano'
-  | 'easel';
+  | 'easel'
+  | 'monstera'
+  | 'palm'
+  | 'yucca'
+  | 'olive';
 
 export const FURNITURE_KINDS: readonly { value: FurnitureKind; weight: number }[] = [
   { value: 'coatStand', weight: 3 },
@@ -37,6 +41,13 @@ export const FURNITURE_KINDS: readonly { value: FurnitureKind; weight: number }[
   { value: 'hallBench', weight: 2 },
   { value: 'piano', weight: 2 },
   { value: 'easel', weight: 3 },
+  // The plants: common household presence, judged on the eyeball bench —
+  // ten candidates tried across two rounds, the four that read natural
+  // through the window landed.
+  { value: 'monstera', weight: 3 },
+  { value: 'palm', weight: 3 },
+  { value: 'yucca', weight: 2 },
+  { value: 'olive', weight: 2 },
 ];
 
 // The room owns six depth planes; the lamp always occupies plane 1, the
