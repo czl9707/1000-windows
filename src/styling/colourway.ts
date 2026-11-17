@@ -223,6 +223,15 @@ const warmthResolver =
 // the theme pair, tinted roles resolve their colourway group through a tint.
 // A role missing from the map fails the compile — and a caller casting past
 // the type still fails at the resolution site.
+// The furniture grays: one factory shared by the five depth roles, each
+// wearing its plane's own ink mix — the deeper plane's lighter shade.
+const furnitureAt =
+  (mix: number) =>
+  ({ theme }: RoleContext): ResolvedColor => ({
+    color: mixCss(theme.paper, theme.ink, mix),
+    alpha: OCCLUDE,
+  });
+
 const ROLE_RESOLVERS: Record<ColorRole, (ctx: RoleContext) => ResolvedColor> = {
   ink: ({ theme }) => ({ color: theme.ink, alpha: OCCLUDE }),
   glass: ({ theme }) => ({ color: theme.ink, alpha: GLASS_WASH }),
@@ -247,7 +256,11 @@ const ROLE_RESOLVERS: Record<ColorRole, (ctx: RoleContext) => ResolvedColor> = {
   ambient: warmthResolver((tuning) => tuning.ambientAlpha),
   aura: warmthResolver((tuning) => tuning.auraAlpha),
   veil: ({ theme, tuning }) => ({ color: theme.paper, alpha: tuning.veilAlpha }),
-  furniture: ({ theme }) => ({ color: mixCss(theme.paper, theme.ink, FURNITURE_INK_MIX), alpha: OCCLUDE }),
+  furniture2: furnitureAt(FURNITURE_INK_MIX[2]),
+  furniture3: furnitureAt(FURNITURE_INK_MIX[3]),
+  furniture4: furnitureAt(FURNITURE_INK_MIX[4]),
+  furniture5: furnitureAt(FURNITURE_INK_MIX[5]),
+  furniture6: furnitureAt(FURNITURE_INK_MIX[6]),
 };
 // The window's own palette: theme-bound roles resolve from the theme's two
 // colours; tinted roles resolve from the colourway. A role with no

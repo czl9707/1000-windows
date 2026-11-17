@@ -137,7 +137,7 @@ describe('the furniture drawer', () => {
         OPENING,
       );
       expect(marks.length, kind).toBeGreaterThan(0);
-      expect(roles(marks)).toContain('furniture');
+      expect(roles(marks)).toContain(`furniture${3}`);
       const maxY = Math.max(...marks.flatMap((m) => m.pts.map((p) => p.y)));
       // The pieces are drawn whole — the hidden floor included — and the
       // walk's draw stage clips them at the opening after projection.
@@ -184,13 +184,18 @@ describe('the furniture drawer', () => {
     expect(PLANE_DEPTH[2]).toBeLessThan(LIGHT_DEPTH);
   });
 
-  it('keeps to the one furniture gray, emitting no light', () => {
+  it('dresses every piece in its depth plane’s own gray, emitting no light', () => {
     for (let i = 0; i < 200; i++) {
       const rng = fork(87000 + i * 104729, 'dna');
       const plan = expandFurniture(rng, false);
       const marks = drawFurniture(plan, OPENING);
       for (const role of roles(marks)) {
-        expect(role).toBe('furniture');
+        expect(role).toMatch(/^furniture[2-6]$/);
+      }
+      for (const piecePlan of plan.pieces.map((p) => ({ pieces: [p] }))) {
+        for (const role of roles(drawFurniture(piecePlan, OPENING))) {
+          expect(role).toBe(`furniture${piecePlan.pieces[0]!.plane}`);
+        }
       }
     }
     // The desk's screen is part of the desk's silhouette — the same gray as
@@ -207,7 +212,7 @@ describe('the furniture drawer', () => {
     // plate is the screen itself.
     const screenW = (marks: Mark[]) => {
       const screen = marks
-        .filter((m) => m.role === 'furniture')
+        .filter((m) => /^furniture[2-6]$/.test(m.role))
         .reduce((top, m) => (Math.min(...m.pts.map((p) => p.y)) < Math.min(...top.pts.map((p) => p.y)) ? m : top));
       const xs = screen.pts.map((p) => p.x);
       return Math.max(...xs) - Math.min(...xs);
@@ -238,12 +243,12 @@ describe('the furniture drawer', () => {
         OPENING,
       );
       const clears = marks.some(
-        (m) => m.role === 'furniture' && m.pts.some((p) => p.y < OPENING.bottom),
+        (m) => /^furniture[2-6]$/.test(m.role) && m.pts.some((p) => p.y < OPENING.bottom),
       );
       expect(clears, kind).toBe(true);
       if (kind === 'desk') {
         const slabClears = marks.some(
-          (m) => m.role === 'furniture' && m.pts.some((p) => p.y < OPENING.bottom - 0.05),
+          (m) => /^furniture[2-6]$/.test(m.role) && m.pts.some((p) => p.y < OPENING.bottom - 0.05),
         );
         expect(slabClears, 'the desk slab itself clears the sightline').toBe(true);
       }
