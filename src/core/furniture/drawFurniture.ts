@@ -1,7 +1,8 @@
 // The furniture drawer: one pure emitter per catalogue kind, turning a
 // FurniturePiece and the room rectangle into the marks of one flat
-// side-silhouette. Every piece is one uniform gray ('furniture') and
-// nothing else dresses here — no interior strokes, no second gray; what the
+// side-silhouette. Every piece is one gray — its depth plane's own shade of
+// the furniture role, lighter the deeper the piece stands — and nothing
+// else dresses here: no interior strokes, no second gray per piece; what the
 // construction needs to read (the ladder shelf's boards) is part of the
 // silhouette mass, the same gray — and the desk's screen is part of the
 // construction too, never emitting.
@@ -126,9 +127,10 @@ function pieceMarks(p: FurniturePiece, room: PaneRect, w: number, h: number): Ma
 
 const at = (plane: DepthPlane) => () => PLANE_DEPTH[plane];
 const z = (plane: DepthPlane) => PLANE_Z[plane];
+const role = (plane: DepthPlane): `furniture${DepthPlane}` => `furniture${plane}`;
 
 function mass(plane: DepthPlane, pts: Pt3[]): Mark {
-  return { kind: 'fill', pts, role: 'furniture', z: z(plane) };
+  return { kind: 'fill', pts, role: role(plane), z: z(plane) };
 }
 
 function rect(plane: DepthPlane, x0: number, y0: number, x1: number, y1: number): Pt3[] {

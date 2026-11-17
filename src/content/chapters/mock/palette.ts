@@ -42,9 +42,13 @@ export function mockPalette(theme: Theme): Palette {
     ambient: { color: theme.ink, alpha: 0 },
     aura: { color: theme.ink, alpha: 0 },
     veil: { color: theme.paper, alpha: 0 },
-    // The furniture layer postdates these chapters: its gray occludes in
+    // The furniture layer postdates these chapters: its grays occlude in
     // the ground colour here, the way the painted faces do.
-    furniture: { color: theme.paper, alpha: OCCLUDE },
+    furniture2: { color: theme.paper, alpha: OCCLUDE },
+    furniture3: { color: theme.paper, alpha: OCCLUDE },
+    furniture4: { color: theme.paper, alpha: OCCLUDE },
+    furniture5: { color: theme.paper, alpha: OCCLUDE },
+    furniture6: { color: theme.paper, alpha: OCCLUDE },
   };
   return (role) => dresses[role];
 }
