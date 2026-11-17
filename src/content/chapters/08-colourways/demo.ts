@@ -17,7 +17,7 @@ import {
   type ColourwayTuning,
 } from '@/styling/colourway';
 import { windowSeed } from '@/core/randomness/rng';
-import { drawWindow } from '@/core/window';
+import { drawWindow, lampLit } from '@/core/window';
 import { CENTRE_EYE } from '@/motion/projection';
 
 const UNIT_PITCH_X = 2.3;
@@ -109,7 +109,7 @@ function mountCompare(canvas: HTMLCanvasElement): TuningHandle {
       pen.setTime(time);
       const columns = [
         { x: -colX, palette: windowPalette(pen.seed, day), night: day.isNight },
-        { x: colX, palette: tunedWindowPalette(pen.seed, dark, nightTuning), night: dark.isNight },
+        { x: colX, palette: tunedWindowPalette(pen.seed, dark, nightTuning, lampLit(pen.seed)), night: dark.isNight },
       ];
       for (const { x, palette, night } of columns) {
         ctx.save();
@@ -160,7 +160,7 @@ function mountBench(canvas: HTMLCanvasElement): TuningHandle {
       cssBox(canvas),
       time,
       pens,
-      (pen) => tunedWindowPalette(pen.seed, theme, tuning),
+      (pen) => tunedWindowPalette(pen.seed, theme, tuning, lampLit(pen.seed)),
       theme,
     );
   });

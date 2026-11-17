@@ -12,7 +12,7 @@ import { type Theme } from '@/styling/roles';
 import { DEFAULT_COLOURWAY_TUNING, tunedWindowPalette, windowPalette, type ColourwayTuning } from '@/styling/colourway';
 import { windowSeed } from '@/core/randomness/rng';
 import { execute } from '@/core/scene';
-import { drawWindow } from '@/core/window';
+import { drawWindow, lampLit } from '@/core/window';
 import { shellMarks, expandShell } from '@/core/window-shell';
 import { innerRect } from '@/core/window-shell/shell';
 import { LAMP_KINDS, ANCHORS, FACINGS } from '@/core/light/catalogue';
@@ -137,7 +137,7 @@ function mountStreet(canvas: HTMLCanvasElement): TuningHandle {
         ((i % cols) - (cols - 1) / 2) * UNIT_PITCH_X,
         (Math.floor(i / cols) - (rows - 1) / 2) * UNIT_PITCH_Y,
       );
-      drawWindow(ctx, pen, tunedWindowPalette(pen.seed, DARK, tuning), CENTRE_EYE, DARK.isNight);
+      drawWindow(ctx, pen, tunedWindowPalette(pen.seed, DARK, tuning, lampLit(pen.seed)), CENTRE_EYE, DARK.isNight);
       ctx.restore();
     });
   });

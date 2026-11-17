@@ -129,10 +129,10 @@ function venetian(plan: CoveredCurtain, o: PaneRect): Mark[] {
   ];
   const count = Math.max(1, Math.floor(drop / SLAT_MIN_PITCH));
   const rowH = drop / count;
-  // Each row is one slat, hard to the jambs: opaque down its rolled share,
-  // transparent below — the lighter the roll, the more glass shows through
-  // the gaps. The 0 roll is the closed blind: the rows join into one
-  // opaque face.
+  // Each row is one slat, hard to the jambs: its fill runs its rolled share
+  // of the row, transparent below — the lighter the roll, the more glass
+  // shows through the gaps. The 0 roll is the closed blind: the rows join
+  // into one face.
   const opaqueShare = plan.slatShare > 0 ? plan.slatShare : 1;
   for (let i = 0; i < count; i++) {
     const y = top + i * rowH;

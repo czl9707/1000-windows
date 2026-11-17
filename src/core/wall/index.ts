@@ -9,10 +9,10 @@ import { DEFAULT_TUNING } from "@/pen/tuning";
 import type { Theme } from "@/styling/roles";
 import { windowPalette } from "@/styling/colourway";
 import { windowSeed } from "@/core/randomness/rng";
-import { drawWindow } from "@/core/window";
+import { drawWindow, lampLit } from "@/core/window";
 import type { Eye } from "@/motion/projection";
 import { glide as glideStep, type Velocity } from "./camera";
-import { PITCH_X, PITCH_Y, type Camera, type Cell } from "./grid";
+import { PITCH_X, PITCH_Y, WINDOW_SCALE, type Camera, type Cell } from "./grid";
 import { pairFrom, pairKey } from "./pens";
 import { PenLedger } from "./ledger";
 import {
@@ -22,7 +22,7 @@ import {
   textureSlots,
 } from "./texture";
 
-export { PITCH_X, PITCH_Y, wallUnits, visibleCells } from "./grid";
+export { PITCH_X, PITCH_Y, WINDOW_SCALE, wallUnits, visibleCells } from "./grid";
 export type { Camera, Cell } from "./grid";
 export { dragWall } from "./drag";
 
@@ -127,12 +127,13 @@ export class Wall {
       pen.setTime(time);
       ctx.save();
       ctx.translate(col * PITCH_X, row * PITCH_Y);
+      ctx.scale(WINDOW_SCALE, WINDOW_SCALE);
       // The eye offset carries this window's origin seen from the global
       // eye: s·(w + p − camera) + eye·(s−1) — the wall plane stays pinned,
       // nearer layers drift by depth while the camera pans.
       // Each tenant resolves its own colourway; the theme-bound roles come
       // along inside the same palette.
-      drawWindow(ctx, pen, windowPalette(pen.seed, theme), {
+      drawWindow(ctx, pen, windowPalette(pen.seed, theme, lampLit(pen.seed)), {
         x: frame.eye.x + col * PITCH_X - this.camera.x,
         y: frame.eye.y + row * PITCH_Y - this.camera.y,
       }, theme.isNight);

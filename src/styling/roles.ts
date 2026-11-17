@@ -6,7 +6,8 @@
 // wears ('awning' full, 'awningThin' laid thin), the sill ledge, the
 // window-box wood. The curtain cloth resolves by
 // construction: 'fabric' is hanging cloth (panels, drapes), 'shade' the
-// roman's flat cloth, and 'blind' the venetian's opaque slat rows.
+// roman's flat cloth, and 'blind' the venetian's slat rows — every curtain
+// fill caps its wash, so the room reads through the cloth.
 // The interior roles carry the light layer: 'lamp' is the lamp structure's
 // own furniture paint, 'lampShade' the emitting part's colour whenever the
 // lamp is off — the same colourway as the body, without the dark sink —
