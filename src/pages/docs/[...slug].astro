@@ -23,7 +23,6 @@ const items: ChapterItem[] = all.map((c) => ({
   slug: chapterSlug(c.id),
   number: chapterNumber(c.id),
   title: c.data.title,
-  status: c.data.status,
 }));
 const index = items.findIndex((i) => i.slug === chapterSlug(chapter.id));
 const current = items[index];

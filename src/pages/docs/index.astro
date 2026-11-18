@@ -2,7 +2,7 @@
 import { getCollection } from 'astro:content';
 import BaseLayout from '@/components/layouts/BaseLayout.astro';
 import Typography from '@/components/ui/Typography.astro';
-import { chapterSlug } from '@/lib/chapters';
+import { chapterNumber, chapterSlug } from '@/lib/chapters';
 
 // The id is the folder name `NN-<name>`; lexical order is the reading order.
 const chapters = (await getCollection('chapters')).sort((a, b) =>
@@ -13,22 +13,13 @@ const chapters = (await getCollection('chapters')).sort((a, b) =>
 <BaseLayout>
   <div class="DocsHead">
     <Typography variant="h2" as="h1">Chapters</Typography>
-    <Typography variant="body1" color="secondary">
-      The construction, chapter by chapter — each one quoting the real code
-      behind the step and recording the chain of thought.
-    </Typography>
   </div>
   <ol class="ChapterList">
     {chapters.map((chapter) => (
       <li>
         <a href={`/docs/${chapterSlug(chapter.id)}/`}>
+          <span class="Num">{String(chapterNumber(chapter.id)).padStart(2, '0')}</span>
           <Typography variant="h6" as="span">{chapter.data.title}</Typography>
-          <Typography
-            variant="body2"
-            color={chapter.data.status === 'landed' ? 'accent' : 'secondary'}
-          >
-            {chapter.data.status}
-          </Typography>
         </a>
       </li>
     ))}
@@ -52,9 +43,14 @@ const chapters = (await getCollection('chapters')).sort((a, b) =>
     display: flex;
     flex-direction: row;
     align-items: baseline;
-    justify-content: space-between;
-    gap: var(--spacing-paragraph);
+    gap: calc(var(--spacing-paragraph) / 2);
     padding: var(--spacing-paragraph) 0;
     border-bottom: var(--border-secondary);
+  }
+
+  .Num {
+    font-family: var(--typography-code-fontFamily);
+    font-size: var(--typography-code-fontSize);
+    color: rgb(var(--color-accent-foreground));
   }
 </style>

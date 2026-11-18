@@ -2,7 +2,6 @@ export interface ChapterItem {
   slug: string;
   number: number;
   title: string;
-  status: string;
 }
 
 export interface TocHeading {
