@@ -1,6 +1,6 @@
 ---
 import Typography from '@/components/ui/Typography.astro';
-import ChapterList from './ChapterList.astro';
+import ChapterPicker from './ChapterPicker.astro';
 import Pager from './Pager.astro';
 import TocList from './TocList.astro';
 import type { ChapterLayoutProps } from './types';
@@ -17,9 +17,9 @@ const props = Astro.props as ChapterLayoutProps;
     <Pager prev={props.prev} next={props.next} />
   </article>
   <aside class="SidePanel">
-    <TocList headings={props.headings} />
+    <ChapterPicker chapters={props.chapters} chapter={props.chapter} />
     <div class="Gap"/>
-    <ChapterList chapters={props.chapters} chapter={props.chapter} />
+    <TocList headings={props.headings} />
   </aside>
 </div>
 

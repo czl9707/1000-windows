@@ -1,0 +1,132 @@
+---
+import { CaretDownIcon } from '@radix-ui/react-icons';
+import Typography from '@/components/ui/Typography.astro';
+import Button from '@/components/ui/Button.astro';
+import ChapterPopover from './ChapterPopover';
+import type { ChapterItem } from './types';
+
+interface Props {
+  chapters: ChapterItem[];
+  chapter: ChapterItem;
+}
+
+const { chapters, chapter } = Astro.props;
+const numbered = chapters.map((c) => ({
+  ...c,
+  num: String(c.number).padStart(2, '0'),
+}));
+const current = numbered.find((c) => c.slug === chapter.slug)!;
+---
+
+<div class="Picker">
+  <Typography as="p" variant="button" color="secondary">Chapters</Typography>
+  <ChapterPopover client:load>
+    <Fragment slot="label">
+      <Button variant="outlined" color="transparent">
+        <span class="Num">{current.num}</span>
+        <span class="TriggerTitle">{chapter.title}</span>
+        <CaretDownIcon />
+      </Button>
+    </Fragment>
+    <Fragment slot="content">
+      {
+        numbered.map((c) => (
+          <a
+            class="PickerRow"
+            href={`/docs/${c.slug}`}
+            aria-current={c.slug === chapter.slug ? 'page' : undefined}
+          >
+            <span class="Num">{c.num}</span>
+            {c.title}
+          </a>
+        ))
+      }
+    </Fragment>
+  </ChapterPopover>
+</div>
+
+<style>
+  .Picker {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: calc(var(--spacing-paragraph) / 2);
+    width: 100%;
+  }
+
+  .Num {
+    font-family: var(--typography-code-fontFamily);
+    font-size: var(--typography-code-fontSize);
+    color: rgb(var(--color-accent-foreground));
+  }
+
+  .TriggerTitle {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+</style>
+
+<style is:global>
+  .PickerTrigger {
+    display: block;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .PickerTrigger .ButtonContainer {
+    width: 100%;
+    border: var(--border);
+    background-color: rgb(var(--color-primary-background) / 92%);
+    backdrop-filter: blur(1rem);
+  }
+
+  .PickerTrigger svg {
+    margin-left: auto;
+    transition: transform var(--transition-short);
+  }
+
+  .PickerTrigger[data-state='open'] svg {
+    transform: scaleY(-100%);
+  }
+
+  .PickerPanel {
+    width: var(--radix-popover-trigger-width);
+    z-index: 20;
+  }
+
+  .PickerPanel > div {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    border: var(--border);
+    border-radius: var(--size-border-radius);
+    padding: var(--spacing-paragraph);
+    background-color: rgb(var(--color-primary-background) / 92%);
+    backdrop-filter: blur(1rem);
+    box-shadow: 0 4px 16px rgb(0 0 0 / 30%);
+  }
+
+  .PickerRow {
+    display: flex;
+    align-items: baseline;
+    gap: calc(var(--spacing-paragraph) / 2);
+    padding: 0.25rem var(--spacing-paragraph);
+    border-radius: var(--size-border-radius);
+    white-space: nowrap;
+    transition: background-color var(--transition-short);
+    font-family: var(--typography-button-fontFamily);
+    font-size: var(--typography-button-fontSize);
+    font-weight: var(--typography-button-fontWeight);
+    line-height: var(--typography-button-lineHeight);
+    color: rgb(var(--color-primary-foreground));
+  }
+
+  .PickerRow:hover {
+    background-color: rgb(var(--color-primary-foreground) / 10%);
+  }
+
+  .PickerRow[aria-current='page'] {
+    background-color: rgb(var(--color-primary-foreground) / 20%);
+  }
+</style>
