@@ -6,15 +6,18 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
   <main>
     <h1>Human bench</h1>
     <p>
-      Prototype, throwaway: ten styles of drawing the tenant, one pose —
-      standing, facing out — so only the style varies. All follow the
-      established language: flat masses on a depth plane (ink or the
-      furniture gray), the plants' ribbon-and-circle vocabulary where it
-      fits, line weights from the nib catalogue. The sheet gives every style
-      one large plate; the strip shows the same windows at street density,
-      the pass/fail view. A standing figure of height 1.62 shows 0.77 above
-      the sightline — head and shoulders in a pane 0.86 tall. Daylight
-      pinned; the button re-rolls in place.
+      Prototype, throwaway, round two: ten styles of drawing the tenant, one
+      pose — standing, facing out — so only the style varies. Round one died
+      at the eyeball: pictogram heads on giant bodies. This round borrows its
+      proportions from the classic window silhouette (head a seventh of the
+      body, neck under the chin, shoulders twice the head) and its vocabulary
+      from the reference's head chapters — the hair carries the outline, the
+      face stays an absence. Every plate pins a coat stand on the room's far
+      side so the size judgment has an anchor. The sheet gives every style one
+      large plate; the strip shows the same windows at street density. A
+      standing tenant of height 1.68 on the room floor shows head, neck, and
+      shoulder slope above the sightline — the same band the bookcase top
+      reaches. Daylight pinned; the button re-rolls in place.
     </p>
 
     <section>
@@ -70,6 +73,7 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
   import { lampMarks } from '@/core/light/drawLamp';
   import type { Pt3 } from '@/motion/projection';
   import { roomOf } from '@/core/furniture/room';
+  import { drawFurniture } from '@/core/furniture/drawFurniture';
   import { makeProjection } from '@/motion/projection';
 
   const UNIT_PITCH_X = 2.3;
@@ -78,12 +82,12 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
   // Daylight pinned: the interior judges best with the lamps dark.
   document.body.setAttribute('data-theme', 'light');
 
-  // The human stands nearer than the furniture planes and sorts in front
-  // of the light block — the occupant is the room's closest body.
-  const HUMAN_DEPTH = -0.1;
-  const HUMAN_Z = -6.5;
-  const atH = () => HUMAN_DEPTH;
-  const zH = () => HUMAN_Z;
+  // The tenant stands on the room floor at a furniture plane — a resident
+  // among the pieces, not a giant glued to the glass.
+  const TENANT_DEPTH = -0.15;
+  const TENANT_Z = -8.8;
+  const atT = () => TENANT_DEPTH;
+  const zT = () => TENANT_Z;
 
   interface Spot {
     x0: number;
@@ -98,381 +102,368 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
     name: string;
     w: number;
     h: number;
-    draw: (s: Spot) => Mark[];
+    draw: (s: Spot, hair: Hair) => Mark[];
   }
 
-  const mass = (role: ColorRole, pts: Pt3[]): Mark => ({ kind: 'fill', pts, role, z: zH() });
+  const mass = (role: ColorRole, pts: Pt3[]): Mark => ({ kind: 'fill', pts, role, z: zT() });
   const stroke = (role: ColorRole, pts: Pt3[], name: string, widthUnits: number): Mark => ({
     kind: 'stroke',
     pts,
     name,
     widthUnits,
     role,
-    z: zH(),
+    z: zT(),
+  });
+  const dot = (role: ColorRole, p: { x: number; y: number }, r: number, name: string): Mark => ({
+    kind: 'dot',
+    pts: [{ x: p.x, y: p.y, z: atT() }],
+    role,
+    z: zT(),
+    name,
+    r,
   });
   const cxOf = (s: Spot) => (s.x0 + s.x1) / 2;
 
-  function circ(cx: number, cy: number, r: number, n = 14): Pt3[] {
+  // One ellipse ring; rx and ry may differ — the skull is taller than wide.
+  function ellipse(cx: number, cy: number, rx: number, ry: number, n = 16): Pt3[] {
     const pts: Pt3[] = [];
     for (let i = 0; i < n; i++) {
       const a = (i / n) * Math.PI * 2;
-      pts.push({ x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r, z: atH() });
+      pts.push({ x: cx + Math.cos(a) * rx, y: cy + Math.sin(a) * ry, z: atT() });
     }
     return pts;
   }
 
-  function ribbon(
-    q0: { x: number; y: number },
-    q1: { x: number; y: number },
-    q2: { x: number; y: number },
-    w0: number,
-    w1: number,
-    n = 8,
-  ): Pt3[] {
-    const p = (t: number) => ({
-      x: (1 - t) * (1 - t) * q0.x + 2 * (1 - t) * t * q1.x + t * t * q2.x,
-      y: (1 - t) * (1 - t) * q0.y + 2 * (1 - t) * t * q1.y + t * t * q2.y,
-    });
-    const d = (t: number) => ({
-      x: 2 * (1 - t) * (q1.x - q0.x) + 2 * t * (q2.x - q1.x),
-      y: 2 * (1 - t) * (q1.y - q0.y) + 2 * t * (q2.y - q1.y),
-    });
-    const left: Pt3[] = [];
-    const right: Pt3[] = [];
-    for (let i = 0; i <= n; i++) {
-      const t = i / n;
-      const pt = p(t);
-      const dv = d(t);
-      const len = Math.hypot(dv.x, dv.y) || 1;
-      const nx = -dv.y / len;
-      const ny = dv.x / len;
-      const w = (w0 + (w1 - w0) * t) / 2;
-      left.push({ x: pt.x + nx * w, y: pt.y + ny * w, z: atH() });
-      right.push({ x: pt.x - nx * w, y: pt.y - ny * w, z: atH() });
-    }
-    return [...left, ...right.reverse()];
-  }
+  const circ = (cx: number, cy: number, r: number, n = 14) => ellipse(cx, cy, r, r, n);
 
-  // The shared figure measures, off the man's own height: head radius,
-  // shoulder line and width, hip width. Real proportions, nudged toward
-  // what reads at wall distance.
-  interface Measures {
+  // The tenant's anthropometry, off the standing height: the head a seventh
+  // of it, the shoulders a head and a half across, a real neck. Real body,
+  // not the pictogram of round one.
+  interface Build {
     cx: number;
-    h: number;
-    headY: number;
-    hr: number;
+    crownY: number;
+    hairY: number;
+    headCY: number;
+    headRx: number;
+    headRy: number;
+    chinY: number;
+    neckW: number;
     shoulderY: number;
-    shW: number;
-    hipW: number;
-    hipY: number;
+    shoulderX: number;
     sightY: number;
   }
 
-  function measures(s: Spot): Measures {
+  function build(s: Spot, height: number): Build {
     const cx = cxOf(s) + 0.012 * s.h * Math.sin(s.x0 * 9.1);
-    const hr = 0.095 * s.h;
+    const crownY = s.floorY - height;
+    const headRx = height * 0.063;
+    const headRy = height * 0.074;
+    const hairLift = height * 0.02;
+    const headCY = crownY + hairLift + headRy;
+    const chinY = headCY + headRy * 0.95;
+    const shoulderY = chinY + height * 0.065;
     return {
       cx,
-      h: s.h,
-      headY: s.floorY - s.h + hr,
-      hr,
-      shoulderY: s.floorY - 0.8 * s.h,
-      shW: 0.3 * s.h,
-      hipW: 0.2 * s.h,
-      hipY: s.floorY - 0.44 * s.h,
+      crownY,
+      hairY: crownY + hairLift * 0.4,
+      headCY,
+      headRx,
+      headRy,
+      chinY,
+      neckW: height * 0.033,
+      shoulderY,
+      shoulderX: height * 0.125,
       sightY: s.floorY - 0.85,
     };
   }
 
-  // Head-and-shoulders mass down to the floor: the clip cuts the body at
-  // the sightline, exactly where a figure at the glass disappears.
-  function bust(role: ColorRole, m: Measures): Mark[] {
-    return [
-      mass(role, circ(m.cx, m.headY, m.hr)),
-      mass(role, [
-        { x: m.cx - m.shW / 2, y: m.shoulderY, z: atH() },
-        { x: m.cx + m.shW / 2, y: m.shoulderY, z: atH() },
-        { x: m.cx + m.hipW / 2, y: m.sightY + 0.1, z: atH() },
-        { x: m.cx - m.hipW / 2, y: m.sightY + 0.1, z: atH() },
-      ]),
-    ];
+  // Hair rolls per tenant and carries the crown's outline: the reference's
+  // trick — the hairdo is where a person stops being an egg.
+  type Hair = 'crop' | 'bun' | 'curls' | 'sidePart';
+
+  function rollHair(seed: number, i: number): Hair {
+    const r = fork(windowSeed(seed, i, 0), 'tenant-hair');
+    return r.weighted([
+      { value: 'crop' as const, weight: 3 },
+      { value: 'bun' as const, weight: 2 },
+      { value: 'curls' as const, weight: 2 },
+      { value: 'sidePart' as const, weight: 2 },
+    ]);
   }
 
-  // The whole standing figure: torso, arms hanging at the sides, legs —
-  // drawn past the sightline, the aperture clips it.
-  function figure(role: ColorRole, m: Measures): Mark[] {
-    const marks: Mark[] = [
-      mass(role, circ(m.cx, m.headY, m.hr)),
-      mass(role, [
-        { x: m.cx - m.shW / 2, y: m.shoulderY, z: atH() },
-        { x: m.cx + m.shW / 2, y: m.shoulderY, z: atH() },
-        { x: m.cx + m.hipW / 2, y: m.hipY, z: atH() },
-        { x: m.cx - m.hipW / 2, y: m.hipY, z: atH() },
-      ]),
-    ];
-    for (const side of [-1, 1]) {
-      marks.push(
-        mass(
-          role,
-          ribbon(
-            { x: m.cx + side * 0.06 * m.shW, y: m.hipY },
-            { x: m.cx + side * 0.07 * m.shW, y: (m.hipY + m.sightY) / 2 },
-            { x: m.cx + side * 0.055 * m.shW, y: m.sightY + 0.1 },
-            0.075 * m.h,
-            0.055 * m.h,
-          ),
-        ),
-      );
-      marks.push(
-        mass(
-          role,
-          ribbon(
-            { x: m.cx + side * 0.46 * m.shW, y: m.shoulderY + 0.015 * m.h },
-            { x: m.cx + side * 0.5 * m.shW, y: (m.shoulderY + m.hipY) / 2 },
-            { x: m.cx + side * 0.42 * m.shW, y: m.hipY + 0.03 * m.h },
-            0.05 * m.h,
-            0.04 * m.h,
-          ),
-        ),
-      );
+  function hairMarks(role: ColorRole, b: Build, hair: Hair): Mark[] {
+    const marks: Mark[] = [];
+    const capRx = b.headRx * 1.12;
+    const capRy = b.headRy * 1.05;
+    const capY = b.headCY - b.headRy * 0.32;
+    if (hair === 'crop' || hair === 'sidePart') {
+      const shift = hair === 'sidePart' ? b.headRx * 0.28 : 0;
+      marks.push(mass(role, ellipse(b.cx + shift, capY, capRx, capRy)));
+    } else if (hair === 'curls') {
+      for (const off of [-0.7, -0.2, 0.3, 0.75]) {
+        marks.push(mass(role, circ(b.cx + off * capRx, capY - capRy * 0.35 + Math.abs(off) * capRy * 0.3, b.headRx * 0.42)));
+      }
+    } else {
+      marks.push(mass(role, ellipse(b.cx, capY, capRx, capRy)));
+      marks.push(mass(role, circ(b.cx + b.headRx * 0.55, b.crownY + b.headRy * 0.28, b.headRx * 0.4)));
     }
     return marks;
   }
 
-  // The bust contour: shoulder tips, neck, the arc over the head — one
-  // open polyline each side of the head.
-  function bustContour(m: Measures, bottomY: number): { left: Pt3[]; right: Pt3[] } {
-    const neckY = m.headY + m.hr * 0.8;
-    const neckX = 0.05 * m.h;
-    const arc = (from: number, to: number, n = 8): Pt3[] => {
-      const pts: Pt3[] = [];
-      for (let i = 0; i <= n; i++) {
+  // The bust mass: skull, neck, and the shoulder slope down past the
+  // sightline. One role, stacked — the tremor melts the joins into one
+  // silhouette.
+  function bustMass(role: ColorRole, b: Build): Mark[] {
+    return [
+      mass(role, ellipse(b.cx, b.headCY, b.headRx, b.headRy)),
+      mass(role, [
+        { x: b.cx - b.neckW, y: b.chinY - b.headRy * 0.2, z: atT() },
+        { x: b.cx + b.neckW, y: b.chinY - b.headRy * 0.2, z: atT() },
+        { x: b.cx + b.neckW * 1.4, y: b.shoulderY + 0.03, z: atT() },
+        { x: b.cx - b.neckW * 1.4, y: b.shoulderY + 0.03, z: atT() },
+      ]),
+      mass(role, [
+        { x: b.cx - b.neckW * 1.2, y: b.shoulderY, z: atT() },
+        { x: b.cx + b.neckW * 1.2, y: b.shoulderY, z: atT() },
+        { x: b.cx + b.shoulderX, y: b.shoulderY + 0.055, z: atT() },
+        { x: b.cx + b.shoulderX * 0.94, y: b.sightY + 0.12, z: atT() },
+        { x: b.cx - b.shoulderX * 0.94, y: b.sightY + 0.12, z: atT() },
+        { x: b.cx - b.shoulderX, y: b.shoulderY + 0.055, z: atT() },
+      ]),
+    ];
+  }
+
+  // The contour line: over the crown, down the temple, the jaw, into the
+  // neck, out along the shoulder slope. One open polyline; the hair edge
+  // rides the same path — the reference's frisur over the kopf.
+  function bustContour(b: Build, hair: Hair, bottomY: number): { left: Pt3[]; right: Pt3[] } {
+    const capRx = b.headRx * (hair === 'crop' || hair === 'bun' ? 1.12 : 1.0);
+    const capTop = b.crownY + b.headRy * 0.15;
+    const arc = (from: number, to: number, rx: number, ry: number, cy: number, n = 9): Pt3[] =>
+      Array.from({ length: n + 1 }, (_, i) => {
         const a = from + (i / n) * (to - from);
-        pts.push({ x: m.cx + Math.cos(a) * m.hr, y: m.headY - Math.sin(a) * m.hr, z: atH() });
-      }
-      return pts;
-    };
-    const headArc = arc(Math.PI * 0.92, Math.PI * 0.08);
-    const left: Pt3[] = [
-      { x: m.cx - m.shW / 2, y: bottomY, z: atH() },
-      { x: m.cx - m.shW / 2, y: m.shoulderY + 0.03 * m.h, z: atH() },
-      { x: m.cx - neckX, y: neckY, z: atH() },
+        return { x: b.cx + Math.cos(a) * rx, y: cy - Math.sin(a) * ry, z: atT() };
+      });
+    const crown = arc(Math.PI, 0, capRx, b.headRy * 1.05, capTop + b.headRy * 0.85);
+    const temple = (side: number): Pt3[] => [
+      { x: b.cx + side * capRx, y: b.headCY - b.headRy * 0.2, z: atT() },
+      { x: b.cx + side * b.headRx * 0.92, y: b.chinY, z: atT() },
+      { x: b.cx + side * b.neckW * 0.9, y: b.shoulderY - 0.02, z: atT() },
+      { x: b.cx + side * b.shoulderX * 0.96, y: b.shoulderY + 0.06, z: atT() },
+      { x: b.cx + side * b.shoulderX * 0.94, y: bottomY, z: atT() },
     ];
-    const right: Pt3[] = [
-      { x: m.cx + neckX, y: neckY, z: atH() },
-      { x: m.cx + m.shW / 2, y: m.shoulderY + 0.03 * m.h, z: atH() },
-      { x: m.cx + m.shW / 2, y: bottomY, z: atH() },
-    ];
-    return { left: [...left, ...headArc], right };
+    return { left: [...temple(-1), ...crown], right: temple(1) };
   }
 
   const CANDIDATES: Candidate[] = [
-    // 1. The classic back-lit silhouette: solid ink head-and-shoulders at
-    // the glass.
+    // 1. The classic back-lit silhouette, correctly proportioned: ink head,
+    // neck, shoulder slope, the hair carrying the crown's outline.
     {
       name: 'inkBust',
-      w: 0.34,
-      h: 1.62,
-      draw: (s) => bust('ink', measures(s)),
+      w: 0.42,
+      h: 1.68,
+      draw: (s, hair) => {
+        const b = build(s, 1.68);
+        return [...bustMass('ink', b), ...hairMarks('ink', b, hair)];
+      },
     },
-    // 2. The whole figure in solid ink, standing in the room.
+    // 2. The standing figure in ink — arms hinted as sleeve masses beside
+    // the torso, legs below the sightline stay under the clip.
     {
       name: 'inkFigure',
-      w: 0.3,
-      h: 1.62,
-      draw: (s) => figure('ink', measures(s)),
+      w: 0.4,
+      h: 1.68,
+      draw: (s, hair) => {
+        const b = build(s, 1.68);
+        const marks = [...bustMass('ink', b), ...hairMarks('ink', b, hair)];
+        for (const side of [-1, 1]) {
+          marks.push(
+            mass('ink', [
+              { x: b.cx + side * b.shoulderX * 0.82, y: b.shoulderY + 0.07, z: atT() },
+              { x: b.cx + side * b.shoulderX * 0.95, y: b.shoulderY + 0.1, z: atT() },
+              { x: b.cx + side * b.shoulderX * 0.88, y: b.sightY + 0.1, z: atT() },
+              { x: b.cx + side * b.shoulderX * 0.74, y: b.sightY + 0.1, z: atT() },
+            ]),
+          );
+        }
+        return marks;
+      },
     },
-    // 3. The bust in the furniture gray — a resident, not a shadow.
+    // 3. The bust in the furniture gray at its own plane — a resident among
+    // the pieces, the coat stand's neighbour.
     {
       name: 'grayBust',
-      w: 0.34,
-      h: 1.62,
-      draw: (s) => bust('furniture2', measures(s)),
+      w: 0.42,
+      h: 1.68,
+      draw: (s, hair) => {
+        const b = build(s, 1.68);
+        return [...bustMass('furniture4', b), ...hairMarks('furniture4', b, hair)];
+      },
     },
-    // 4. The whole figure as a furniture-gray silhouette, standing on the
-    // floor like a piece.
-    {
-      name: 'grayFigure',
-      w: 0.3,
-      h: 1.62,
-      draw: (s) => figure('furniture2', measures(s)),
-    },
-    // 5. The bust as pure contour — ink line, no fill.
+    // 4. The pure contour: one line over the crown and down both sides, no
+    // fill — the drawn tenant for unlit rooms.
     {
       name: 'lineBust',
-      w: 0.34,
-      h: 1.62,
-      draw: (s) => {
-        const m = measures(s);
-        const { left, right } = bustContour(m, m.sightY + 0.06);
+      w: 0.42,
+      h: 1.68,
+      draw: (s, hair) => {
+        const b = build(s, 1.68);
+        const { left, right } = bustContour(b, hair, b.sightY + 0.1);
         return [
           stroke('ink', left, 'lineBust-left', WEIGHTS.outline),
           stroke('ink', right, 'lineBust-right', WEIGHTS.outline),
         ];
       },
     },
-    // 6. The full-figure contour with its interior construction lines —
-    // collar V and arm seams.
+    // 5. The contour with a face: two eye dots and a mouth line — identity
+    // at the smallest scale the dot construction survives.
     {
-      name: 'lineFigure',
-      w: 0.3,
-      h: 1.62,
-      draw: (s) => {
-        const m = measures(s);
-        const { left, right } = bustContour(m, m.sightY + 0.06);
-        const chestY = m.shoulderY + 0.08 * m.h;
-        const marks: Mark[] = [
-          stroke('ink', left, 'lineFigure-left', WEIGHTS.outline),
-          stroke('ink', right, 'lineFigure-right', WEIGHTS.outline),
+      name: 'lineFace',
+      w: 0.42,
+      h: 1.68,
+      draw: (s, hair) => {
+        const b = build(s, 1.68);
+        const { left, right } = bustContour(b, hair, b.sightY + 0.1);
+        const eyeY = b.headCY - b.headRy * 0.05;
+        return [
+          stroke('ink', left, 'lineFace-left', WEIGHTS.outline),
+          stroke('ink', right, 'lineFace-right', WEIGHTS.outline),
+          dot('ink', { x: b.cx - b.headRx * 0.42, y: eyeY }, b.headRx * 0.14, 'lineFace-eyeL'),
+          dot('ink', { x: b.cx + b.headRx * 0.42, y: eyeY }, b.headRx * 0.14, 'lineFace-eyeR'),
           stroke(
             'ink',
             [
-              { x: m.cx - 0.05 * m.h, y: chestY, z: atH() },
-              { x: m.cx, y: chestY + 0.06 * m.h, z: atH() },
-              { x: m.cx + 0.05 * m.h, y: chestY, z: atH() },
+              { x: b.cx - b.headRx * 0.3, y: b.chinY - b.headRy * 0.28, z: atT() },
+              { x: b.cx + b.headRx * 0.3, y: b.chinY - b.headRy * 0.28, z: atT() },
             ],
-            'lineFigure-collar',
+            'lineFace-mouth',
             WEIGHTS.detail,
           ),
         ];
-        for (const side of [-1, 1]) {
-          marks.push(
-            stroke(
-              'ink',
-              [
-                { x: m.cx + side * 0.115 * m.h, y: m.shoulderY + 0.02 * m.h, z: atH() },
-                { x: m.cx + side * 0.09 * m.h, y: m.sightY + 0.05, z: atH() },
-              ],
-              `lineFigure-arm${side}`,
-              WEIGHTS.detail,
-            ),
-          );
-        }
+      },
+    },
+    // 6. The profile: forehead, nose, chin, the hair mass at the back of the
+    // head — the silhouette-cut view, most human per line.
+    {
+      name: 'profile',
+      w: 0.42,
+      h: 1.68,
+      draw: (s, hair) => {
+        const b = build(s, 1.68);
+        const face = b.cx + b.headRx * 0.3;
+        const marks: Mark[] = [
+          mass('ink', ellipse(b.cx, b.headCY, b.headRx * 0.92, b.headRy)),
+          mass('ink', [
+            { x: face + b.headRx * 0.55, y: b.headCY - b.headRy * 0.55, z: atT() },
+            { x: face + b.headRx * 0.72, y: b.headCY + b.headRy * 0.05, z: atT() },
+            { x: face + b.headRx * 0.58, y: b.headCY + b.headRy * 0.3, z: atT() },
+            { x: face + b.headRx * 0.3, y: b.headCY + b.headRy * 0.55, z: atT() },
+          ]),
+          ...bustMass('ink', b),
+        ];
+        const capRx = b.headRx * 1.15;
+        marks.push(mass('ink', ellipse(b.cx - b.headRx * 0.25, b.headCY - b.headRy * 0.32, capRx, b.headRy * 1.02)));
         return marks;
       },
     },
-    // 7. The ink bust carved: paper strokes over the mass — hairline,
-    // collar, shoulder seams — silhouette with readable interior.
+    // 7. The rim-lit tenant: the ink silhouette with the paper catching the
+    // crown of the hair and the shoulder tops — the back-lit edge.
     {
-      name: 'carvedBust',
-      w: 0.34,
-      h: 1.62,
-      draw: (s) => {
-        const m = measures(s);
-        const marks: Mark[] = [...bust('ink', m)];
-        const hairPts: Pt3[] = [];
-        for (let i = 0; i <= 8; i++) {
-          const a = Math.PI * (1 - (i / 8) * 1.2);
-          hairPts.push({
-            x: m.cx + Math.cos(a) * m.hr * 0.62,
-            y: m.headY + m.hr * 0.3 - Math.sin(a) * m.hr * 0.62,
-            z: atH(),
-          });
-        }
-        marks.push(stroke('paper', hairPts, 'carvedBust-hairline', WEIGHTS.detail));
-        marks.push(
+      name: 'rimLit',
+      w: 0.42,
+      h: 1.68,
+      draw: (s, hair) => {
+        const b = build(s, 1.68);
+        const capRx = b.headRx * 1.1;
+        const rimArc: Pt3[] = Array.from({ length: 8 }, (_, i) => {
+          const a = Math.PI * (1 - i / 7);
+          return { x: b.cx + Math.cos(a) * capRx, y: b.headCY - b.headRy * 0.3 - Math.sin(a) * b.headRy * 1.02, z: atT() };
+        });
+        return [
+          ...bustMass('ink', b),
+          ...hairMarks('ink', b, hair),
+          stroke('paper', rimArc, 'rimLit-crown', WEIGHTS.hairline),
           stroke(
             'paper',
             [
-              { x: m.cx - 0.1 * m.h, y: m.shoulderY + 0.1 * m.h, z: atH() },
-              { x: m.cx, y: m.shoulderY + 0.14 * m.h, z: atH() },
-              { x: m.cx + 0.1 * m.h, y: m.shoulderY + 0.1 * m.h, z: atH() },
+              { x: b.cx - b.shoulderX * 0.96, y: b.shoulderY + 0.07, z: atT() },
+              { x: b.cx - b.neckW * 1.3, y: b.shoulderY + 0.01, z: atT() },
             ],
-            'carvedBust-collar',
-            WEIGHTS.detail,
+            'rimLit-shoulderL',
+            WEIGHTS.hairline,
           ),
-        );
-        for (const side of [-1, 1]) {
-          marks.push(
-            stroke(
-              'paper',
-              [
-                { x: m.cx + side * 0.11 * m.h, y: m.shoulderY + 0.02 * m.h, z: atH() },
-                { x: m.cx + side * 0.1 * m.h, y: m.sightY + 0.05, z: atH() },
-              ],
-              `carvedBust-seam${side}`,
-              WEIGHTS.detail,
-            ),
-          );
-        }
-        return marks;
+          stroke(
+            'paper',
+            [
+              { x: b.cx + b.neckW * 1.3, y: b.shoulderY + 0.01, z: atT() },
+              { x: b.cx + b.shoulderX * 0.96, y: b.shoulderY + 0.07, z: atT() },
+            ],
+            'rimLit-shoulderR',
+            WEIGHTS.hairline,
+          ),
+        ];
       },
     },
-    // 8. The back-lit bust with its lamp halo: the warm ambient wash
-    // behind the head and shoulders, the ink mass in front.
+    // 8. The back-lit bust: the warm room glow pooling behind the head and
+    // shoulders, the ink silhouette in front.
     {
-      name: 'glowBust',
-      w: 0.34,
-      h: 1.62,
-      draw: (s) => {
-        const m = measures(s);
+      name: 'backlit',
+      w: 0.5,
+      h: 1.68,
+      draw: (s, hair) => {
+        const b = build(s, 1.68);
         return [
-          mass('ambient', circ(m.cx, m.headY + 0.03 * m.h, m.hr * 2.2, 16)),
+          mass('ambient', circ(b.cx, b.headCY + 0.06, b.headRy * 2.6, 18)),
           mass('ambient', [
-            { x: m.cx - m.shW * 0.75, y: m.shoulderY - 0.05 * m.h, z: atH() },
-            { x: m.cx + m.shW * 0.75, y: m.shoulderY - 0.05 * m.h, z: atH() },
-            { x: m.cx + m.shW * 0.6, y: m.sightY + 0.1, z: atH() },
-            { x: m.cx - m.shW * 0.6, y: m.sightY + 0.1, z: atH() },
+            { x: b.cx - b.shoulderX * 1.9, y: b.shoulderY - 0.02, z: atT() },
+            { x: b.cx + b.shoulderX * 1.9, y: b.shoulderY - 0.02, z: atT() },
+            { x: b.cx + b.shoulderX * 1.6, y: b.sightY + 0.12, z: atT() },
+            { x: b.cx - b.shoulderX * 1.6, y: b.sightY + 0.12, z: atT() },
           ]),
-          ...bust('ink', m),
+          ...bustMass('ink', b),
+          ...hairMarks('ink', b, hair),
         ];
       },
     },
-    // 9. The figure in the plants' own language: everything circles and
-    // tapered ribbons, soft and lopsided, in the furniture gray.
+    // 9. The seated tenant: crown at the pane's upper third, hunched
+    // shoulders — the reader at the window, lower than the furniture.
     {
-      name: 'softFigure',
-      w: 0.32,
-      h: 1.62,
-      draw: (s) => {
-        const m = measures(s);
-        const marks: Mark[] = [
-          mass('furniture2', circ(m.cx + 0.015 * m.h, m.headY + 0.01 * m.h, m.hr * 1.05)),
-          mass(
-            'furniture2',
-            ribbon(
-              { x: m.cx - 0.1 * m.h, y: m.shoulderY - 0.02 * m.h },
-              { x: m.cx + 0.02 * m.h, y: (m.shoulderY + m.sightY) / 2 + 0.04 },
-              { x: m.cx - 0.02 * m.h, y: m.sightY + 0.1 },
-              0.26 * m.h,
-              0.24 * m.h,
-            ),
-          ),
-        ];
-        for (const side of [-1, 1]) {
-          marks.push(
-            mass(
-              'furniture2',
-              ribbon(
-                { x: m.cx + side * 0.1 * m.h, y: m.shoulderY },
-                { x: m.cx + side * 0.17 * m.h, y: (m.shoulderY + m.sightY) / 2 },
-                { x: m.cx + side * 0.13 * m.h, y: m.sightY + 0.06 },
-                0.055 * m.h,
-                0.04 * m.h,
-              ),
-            ),
-          );
-        }
-        return marks;
-      },
-    },
-    // 10. Close to the glass: the same ink bust drawn 1.25× larger, its
-    // waist at the sightline, shoulders spanning half the pane.
-    {
-      name: 'waistCrop',
-      w: 0.52,
-      h: 2.05,
-      draw: (s) => {
-        const m = measures(s);
+      name: 'seated',
+      w: 0.46,
+      h: 1.3,
+      draw: (s, hair) => {
+        const b = build(s, 1.3);
+        const hunched = b.shoulderX * 1.18;
         return [
-          mass('ink', circ(m.cx, m.headY, m.hr)),
+          mass('ink', ellipse(b.cx, b.headCY, b.headRx, b.headRy)),
           mass('ink', [
-            { x: m.cx - m.shW / 2, y: m.shoulderY, z: atH() },
-            { x: m.cx + m.shW / 2, y: m.shoulderY, z: atH() },
-            { x: m.cx + m.hipW / 2, y: m.sightY + 0.1, z: atH() },
-            { x: m.cx - m.hipW / 2, y: m.sightY + 0.1, z: atH() },
+            { x: b.cx - b.neckW * 1.1, y: b.shoulderY - 0.02, z: atT() },
+            { x: b.cx + b.neckW * 1.1, y: b.shoulderY - 0.02, z: atT() },
+            { x: b.cx + hunched, y: b.shoulderY + 0.08, z: atT() },
+            { x: b.cx + hunched * 0.95, y: b.sightY + 0.12, z: atT() },
+            { x: b.cx - hunched * 0.95, y: b.sightY + 0.12, z: atT() },
+            { x: b.cx - hunched, y: b.shoulderY + 0.08, z: atT() },
           ]),
+          ...hairMarks('ink', b, hair),
         ];
+      },
+    },
+    // 10. The phone glow: the ink bust tilting down toward the small warm
+    // oval lighting the chin from below.
+    {
+      name: 'phoneGlow',
+      w: 0.42,
+      h: 1.68,
+      draw: (s, hair) => {
+        const b = build(s, 1.68);
+        const tilt = b.headRy * 0.12;
+        const tilted: Build = { ...b, headCY: b.headCY + tilt, chinY: b.chinY + tilt * 1.4, crownY: b.crownY + tilt };
+        const marks: Mark[] = [
+          mass('ambient', ellipse(b.cx + b.headRx * 0.5, tilted.chinY + 0.055, b.headRx * 0.42, b.headRx * 0.3)),
+          ...bustMass('ink', tilted),
+          ...hairMarks('ink', tilted, hair),
+        ];
+        return marks;
       },
     },
   ];
@@ -502,17 +493,18 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
 
   const labelFont = `${getComputedStyle(document.body).getPropertyValue('--typography-body2-fontFamily').trim() || 'sans-serif'}`;
 
-  // One window scene per style: shell, lamp pinned to the side, the
-  // human centred on its depth, sill. No curtain — a rolled curtain would
-  // cover the figure it is meant to sit behind.
+  // One window scene per style: shell, a pinned coat stand opposite the
+  // lamp — the size anchor — the tenant centred on its plane, sill. No
+  // curtain: a rolled curtain would cover the figure it sits behind.
   function humanPlate(c: Candidate, seed: number, i: number, theme: Theme, time: number, ctx: CanvasRenderingContext2D): void {
     const pen = new Pen({ ...DEFAULT_TUNING }, windowSeed(seed, i, 0));
     pen.setTime(time);
     const plan = expandShell(pen.seed);
-    const opening = innerRect(plan.faceWidth);
+    const opening: PaneRect = innerRect(plan.faceWidth);
     const rng = fork(pen.seed, 'dna');
     const sill = sillMarks(rng, opening);
     const lamp = pinnedLamp({ location: i % 2 === 0 ? 'innerRight' : 'innerLeft' });
+    const hair = rollHair(seed, i);
     const room = roomOf(opening);
     const cx = (opening.left + opening.right) / 2;
     const x0 = cx - c.w / 2;
@@ -520,8 +512,9 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
     execute(
       [
         ...shellMarks(plan),
+        ...drawFurniture({ pieces: [{ kind: 'coatStand', plane: 4, side: lamp.location === 'innerRight' ? 'left' : 'right' }] }, opening),
         ...lampMarks(lamp, opening, theme.isNight),
-        ...c.draw(spot),
+        ...c.draw(spot, hair),
         ...sill,
       ],
       pen,
@@ -601,8 +594,8 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
         ctx.font = `${Math.max(9, 0.14 * g.scale)}px ${labelFont}`;
         ctx.textAlign = 'center';
         CANDIDATES.forEach((c, i) => {
-          const { ox } = plateOrigin(g, i, STRIP_COLS, rows);
-          ctx.fillText(c.name, g.cx + ox * g.scale, g.cy + 1.02 * g.scale);
+          const { ox, oy } = plateOrigin(g, i, STRIP_COLS, rows);
+          ctx.fillText(c.name, g.cx + ox * g.scale, g.cy + oy * g.scale + 1.02 * g.scale);
         });
         ctx.globalAlpha = 1;
       },
