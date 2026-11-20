@@ -158,6 +158,7 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
   // what reads at wall distance.
   interface Measures {
     cx: number;
+    h: number;
     headY: number;
     hr: number;
     shoulderY: number;
@@ -172,6 +173,7 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
     const hr = 0.095 * s.h;
     return {
       cx,
+      h: s.h,
       headY: s.floorY - s.h + hr,
       hr,
       shoulderY: s.floorY - 0.8 * s.h,
