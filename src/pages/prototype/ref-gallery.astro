@@ -1,0 +1,226 @@
+---
+import BaseLayout from '@/components/layouts/BaseLayout.astro';
+
+// The reference menu: every named illustration style gathered for the
+// tenant decision, one example image (or two) per style, so the pick
+// happens on eyes before any more implementation. Gathered by the
+// reference collector; construction notes say what the figure is made of.
+const STYLES = [
+  {
+    slug: 'notion-illustrations',
+    name: 'Notion illustrations',
+    artist: 'getillustrations.com Notion pack',
+    construction: 'Two-tone ink: paper-coloured face with a closed-eye arc and smile, solid black shaped hair with a bun or flying tips, white garment drawn as contour lines with hatching, solid black trousers, gestural lean.',
+    windowFit: 'Reads as a person mid-life, not a symbol — the strongest story per line.',
+    images: ['example-1.jpg', 'example-2.jpg'],
+  },
+  {
+    slug: 'sanaa-figures',
+    name: 'SANAA render figures',
+    artist: 'SANAA / Kazuyo Sejima presentation boards',
+    construction: 'Tiny pale featureless cut-outs: flat colour blocks for hair and clothing, no contours, no faces, scattered sparse in the space.',
+    windowFit: 'The figure becomes a quiet scale mark in the room — subtle to the point of vanishing.',
+    images: ['example-1.jpg', 'example-2.jpg'],
+  },
+  {
+    slug: 'jean-jullien',
+    name: 'Jean Jullien',
+    artist: 'Jean Jullien, Icônes',
+    construction: 'One thick wobbly black contour doing all the drawing, flat fills kept separate from the line, profile head with a big pointed nose wedge, dot eyes, tube limbs.',
+    windowFit: 'Loud and friendly at any size; the nose silhouette carries the window.',
+    images: ['example-1.jpeg', 'example-2.jpeg'],
+  },
+  {
+    slug: 'malika-favre',
+    name: 'Malika Favre',
+    artist: 'Malika Favre posters',
+    construction: 'Profile face carved in negative space by a flat dark hair field, solid hat mass with a scalloped edge, a single eyelid wedge as the eye, no contour lines anywhere — every edge is a boundary between two fields.',
+    windowFit: 'Striking at street distance; the dark field fills much of the pane.',
+    images: ['example-1.jpg'],
+  },
+  {
+    slug: 'quentin-blake',
+    name: 'Quentin Blake',
+    artist: 'Quentin Blake book illustrations',
+    construction: 'Scratchy thin ink lines doubled and gapped, no solid masses, wash-less; the figure is a gesture, not a body.',
+    windowFit: 'Lively at close range, thin at street density.',
+    images: ['example-1.jpg'],
+  },
+  {
+    slug: 'sempe',
+    name: 'Sempé',
+    artist: 'Jean-Jacques Sempé',
+    construction: 'Tiny sparse ink figures lost in big quiet scenes — small contour head, quick shoulder strokes, sometimes a hat brim; proportions true, scale tiny.',
+    windowFit: 'Born for the far-wall read: a small life in a big window.',
+    images: ['example-1.jpg'],
+  },
+  {
+    slug: 'carson-ellis',
+    name: 'Carson Ellis',
+    artist: 'Carson Ellis book illustrations',
+    construction: 'Folk-flat muted: pale figure fields with darker garment patches, simple dot eyes, ink hair blob, frontal and still.',
+    windowFit: 'Quiet and warm; reads as a resident, not a symbol.',
+    images: ['example-1.jpg', 'example-2.png'],
+  },
+  {
+    slug: 'alegria-corporate-memphis',
+    name: 'Alegria / Corporate Memphis',
+    artist: 'big-tech illustration systems',
+    construction: 'Tiny head, fat tapering limbs with no seams, exaggerated waists, flat pastel clothing, often mid-bounce.',
+    windowFit: 'Instantly familiar from the feed; risks reading as an ad.',
+    images: ['example-1.webp', 'example-2.png'],
+  },
+  {
+    slug: 'olimpia-zagnoli',
+    name: 'Olimpia Zagnoli',
+    artist: 'Olimpia Zagnoli editorial work',
+    construction: 'Bold flat shapes with heavy hair masses, striped colour fields, geometric simplification, colour doing the drawing.',
+    windowFit: 'Pops at distance; the pane fills with shape.',
+    images: ['example-1.jpg', 'example-2.jpeg'],
+  },
+  {
+    slug: 'anna-kovecses',
+    name: 'Anna Kövecses',
+    artist: 'Anna Kövecses picture books',
+    construction: 'Flat minimal geometry: circle head, simple body shapes, few colours, no outlines, face reduced to a dot or a line.',
+    windowFit: 'Clean and small-friendly; sits between SANAA and Ellis.',
+    images: ['example-1.jpg', 'example-2.jpg'],
+  },
+  {
+    slug: 'tom-haugomat',
+    name: 'Tom Haugomat',
+    artist: 'Tom Haugomat editorial work',
+    construction: 'Muted retro flat with grain: simplified figures in mid-tone palettes, strong light and shadow masses, small inside big scenes.',
+    windowFit: 'Cinematic at a window; the muted palette matches the wall.',
+    images: ['example-1.jpg', 'example-2.jpg'],
+  },
+  {
+    slug: 'tatsuro-kiuchi',
+    name: 'Tatsuro Kiuchi',
+    artist: 'Tatsuro Kiuchi illustrations',
+    construction: 'Muted Japanese flat with textured brush masses: soft-edged clothing blocks, small feature marks, subdued palette.',
+    windowFit: 'Warm and quiet; pairs with the night palette.',
+    images: ['example-1.jpg', 'example-2.jpg'],
+  },
+  {
+    slug: 'geoff-mcfetridge',
+    name: 'Geoff McFetridge',
+    artist: 'Geoff McFetridge paintings',
+    construction: 'Flat abstract figures: bodies as single rounded shapes, heads as ovals, limbs implied by silhouette notches, no faces.',
+    windowFit: 'Elegant and abstract; reads as a shape first, a person second.',
+    images: ['example-1.jpg', 'example-2.jpg'],
+  },
+  {
+    slug: 'ilya-milstein',
+    name: 'Ilya Milstein',
+    artist: 'Ilya Milstein editorial cityscapes',
+    construction: 'Detailed flat line-and-field city scenes: fine ink contours, flat muted fills, small figures drawn with true proportions among architecture.',
+    windowFit: 'The architectural-native choice; figures sized like furniture.',
+    images: ['example-1.jpg', 'example-2.jpg'],
+  },
+  {
+    slug: 'moomin-tove-jansson',
+    name: 'Tove Jansson (Moomin)',
+    artist: 'Tove Jansson comic strips',
+    construction: 'Confident variable ink line, no fills: contour does everything, hatching for shadow, expressive posture.',
+    windowFit: 'Storybook presence; the line stays readable at small size.',
+    images: ['example-1.jpg', 'example-2.jpg'],
+  },
+  {
+    slug: 'christoph-niemann',
+    name: 'Christoph Niemann',
+    artist: 'Christoph Niemann conceptual work',
+    construction: 'Minimal conceptual ink: the fewest lines that make a figure read, one clever visual twist per image.',
+    windowFit: 'Witty at the window; risks too little information at street distance.',
+    images: ['example-1.jpg'],
+  },
+  {
+    slug: 'edward-hopper',
+    name: 'Edward Hopper',
+    artist: 'Edward Hopper paintings',
+    construction: 'Painted figures in windows: strong value masses, hard side light, long shadows, faces kept vague inside luminous rooms.',
+    windowFit: 'The classic window mood; needs a painted language, not line.',
+    images: ['example-1.jpg', 'example-2.jpg'],
+  },
+  {
+    slug: 'matisse-cutouts',
+    name: 'Matisse cut-outs',
+    artist: 'Henri Matisse late works',
+    construction: 'Organic paper-cut shapes: bodies as single flowing coloured forms, heads fused without necks, no lines at all.',
+    windowFit: 'Bold decoration; reads abstract before human.',
+    images: ['example-1.jpg', 'example-2.jpg'],
+  },
+  {
+    slug: 'christopher-corr',
+    name: 'Christopher Corr',
+    artist: 'Christopher Corr travel illustration',
+    construction: 'Bright flat folk colour: saturated fields, simple figures with dot features, busy cheerful scenes.',
+    windowFit: 'Sunny and loud against the muted wall.',
+    images: ['example-1.jpg', 'example-2.jpg'],
+  },
+  {
+    slug: 'humaaans',
+    name: 'Humaaans',
+    artist: 'Pablo Stanley, open library',
+    construction: 'Mix-and-match flat vector people: modular limbs, rounded joints, flat clothing blocks, no faces.',
+    windowFit: 'Clean and generic; the system behind many start-up pages.',
+    images: ['example-1.webp', 'example-2.webp'],
+  },
+];
+---
+
+<BaseLayout title="Reference gallery">
+  <main>
+    <h1>Reference gallery — tenant styles</h1>
+    <p>
+      Named illustration styles gathered for the tenant decision. One
+      example image each (a few have two), what the figure is made of, and
+      how it would read at a window. Names link the source they were
+      gathered from.
+    </p>
+    {
+      STYLES.map((style) => (
+        <section>
+          <h2>{style.name}</h2>
+          <p class="meta">
+            <strong>{style.artist}</strong> — {style.construction}
+            <em>{style.windowFit}</em>
+          </p>
+          <div class="imgs">
+            {style.images.map((img) => <img src={`/refs-gallery/${style.slug}/${img}`} alt={`${style.name} reference example`} loading="lazy" />)}
+          </div>
+        </section>
+      ))
+    }
+  </main>
+</BaseLayout>
+
+<style>
+  main {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 1rem;
+  }
+  section {
+    margin-bottom: 2.5rem;
+    padding-bottom: 1.5rem;
+    border-bottom: var(--border);
+  }
+  h2 {
+    margin-bottom: 0.3rem;
+  }
+  .meta {
+    font-size: 0.9rem;
+    max-width: 60rem;
+  }
+  .imgs {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  .imgs img {
+    max-height: 340px;
+    max-width: 100%;
+    border: var(--border);
+  }
+</style>
