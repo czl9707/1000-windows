@@ -1,0 +1,397 @@
+---
+import BaseLayout from '@/components/layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="Humaaans leaning tenant preview">
+  <main>
+    <h1>Humaaans — leaning tenant preview</h1>
+    <p>
+      Prototype, throwaway. One style, three plates: the Humaaans modular
+      vector person as the tenant — capsule limbs with rounded overlaps at
+      the joints, a near-vertical torso capsule with a shallow wall lean,
+      one straight weight leg and one knee bent out past the torso with the
+      foot propped behind, arms crossed as two overlapping forearm bands,
+      flat colour blocks for the top and the trousers, a flat hair cap over
+      a small head, no face and no outlines. The coat stand stays pinned
+      opposite the lamp as the size anchor. Daylight pinned; the button
+      re-rolls in place.
+    </p>
+
+    <section>
+      <canvas id="row" width="1500" height="620"></canvas>
+      <button id="row-reseed" type="button">New sheet</button>
+      <span id="row-seed"></span>
+    </section>
+  </main>
+</BaseLayout>
+
+<style>
+  main {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 1rem;
+  }
+  canvas {
+    width: 100%;
+    height: auto;
+    display: block;
+    border: var(--border);
+  }
+  section {
+    margin-bottom: 2rem;
+  }
+</style>
+
+<script>
+  // PROTOTYPE, throwaway: the Humaaans leaning tenant drawn as marks
+  // into a real window scene, three plates for per-window variety.
+  import { createDemoLoop, cssBox } from '@/components/demoLoop';
+  import { Pen } from '@/pen/pen';
+  import { DEFAULT_TUNING } from '@/pen/tuning';
+  import { rollSeed } from '@/components/mount';
+  import type { Theme, ColorRole } from '@/styling/roles';
+  import { windowPalette } from '@/styling/colourway';
+  import { fork, windowSeed } from '@/core/randomness/rng';
+  import { execute, type Mark } from '@/core/scene';
+  import { shellMarks, expandShell } from '@/core/window-shell';
+  import { innerRect, type PaneRect } from '@/core/window-shell/shell';
+  import { sillMarks } from '@/core/sill';
+  import { pinnedLamp } from '@/core/light/light';
+  import { lampMarks } from '@/core/light/drawLamp';
+  import { roomOf } from '@/core/furniture/room';
+  import { drawFurniture } from '@/core/furniture/drawFurniture';
+  import { makeProjection } from '@/motion/projection';
+  import type { Pt3 } from '@/motion/projection';
+
+  const UNIT_PITCH_X = 2.3;
+  const UNIT_PITCH_Y = 1.8;
+  const PLATES = 3;
+
+  document.body.setAttribute('data-theme', 'light');
+
+  const TENANT_DEPTH = -0.15;
+  const TENANT_Z = -8.8;
+  const atT = () => TENANT_DEPTH;
+  const zT = () => TENANT_Z;
+
+  interface Spot {
+    x0: number;
+    x1: number;
+    floorY: number;
+    topY: number;
+    w: number;
+    h: number;
+  }
+
+  const mass = (role: ColorRole, pts: Pt3[]): Mark => ({ kind: 'fill', pts, role, z: zT() });
+
+  interface Variant {
+    leanDir: 1 | -1;
+    hairKind: 'swoop' | 'bun';
+    tilt: number;
+    drift: number;
+    top: ColorRole;
+    trouser: ColorRole;
+  }
+
+  function rollVariant(seed: number, i: number, lampRight: boolean): Variant {
+    const r = fork(windowSeed(seed, i, 0), 'humaaans-lean');
+    return {
+      leanDir: (lampRight ? 1 : -1) * (r.weighted([{ value: 1, weight: 3 }, { value: -1, weight: 2 }]) as 1 | -1),
+      hairKind: r.weighted([
+        { value: 'swoop' as const, weight: 3 },
+        { value: 'bun' as const, weight: 2 },
+      ]),
+      tilt: r.float(0.07, 0.13),
+      drift: r.float(-0.02, 0.02),
+      // The dark trouser family is the lamp group's own shade one stop
+      // down, so the top block and the crossing forearm bands always
+      // separate; the pale furniture grays would melt the modules into one
+      // mound.
+      top: 'lampShade',
+      trouser: 'lamp',
+    };
+  }
+
+  const TENANT_W = 0.6;
+  const TENANT_H = 1.32;
+
+  // The library's skin field: the one opaque warm role, as the standing
+  // variant already uses.
+  const skin: ColorRole = 'light';
+
+  // The figure is built as flat capsule and block fields in world units
+  // around the room floor; no outlines anywhere — every edge is the
+  // boundary between two flat fields, the Humaaans rule.
+  function humaaansLeaning(s: Spot, v: Variant): Mark[] {
+    const marks: Mark[] = [];
+    const d = v.leanDir;
+    const t = v.tilt;
+    const floorY = s.floorY;
+    const cx = (s.x0 + s.x1) / 2 + v.drift;
+
+    const pt = (x: number, y: number): Pt3 => ({ x, y, z: atT() });
+
+    // A flat capsule field: the segment p0→p1 with round caps, sampled as
+    // one closed polygon. Each cap sweeps from one side normal to the
+    // other passing the outward direction, so the caps bulge away from the
+    // segment and the winding stays one loop — a cap swept the other way
+    // bowties the polygon and the clipper mangles it. Joints are two
+    // capsules' round ends overlapping.
+    const capsule = (x0: number, y0: number, x1: number, y1: number, rad: number): Pt3[] => {
+      const dx = x1 - x0;
+      const dy = y1 - y0;
+      const len = Math.hypot(dx, dy) || 1e-6;
+      const th = Math.atan2(dy, dx);
+      const n = 7;
+      const arc = (px: number, py: number, from: number): Pt3[] =>
+        Array.from({ length: n + 1 }, (_, k) => {
+          const a = from + (k / n) * Math.PI;
+          return pt(px + Math.cos(a) * rad, py + Math.sin(a) * rad);
+        });
+      return [...arc(x0, y0, th + Math.PI / 2), ...arc(x1, y1, th - Math.PI / 2)];
+    };
+
+    const disc = (x: number, y: number, rad: number): Pt3[] =>
+      Array.from({ length: 14 }, (_, k) => {
+        const a = (k / 14) * Math.PI * 2;
+        return pt(x + Math.cos(a) * rad, y + Math.sin(a) * rad);
+      });
+
+    // The lean: hips rest against the wall with only a shallow tilt — the
+    // torso axis stays vertical enough to read as standing. One leg takes
+    // the weight straight down; the other props its foot on the wall, and
+    // the deep bend lifts that knee out beside the torso, clear of the
+    // elbows, so it reads above the sill cut as a bent knee.
+    const hipX = cx - d * 0.02;
+    const hipY = floorY - 0.66;
+    const torsoL = 0.38;
+    const shX = hipX + d * Math.sin(t) * torsoL;
+    const shY = hipY - Math.cos(t) * torsoL;
+    const headX = shX + d * 0.012;
+    const headY = shY - 0.21;
+
+    // Weight leg: straight from the hip to the floor, below the sill cut.
+    marks.push(
+      mass(v.trouser, capsule(hipX - d * 0.02, hipY, hipX - d * 0.05, floorY - 0.06, 0.06)),
+    );
+    marks.push(
+      mass('ink', capsule(hipX - d * 0.10, floorY - 0.06, hipX - d * 0.01, floorY - 0.06, 0.035)),
+    );
+
+    // Torso: one near-vertical capsule in the top block's colour; its
+    // round top is the shoulder line.
+    marks.push(mass(v.top, capsule(shX, shY, hipX, hipY + 0.02, 0.125)));
+
+    // Bent leg, drawn after the torso so the thigh rides in front of it:
+    // thigh up-and-out from the hip to a knee pushed past the torso's side
+    // and lifted just clear of the sill cut — clearly below the crossed
+    // arms, so the leg reads as a standing lean's propped knee, never as
+    // knees hugged to the chest — shin folding back down and inward to the
+    // foot on the wall. The rounded knee is the two capsule ends
+    // overlapping, and the dark thigh crossing the body ties the knee to
+    // the figure.
+    const kneeX = hipX + d * 0.34;
+    const kneeY = floorY - 0.885;
+    const footX = hipX + d * 0.20;
+    const footY = floorY - 0.55;
+    marks.push(mass(v.trouser, capsule(hipX + d * 0.01, hipY - 0.02, kneeX, kneeY, 0.062)));
+    marks.push(mass(v.trouser, capsule(kneeX, kneeY, footX, footY, 0.05)));
+
+    // Upper arms in sleeve colour drop from the shoulders to the elbows
+    // just outside the torso's sides.
+    marks.push(mass(v.top, capsule(shX - d * 0.10, shY, shX - d * 0.17, shY + 0.02, 0.042)));
+    marks.push(mass(v.top, capsule(shX + d * 0.10, shY, shX + d * 0.17, shY + 0.105, 0.042)));
+
+    // Arms crossed: two forearm capsules stacked at chest height — the
+    // bare slanting one over the sleeved level one — so their overlap
+    // reads as two bands, warm skin against the dark trouser colour; the
+    // skin discs at the ends are the hands.
+    marks.push(
+      mass(skin, capsule(shX - d * 0.17, shY + 0.02, shX + d * 0.13, shY + 0.07, 0.038)),
+    );
+    marks.push(
+      mass(v.trouser, capsule(shX + d * 0.17, shY + 0.105, shX - d * 0.13, shY + 0.105, 0.038)),
+    );
+    marks.push(mass(skin, disc(shX + d * 0.14, shY + 0.07, 0.034)));
+    marks.push(mass(skin, disc(shX - d * 0.14, shY + 0.105, 0.034)));
+
+    // Neck capsule up to the head, and the head as one flat skin field —
+    // the warm skin tone reads against the wall without an outline. No
+    // face at all. The head stays small against the figure's height, the
+    // references' elongated proportion.
+    marks.push(mass(skin, capsule(shX, shY - 0.02, headX, headY + 0.045, 0.028)));
+    marks.push(mass(skin, disc(headX, headY, 0.052)));
+
+    // Hair: one flat ink cap over the crown — the upper arc of a disc a
+    // touch larger than the skull, closed by the chord across the brow.
+    // The bun variant adds a round bun high at the back.
+    marks.push(
+      mass(
+        'ink',
+        Array.from({ length: 12 }, (_, k) => {
+          const a = Math.PI + (k / 11) * Math.PI;
+          return pt(headX + Math.cos(a) * 0.062, headY + Math.sin(a) * 0.058);
+        }),
+      ),
+    );
+    if (v.hairKind === 'bun') {
+      marks.push(mass('ink', disc(headX - d * 0.045, headY - 0.055, 0.036)));
+    } else {
+      marks.push(
+        mass('ink', capsule(headX - d * 0.05, headY - 0.03, headX - d * 0.055, headY + 0.055, 0.032)),
+      );
+    }
+
+    return marks;
+  }
+
+  // ?plate=<0..2> collapses the row to one huge plate — the close look
+  // without a screenshot slicer.
+  const only = new URLSearchParams(window.location.search).get('plate');
+  const onlyN = only === null ? NaN : Number(only);
+  const shown: number[] =
+    Number.isInteger(onlyN) && onlyN >= 0 && onlyN < PLATES ? [onlyN] : [0, 1, 2];
+
+  function fit(box: { width: number; height: number; dpr: number }) {
+    const cols = shown.length;
+    const scale = Math.min(box.width / (cols * UNIT_PITCH_X), box.height / UNIT_PITCH_Y);
+    return { scale: box.dpr * scale, cx: (box.width * box.dpr) / 2, cy: (box.height * box.dpr) / 2 };
+  }
+
+  function plateOrigin(g: ReturnType<typeof fit>, k: number) {
+    const cols = shown.length;
+    return { ox: (k - (cols - 1) / 2) * UNIT_PITCH_X, oy: 0 };
+  }
+
+  function pointerEye(): (canvas: HTMLCanvasElement) => { x: number; y: number } {
+    const pointer = { x: 0, y: 0 };
+    window.addEventListener('pointermove', (e) => {
+      pointer.x = e.clientX / window.innerWidth - 0.5;
+      pointer.y = e.clientY / window.innerHeight - 0.5;
+    });
+    return () => ({ ...pointer });
+  }
+
+  // The glazing bars stand out of the wall, in front of the resident, so
+  // the figure must land in a pane. Read the vertical pane borders off the
+  // shell marks and centre the tenant in the widest gap leaning away from
+  // the lamp; the shoulders may pass behind bars, the head may not.
+  function tenantCentre(opening: PaneRect, marks: Mark[], lampSide: number): number {
+    const h = opening.bottom - opening.top;
+    const xs = [opening.left, opening.right];
+    for (const m of marks) {
+      if (m.kind === 'stroke' && m.pts.length === 2) {
+        const [a, b] = m.pts;
+        if (
+          Math.abs(a.x - b.x) < 0.02 &&
+          Math.abs(a.y - b.y) > h * 0.5 &&
+          a.x > opening.left + 0.05 &&
+          a.x < opening.right - 0.05
+        ) {
+          xs.push(Math.round(a.x * 100) / 100);
+        }
+      }
+    }
+    const sorted = [...new Set(xs)].sort((p, q) => p - q);
+    const centre = (opening.left + opening.right) / 2;
+    const target = centre - 0.15 * lampSide;
+    const lampX = lampSide === 1 ? opening.right - 0.25 : opening.left + 0.25;
+    let best = centre;
+    let bestScore = Infinity;
+    for (let k = 0; k < sorted.length - 1; k++) {
+      const mid = (sorted[k] + sorted[k + 1]) / 2;
+      if (sorted[k + 1] - sorted[k] < 0.34) continue;
+      if (Math.abs(mid - lampX) < 0.5) continue;
+      const score = Math.abs(mid - target);
+      if (score < bestScore) {
+        bestScore = score;
+        best = mid;
+      }
+    }
+    return best;
+  }
+
+  const labelFont = `${getComputedStyle(document.body).getPropertyValue('--typography-body2-fontFamily').trim() || 'sans-serif'}`;
+
+  // One window scene per plate: shell, the pinned coat stand opposite the
+  // lamp, the tenant centred on its plane, sill. No curtain: a rolled
+  // curtain would cover the figure it sits behind.
+  function tenantPlate(seed: number, i: number, theme: Theme, time: number, ctx: CanvasRenderingContext2D): void {
+    const pen = new Pen({ ...DEFAULT_TUNING }, windowSeed(seed, i, 0));
+    pen.setTime(time);
+    const plan = expandShell(pen.seed);
+    const opening: PaneRect = innerRect(plan.faceWidth);
+    const rng = fork(pen.seed, 'dna');
+    const sill = sillMarks(rng, opening);
+    const lamp = pinnedLamp({ location: i % 2 === 0 ? 'right' : 'left' });
+    const room = roomOf(opening);
+    const lampSide = lamp.location === 'right' ? 1 : -1;
+    const shell = shellMarks(plan);
+    const cx = tenantCentre(opening, shell, lampSide);
+    const x0 = cx - TENANT_W / 2;
+    const spot: Spot = { x0, x1: x0 + TENANT_W, floorY: room.bottom, topY: room.bottom - TENANT_H, w: TENANT_W, h: TENANT_H };
+    const v = rollVariant(seed, i, lampSide === 1);
+    execute(
+      [
+        ...shell,
+        ...drawFurniture({ pieces: [{ kind: 'coatStand', plane: 4, side: lamp.location === 'right' ? 'left' : 'right' }] }, opening),
+        ...lampMarks(lamp, opening, theme.isNight),
+        ...humaaansLeaning(spot, v),
+        ...sill,
+      ],
+      pen,
+      ctx,
+      windowPalette(pen.seed, theme),
+      makeProjection({ x: 0, y: 0 }),
+      opening,
+    );
+  }
+
+  function mountRow(canvas: HTMLCanvasElement, label: HTMLSpanElement, button: HTMLButtonElement): void {
+    if (shown.length === 1) {
+      const main = document.querySelector('main');
+      if (main) main.style.maxWidth = 'none';
+      canvas.style.width = '2900px';
+    }
+    let seed = rollSeed();
+    const show = () => (label.textContent = `seed ${seed}`);
+    show();
+    createDemoLoop(
+      canvas,
+      (ctx, time, theme: Theme) => {
+        const box = cssBox(canvas);
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.fillStyle = theme.paper;
+        ctx.fillRect(0, 0, box.width * box.dpr, box.height * box.dpr);
+        const g = fit(box);
+        ctx.setTransform(g.scale, 0, 0, g.scale, g.cx, g.cy);
+        shown.forEach((i, k) => {
+          const { ox, oy } = plateOrigin(g, k);
+          ctx.save();
+          ctx.translate(ox, oy);
+          tenantPlate(seed, i, theme, time, ctx);
+          ctx.restore();
+        });
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.fillStyle = theme.ink;
+        ctx.globalAlpha = 0.75;
+        ctx.font = `${Math.max(10, 0.16 * g.scale)}px ${labelFont}`;
+        ctx.textAlign = 'center';
+        shown.forEach((i, k) => {
+          const { ox, oy } = plateOrigin(g, k);
+          ctx.fillText(`humaaans leaning ${i + 1}`, g.cx + ox * g.scale, g.cy + oy * g.scale + 0.82 * g.scale);
+        });
+        ctx.globalAlpha = 1;
+      },
+      pointerEye(),
+    );
+    button.addEventListener('click', () => {
+      seed = rollSeed();
+      show();
+    });
+  }
+
+  const el = (id: string) => document.getElementById(id)!;
+  mountRow(el('row') as HTMLCanvasElement, el('row-seed'), el('row-reseed') as HTMLButtonElement);
+</script>

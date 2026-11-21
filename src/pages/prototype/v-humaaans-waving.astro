@@ -1,0 +1,428 @@
+---
+import BaseLayout from '@/components/layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="Humaaans waving tenant preview">
+  <main>
+    <h1>Humaaans waving — tenant preview</h1>
+    <p>
+      Prototype, throwaway. One style, three plates: the Humaaans tenant
+      (Pablo Stanley's modular vector people) — capsule limbs with rounded
+      overlaps at the joints, flat colour blocks for top and trousers, a
+      simple hair mass, no face at all. One arm is raised in a wave, bent at
+      the rounded shoulder; the other hangs. The coat stand stays pinned
+      opposite the lamp as the size anchor. Daylight pinned; the button
+      re-rolls in place.
+    </p>
+
+    <section>
+      <canvas id="row" width="1500" height="620"></canvas>
+      <button id="row-reseed" type="button">New sheet</button>
+      <span id="row-seed"></span>
+    </section>
+  </main>
+</BaseLayout>
+
+<style>
+  main {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 1rem;
+  }
+  canvas {
+    width: 100%;
+    height: auto;
+    display: block;
+    border: var(--border);
+  }
+  section {
+    margin-bottom: 2rem;
+  }
+</style>
+
+<script>
+  // PROTOTYPE, throwaway: the Humaaans tenant drawn as marks into a real
+  // window scene, three plates for per-window variety.
+  import { createDemoLoop, cssBox } from '@/components/demoLoop';
+  import { Pen } from '@/pen/pen';
+  import { DEFAULT_TUNING } from '@/pen/tuning';
+  import { rollSeed } from '@/components/mount';
+  import type { Theme, ColorRole } from '@/styling/roles';
+  import { windowPalette } from '@/styling/colourway';
+  import { fork, windowSeed } from '@/core/randomness/rng';
+  import { execute, type Mark } from '@/core/scene';
+  import { shellMarks, expandShell } from '@/core/window-shell';
+  import { innerRect, type PaneRect } from '@/core/window-shell/shell';
+  import { sillMarks } from '@/core/sill';
+  import { pinnedLamp } from '@/core/light/light';
+  import { lampMarks } from '@/core/light/drawLamp';
+  import { roomOf } from '@/core/furniture/room';
+  import { drawFurniture } from '@/core/furniture/drawFurniture';
+  import { makeProjection } from '@/motion/projection';
+  import type { Pt3 } from '@/motion/projection';
+
+  const UNIT_PITCH_X = 2.3;
+  const UNIT_PITCH_Y = 1.8;
+  const PLATES = 3;
+
+  document.body.setAttribute('data-theme', 'light');
+
+  const TENANT_DEPTH = -0.15;
+  const TENANT_Z = -8.8;
+  const atT = () => TENANT_DEPTH;
+  const zT = () => TENANT_Z;
+
+  interface Spot {
+    x0: number;
+    x1: number;
+    floorY: number;
+    topY: number;
+    w: number;
+    h: number;
+  }
+
+  const mass = (role: ColorRole, pts: Pt3[]): Mark => ({ kind: 'fill', pts, role, z: zT() });
+
+  interface Variant {
+    facing: 1 | -1;
+    hairKind: 'cap' | 'bun' | 'pony';
+    topRole: ColorRole;
+    trouserRole: ColorRole;
+    lean: number;
+    waveSplay: number;
+    hipShift: number;
+    height: number;
+  }
+
+  function rollVariant(seed: number, i: number, lampRight: boolean): Variant {
+    const r = fork(windowSeed(seed, i, 0), 'humaaans-tenant');
+    return {
+      facing: lampRight ? 1 : -1,
+      hairKind: r.weighted([
+        { value: 'cap' as const, weight: 2 },
+        { value: 'bun' as const, weight: 2 },
+        { value: 'pony' as const, weight: 1 },
+      ]),
+      topRole: 'ink',
+      trouserRole: r.weighted([
+        { value: 'furniture3' as const, weight: 2 },
+        { value: 'furniture4' as const, weight: 2 },
+      ]),
+      lean: r.float(-0.02, 0.02),
+      waveSplay: r.float(0.08, 0.14),
+      hipShift: r.float(-0.02, 0.02),
+      // The tenant joins the furniture's compressed-height convention and
+      // stays at or under the coat stand's 1.4 anchor.
+      height: r.float(1.08, 1.38),
+    };
+  }
+
+  const TENANT_W = 0.58;
+
+  // The Humaaans figure: capsule modules overlapping at rounded joints,
+  // flat colour blocks for the clothes, a plain hair mass, no face. Every
+  // measure scales off the tenant height H so the figure lands between
+  // 1.0 and 1.42 world units, at or under the coat stand's 1.4.
+  function humaaansTenant(s: Spot, v: Variant): Mark[] {
+    const marks: Mark[] = [];
+    const H = s.h;
+    const cx = (s.x0 + s.x1) / 2 + v.lean;
+    const floorY = s.floorY;
+    const f = v.facing;
+    // Heights are measured up from the room floor; W converts to world.
+    const W = (x: number, hUp: number): Pt3 => ({ x, y: floorY - hUp, z: atT() });
+
+    const headR = H * 0.072;
+    const headCy = H - headR * 0.95;
+    const shoulderY = H - headR * 2.35;
+    const hipY = H * 0.5;
+
+    const ellipse = (ex: number, ey: number, rx: number, ry: number, n = 20): Pt3[] =>
+      Array.from({ length: n }, (_, k) => {
+        const a = (k / n) * Math.PI * 2;
+        return W(ex + Math.cos(a) * rx, ey + Math.sin(a) * ry);
+      });
+
+    // Capsule outline: the two parallel sides plus semicircular caps, all
+    // sampled — the rounded joint ends are the whole Humaaans vocabulary.
+    const capsule = (
+      ax: number,
+      ay: number,
+      bx: number,
+      by: number,
+      rad: number,
+      n = 12,
+    ): Pt3[] => {
+      const dx = bx - ax;
+      const dy = by - ay;
+      const len = Math.hypot(dx, dy) || 1e-6;
+      const ux = dx / len;
+      const uy = dy / len;
+      const phi = Math.atan2(ux, -uy);
+      const pts: Pt3[] = [];
+      for (let k = 0; k <= n; k++) {
+        const t = k / n;
+        pts.push(W(ax - uy * rad + dx * t, ay + ux * rad + dy * t));
+      }
+      for (let k = 1; k < n; k++) {
+        const a = phi - (Math.PI * k) / n;
+        pts.push(W(bx + Math.cos(a) * rad, by + Math.sin(a) * rad));
+      }
+      for (let k = 0; k <= n; k++) {
+        const t = 1 - k / n;
+        pts.push(W(bx + uy * rad + dx * t, by - ux * rad + dy * t));
+      }
+      for (let k = 1; k < n; k++) {
+        const a = phi - Math.PI - (Math.PI * k) / n;
+        pts.push(W(ax + Math.cos(a) * rad, ay + Math.sin(a) * rad));
+      }
+      return pts;
+    };
+
+    // The flat-block mapping onto the window's palette: the jacket is the
+    // one dark ink block, the hair mass rolls the window's own pastel box
+    // colour, the skin is the lightest solid furniture gray, the trousers
+    // a deeper gray of the same family. No outlines anywhere — every edge
+    // is a boundary between two flat fields.
+    const top = v.topRole;
+    const trouser = v.trouserRole;
+    const skin: ColorRole = 'furniture5';
+    const hair: ColorRole = 'box';
+
+    // Legs: two trouser capsules from under the hip block to the floor,
+    // then small ink shoe capsules pointing outward.
+    const legX = H * 0.05;
+    for (const side of [-1, 1]) {
+      marks.push(
+        mass(trouser, capsule(cx + side * legX + v.hipShift, hipY - 0.02, cx + side * legX * 1.25 + v.hipShift, H * 0.025, H * 0.042)),
+      );
+      marks.push(
+        mass('ink', capsule(cx + side * legX * 1.25 + v.hipShift + side * H * 0.015, H * 0.03, cx + side * legX * 1.25 + v.hipShift + side * H * 0.055, H * 0.02, H * 0.028)),
+      );
+    }
+
+    // Hip block: one trouser capsule bridging the legs, so the trousers
+    // read as a single flat garment.
+    marks.push(mass(trouser, capsule(cx - H * 0.02 + v.hipShift, hipY + 0.06, cx + H * 0.02 + v.hipShift, hipY - 0.08, H * 0.105)));
+
+    // Hanging arm: one sleeve capsule dropping from the far shoulder past
+    // the hip, with a small skin hand at its end. Drawn before the torso so
+    // the shoulder joint is a rounded overlap under the top block.
+    const jointY = shoulderY - H * 0.05;
+    const hangX = cx - f * H * 0.17;
+    marks.push(
+      mass(top, capsule(cx - f * H * 0.105, jointY, hangX, hipY - H * 0.04, H * 0.043)),
+    );
+    marks.push(mass(skin, ellipse(hangX + f * H * 0.01, hipY - H * 0.005, H * 0.032, H * 0.038)));
+
+    // Neck: a short skin capsule; the torso collar covers its base.
+    marks.push(mass(skin, capsule(cx, headCy - headR * 0.6, cx, shoulderY + H * 0.06, H * 0.03)));
+
+    // Torso: one capsule from the shoulders to the hip in the top colour —
+    // the rounded shoulder ends are the joint the arms swing from. Its cap
+    // tops out at chin height, so the head rests on the shoulders instead
+    // of sinking into them.
+    marks.push(mass(top, capsule(cx, shoulderY - H * 0.09, cx + v.hipShift * 0.5, hipY - H * 0.01, H * 0.105)));
+
+    // Head: a bare skin circle. No features at all — the face is a blank
+    // field, the whole Humaaans signature.
+    marks.push(mass(skin, ellipse(cx, headCy, headR, headR * 1.06)));
+
+    // Hair: one flat mass — a dome sitting low over the circle, its chord
+    // across the upper face; the bun or ponytail is a second blob.
+    const dome: Pt3[] = [];
+    const hr = headR * 1.1;
+    const fromA = -0.15;
+    const toA = Math.PI + 0.15;
+    const nD = 16;
+    for (let k = 0; k <= nD; k++) {
+      const a = fromA + ((toA - fromA) * k) / nD;
+      dome.push(W(cx + Math.cos(a) * hr, headCy + Math.sin(a) * hr * 1.02));
+    }
+    marks.push(mass(hair, dome));
+    if (v.hairKind === 'bun') {
+      marks.push(mass(hair, ellipse(cx - f * headR * 1.35, headCy + headR * 0.25, headR * 0.52, headR * 0.46)));
+    } else if (v.hairKind === 'pony') {
+      marks.push(
+        mass(
+          hair,
+          ellipse(cx - f * headR * 1.5, headCy - headR * 0.7, headR * 0.4, headR * 0.85, 16),
+        ),
+      );
+    }
+
+    // Waving arm: dark sleeve capsule up-and-out from the near shoulder
+    // (the rounded shoulder joint is the overlap with the torso), then a
+    // bare skin forearm capsule continuing more vertical, then the open
+    // hand — the greeting silhouette, held clear of the head.
+    const sx = cx + f * H * 0.065;
+    const sy = jointY;
+    const ex = sx + f * (v.waveSplay + H * 0.04);
+    const ey = sy + H * 0.14;
+    const wx = ex - f * H * 0.02;
+    const wy = sy + H * 0.36;
+    marks.push(mass(top, capsule(sx, sy, ex, ey, H * 0.043)));
+    marks.push(mass(skin, capsule(ex, ey, wx, wy, H * 0.035)));
+    // Open hand: a palm ellipse with a hint of the spread — one blob is
+    // enough at this scale; Humaaans hands stay small.
+    marks.push(mass(skin, ellipse(wx + f * H * 0.008, wy + H * 0.03, H * 0.036, H * 0.042)));
+
+    return marks;
+  }
+
+  // ?plate=<0..2> collapses the row to one huge plate — the close look
+  // without a screenshot slicer.
+  const only = new URLSearchParams(window.location.search).get('plate');
+  const onlyN = only === null ? NaN : Number(only);
+  const shown: number[] =
+    Number.isInteger(onlyN) && onlyN >= 0 && onlyN < PLATES ? [onlyN] : [0, 1, 2];
+
+  function fit(box: { width: number; height: number; dpr: number }) {
+    const cols = shown.length;
+    const scale = Math.min(box.width / (cols * UNIT_PITCH_X), box.height / UNIT_PITCH_Y);
+    return { scale: box.dpr * scale, cx: (box.width * box.dpr) / 2, cy: (box.height * box.dpr) / 2 };
+  }
+
+  function plateOrigin(g: ReturnType<typeof fit>, k: number) {
+    const cols = shown.length;
+    return { ox: (k - (cols - 1) / 2) * UNIT_PITCH_X, oy: 0 };
+  }
+
+  function pointerEye(): (canvas: HTMLCanvasElement) => { x: number; y: number } {
+    const pointer = { x: 0, y: 0 };
+    window.addEventListener('pointermove', (e) => {
+      pointer.x = e.clientX / window.innerWidth - 0.5;
+      pointer.y = e.clientY / window.innerHeight - 0.5;
+    });
+    return () => ({ ...pointer });
+  }
+
+  // The glazing bars stand out of the wall, in front of the resident, so
+  // the head must land in a pane. Read the vertical pane borders off the
+  // shell marks and centre the tenant in the widest gap leaning away from
+  // the lamp; the shoulders may pass behind bars, the head may not.
+  function tenantCentre(opening: PaneRect, marks: Mark[], lampSide: number): number {
+    const h = opening.bottom - opening.top;
+    const xs = [opening.left, opening.right];
+    for (const m of marks) {
+      if (m.kind === 'stroke' && m.pts.length === 2) {
+        const [a, b] = m.pts;
+        if (
+          Math.abs(a.x - b.x) < 0.02 &&
+          Math.abs(a.y - b.y) > h * 0.5 &&
+          a.x > opening.left + 0.05 &&
+          a.x < opening.right - 0.05
+        ) {
+          xs.push(Math.round(a.x * 100) / 100);
+        }
+      }
+    }
+    const sorted = [...new Set(xs)].sort((p, q) => p - q);
+    const centre = (opening.left + opening.right) / 2;
+    const target = centre - 0.15 * lampSide;
+    const lampX = lampSide === 1 ? opening.right - 0.25 : opening.left + 0.25;
+    let best = centre;
+    let bestScore = Infinity;
+    for (let k = 0; k < sorted.length - 1; k++) {
+      const mid = (sorted[k] + sorted[k + 1]) / 2;
+      if (sorted[k + 1] - sorted[k] < 0.34) continue;
+      if (Math.abs(mid - lampX) < 0.5) continue;
+      const score = Math.abs(mid - target);
+      if (score < bestScore) {
+        bestScore = score;
+        best = mid;
+      }
+    }
+    return best;
+  }
+
+  const labelFont = `${getComputedStyle(document.body).getPropertyValue('--typography-body2-fontFamily').trim() || 'sans-serif'}`;
+
+  // One window scene per plate: shell, the pinned coat stand opposite the
+  // lamp, the tenant centred on its plane, sill. No curtain: a rolled
+  // curtain would cover the figure it sits behind.
+  function tenantPlate(seed: number, i: number, theme: Theme, time: number, ctx: CanvasRenderingContext2D): void {
+    const pen = new Pen({ ...DEFAULT_TUNING }, windowSeed(seed, i, 0));
+    pen.setTime(time);
+    const plan = expandShell(pen.seed);
+    const opening: PaneRect = innerRect(plan.faceWidth);
+    const rng = fork(pen.seed, 'dna');
+    const sill = sillMarks(rng, opening);
+    const lamp = pinnedLamp({ location: i % 2 === 0 ? 'right' : 'left' });
+    const room = roomOf(opening);
+    const lampSide = lamp.location === 'right' ? 1 : -1;
+    const shell = shellMarks(plan);
+    const cx = tenantCentre(opening, shell, lampSide);
+    const x0 = cx - TENANT_W / 2;
+    const v = rollVariant(seed, i, lampSide === 1);
+    const spot: Spot = {
+      x0,
+      x1: x0 + TENANT_W,
+      floorY: room.bottom,
+      topY: room.bottom - v.height,
+      w: TENANT_W,
+      h: v.height,
+    };
+    execute(
+      [
+        ...shell,
+        ...drawFurniture({ pieces: [{ kind: 'coatStand', plane: 4, side: lamp.location === 'right' ? 'left' : 'right' }] }, opening),
+        ...lampMarks(lamp, opening, theme.isNight),
+        ...humaaansTenant(spot, v),
+        ...sill,
+      ],
+      pen,
+      ctx,
+      windowPalette(pen.seed, theme),
+      makeProjection({ x: 0, y: 0 }),
+      opening,
+    );
+  }
+
+  function mountRow(canvas: HTMLCanvasElement, label: HTMLSpanElement, button: HTMLButtonElement): void {
+    if (shown.length === 1) {
+      const main = document.querySelector('main');
+      if (main) main.style.maxWidth = 'none';
+      canvas.style.width = '2900px';
+    }
+    let seed = rollSeed();
+    const show = () => (label.textContent = `seed ${seed}`);
+    show();
+    createDemoLoop(
+      canvas,
+      (ctx, time, theme: Theme) => {
+        const box = cssBox(canvas);
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.fillStyle = theme.paper;
+        ctx.fillRect(0, 0, box.width * box.dpr, box.height * box.dpr);
+        const g = fit(box);
+        ctx.setTransform(g.scale, 0, 0, g.scale, g.cx, g.cy);
+        shown.forEach((i, k) => {
+          const { ox, oy } = plateOrigin(g, k);
+          ctx.save();
+          ctx.translate(ox, oy);
+          tenantPlate(seed, i, theme, time, ctx);
+          ctx.restore();
+        });
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.fillStyle = theme.ink;
+        ctx.globalAlpha = 0.75;
+        ctx.font = `${Math.max(10, 0.16 * g.scale)}px ${labelFont}`;
+        ctx.textAlign = 'center';
+        shown.forEach((i, k) => {
+          const { ox, oy } = plateOrigin(g, k);
+          ctx.fillText(`humaaans wave ${i + 1}`, g.cx + ox * g.scale, g.cy + oy * g.scale + 0.82 * g.scale);
+        });
+        ctx.globalAlpha = 1;
+      },
+      pointerEye(),
+    );
+    button.addEventListener('click', () => {
+      seed = rollSeed();
+      show();
+    });
+  }
+
+  const el = (id: string) => document.getElementById(id)!;
+  mountRow(el('row') as HTMLCanvasElement, el('row-seed'), el('row-reseed') as HTMLButtonElement);
+</script>

@@ -1,0 +1,62 @@
+---
+import BaseLayout from '@/components/layouts/BaseLayout.astro';
+
+// The Humaaans round judge view: every tenant variant built on the
+// Humaaans construction (modular capsule limbs, rounded joints, flat
+// clothing blocks, no faces), one live frame each. Each frame keeps its
+// own re-roll; the pages behind them stay the review source of truth
+// until the maker picks.
+const STYLES = [
+  { slug: 'humaaans-standing', title: 'Standing' },
+  { slug: 'humaaans-waving', title: 'Waving' },
+  { slug: 'humaaans-mug', title: 'Mug' },
+  { slug: 'humaaans-longlimbs', title: 'Long limbs' },
+  { slug: 'humaaans-seated', title: 'Seated' },
+  { slug: 'humaaans-twotone', title: 'Two-tone clothing' },
+  { slug: 'humaaans-dress', title: 'Dress' },
+  { slug: 'humaaans-leaning', title: 'Leaning' },
+  { slug: 'humaaans-hair', title: 'Hair masses' },
+  { slug: 'humaaans-backturned', title: 'Back-turned' },
+];
+---
+
+<BaseLayout title="Humaaans tenant">
+  <main>
+    <h1>Humaaans tenant — the variants</h1>
+    <p>
+      Ten tenants drawn in the Humaaans construction: modular capsule
+      limbs with rounded joints, flat clothing blocks, no outlines, no
+      faces. Every frame is the variant's own live preview page — three
+      window plates, the coat stand pinned as the size anchor, each with
+      its own re-roll.
+    </p>
+    {
+      STYLES.map((style) => (
+        <section>
+          <h2>{style.title}</h2>
+          <iframe src={`/prototype/v-${style.slug}`} title={style.title} loading="lazy" />
+        </section>
+      ))
+    }
+  </main>
+</BaseLayout>
+
+<style>
+  main {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 1rem;
+  }
+  section {
+    margin-bottom: 2.5rem;
+  }
+  h2 {
+    margin-bottom: 0.4rem;
+  }
+  iframe {
+    width: 100%;
+    height: 560px;
+    border: var(--border);
+    background: var(--color-paper);
+  }
+</style>

@@ -1,0 +1,415 @@
+---
+import BaseLayout from '@/components/layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="Humaaans mug tenant">
+  <main>
+    <h1>Humaaans — mug tenant preview</h1>
+    <p>
+      Prototype, throwaway. One style, three plates: the Humaaans tenant —
+      modular capsule limbs with rounded overlaps instead of joints, flat
+      colour blocks for top and trousers, a blank skin-toned head under a
+      simple flat hair mass, no outlines anywhere. One arm bends so the
+      capsule forearm crosses the torso block, hand around a small dark mug
+      block at chest height. The coat stand stays pinned opposite the lamp as
+      the size anchor. Daylight pinned; the button re-rolls in place.
+    </p>
+
+    <section>
+      <canvas id="row" width="1500" height="620"></canvas>
+      <button id="row-reseed" type="button">New sheet</button>
+      <span id="row-seed"></span>
+    </section>
+  </main>
+</BaseLayout>
+
+<style>
+  main {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 1rem;
+  }
+  canvas {
+    width: 100%;
+    height: auto;
+    display: block;
+    border: var(--border);
+  }
+  section {
+    margin-bottom: 2rem;
+  }
+</style>
+
+<script>
+  // PROTOTYPE, throwaway: the Humaaans tenant drawn as marks into a real
+  // window scene, three plates for per-window variety.
+  import { createDemoLoop, cssBox } from '@/components/demoLoop';
+  import { Pen } from '@/pen/pen';
+  import { DEFAULT_TUNING } from '@/pen/tuning';
+  import { rollSeed } from '@/components/mount';
+  import type { Theme, ColorRole } from '@/styling/roles';
+  import { windowPalette } from '@/styling/colourway';
+  import { fork, windowSeed } from '@/core/randomness/rng';
+  import { execute, type Mark } from '@/core/scene';
+  import { shellMarks, expandShell } from '@/core/window-shell';
+  import { innerRect, type PaneRect } from '@/core/window-shell/shell';
+  import { sillMarks } from '@/core/sill';
+  import { pinnedLamp } from '@/core/light/light';
+  import { lampMarks } from '@/core/light/drawLamp';
+  import { roomOf } from '@/core/furniture/room';
+  import { drawFurniture } from '@/core/furniture/drawFurniture';
+  import { makeProjection } from '@/motion/projection';
+  import type { Pt3 } from '@/motion/projection';
+
+  const UNIT_PITCH_X = 2.3;
+  const UNIT_PITCH_Y = 1.8;
+  const PLATES = 3;
+
+  document.body.setAttribute('data-theme', 'light');
+
+  const TENANT_DEPTH = -0.15;
+  const TENANT_Z = -8.8;
+  const atT = () => TENANT_DEPTH;
+  const zT = () => TENANT_Z;
+
+  interface Spot {
+    x0: number;
+    x1: number;
+    floorY: number;
+    topY: number;
+    w: number;
+    h: number;
+  }
+
+  const mass = (role: ColorRole, pts: Pt3[]): Mark => ({ kind: 'fill', pts, role, z: zT() });
+
+  interface Variant {
+    facing: 1 | -1;
+    hairKind: 'bob' | 'bun' | 'short';
+    bend: number;
+    sway: number;
+    mugLift: number;
+  }
+
+  function rollVariant(seed: number, i: number, lampRight: boolean): Variant {
+    const r = fork(windowSeed(seed, i, 0), 'humaaans-mug-tenant');
+    return {
+      facing: lampRight ? 1 : -1,
+      hairKind: r.weighted([
+        { value: 'bob' as const, weight: 2 },
+        { value: 'bun' as const, weight: 2 },
+        { value: 'short' as const, weight: 3 },
+      ]),
+      bend: r.float(0.8, 1.2),
+      sway: r.float(-0.03, 0.03),
+      mugLift: r.float(-0.03, 0.05),
+    };
+  }
+
+  const TENANT_W = 0.58;
+  // The coat stand stands 1.4; the tenant reads a clear head under it.
+  const TENANT_H = 1.28;
+  const HEAD_R = 0.068;
+
+  function humaaansMugTenant(s: Spot, v: Variant): Mark[] {
+    const marks: Mark[] = [];
+    const f = v.facing;
+    const cx = (s.x0 + s.x1) / 2 + v.sway;
+    const floorY = s.floorY;
+    const crownY = floorY - TENANT_H;
+    const hr = HEAD_R;
+    const headCY = crownY + hr * 1.05;
+    const neckTopY = headCY + hr * 0.75;
+    const shoulderY = neckTopY + 0.035;
+    const chestY = shoulderY + 0.13 + v.mugLift;
+    const waistY = shoulderY + 0.3;
+
+    const P3 = (x: number, y: number): Pt3 => ({ x, y, z: atT() });
+
+    const ellipse = (ex: number, ey: number, rx: number, ry: number, n = 16): Pt3[] =>
+      Array.from({ length: n }, (_, k) => {
+        const a = (k / n) * Math.PI * 2;
+        return P3(ex + Math.cos(a) * rx, ey + Math.sin(a) * ry);
+      });
+
+    // Humaaans limb: a stadium — a capsule swept along one straight span,
+    // round caps doing the joint work no elbow line ever draws.
+    const capsule = (ax: number, ay: number, bx: number, by: number, w: number, n = 10): Pt3[] => {
+      const theta = Math.atan2(by - ay, bx - ax);
+      const pts: Pt3[] = [];
+      for (let k = 0; k <= n; k++) {
+        const a = theta - Math.PI / 2 + (Math.PI * k) / n;
+        pts.push(P3(bx + Math.cos(a) * w, by + Math.sin(a) * w));
+      }
+      for (let k = 0; k <= n; k++) {
+        const a = theta + Math.PI / 2 + (Math.PI * k) / n;
+        pts.push(P3(ax + Math.cos(a) * w, ay + Math.sin(a) * w));
+      }
+      return pts;
+    };
+
+    const roundRect = (qx: number, qy: number, w: number, h: number, rad: number, n = 5): Pt3[] => {
+      const l = qx - w / 2;
+      const rgt = qx + w / 2;
+      const t = qy - h / 2;
+      const b = qy + h / 2;
+      const arc = (ccx: number, ccy: number, from: number, to: number): Pt3[] =>
+        Array.from({ length: n }, (_, k) => {
+          const a = from + ((to - from) * k) / (n - 1);
+          return P3(ccx + Math.cos(a) * rad, ccy + Math.sin(a) * rad);
+        });
+      return [
+        ...arc(l + rad, t + rad, Math.PI, Math.PI * 1.5),
+        ...arc(rgt - rad, t + rad, Math.PI * 1.5, Math.PI * 2),
+        ...arc(rgt - rad, b - rad, 0, Math.PI * 0.5),
+        ...arc(l + rad, b - rad, Math.PI * 0.5, Math.PI),
+      ];
+    };
+
+    // Palette roles, one per module: warm skin, a tinted top, a second
+    // tinted trouser block, a tinted hair mass, the mug in ink so it reads
+    // against the top block it sits on.
+    const skin: ColorRole = 'light';
+    const top: ColorRole = 'mullion';
+    const pants: ColorRole = 'box';
+    const hair: ColorRole = 'lamp';
+
+    // Trousers: two capsule legs dropping from the hip block; the sightline
+    // crops them at the thigh, so only the block's top shows.
+    const hipY = waistY + 0.1;
+    marks.push(mass(pants, roundRect(cx, waistY + 0.02, 0.2, hipY - waistY + 0.04, 0.05)));
+    for (const side of [1, -1] as const) {
+      marks.push(
+        mass(pants, capsule(cx + side * 0.048, hipY, cx + side * 0.05, floorY, 0.062)),
+      );
+      marks.push(mass('ink', ellipse(cx + side * 0.05 + f * 0.01, floorY - 0.008, 0.052, 0.016, 12)));
+    }
+
+    // Neck: a short skin capsule the blank head sits on.
+    marks.push(mass(skin, capsule(cx, neckTopY, cx, shoulderY + 0.01, 0.03, 4)));
+
+    // Torso: one vertical capsule — rounded shoulders and hem are the whole
+    // garment, the top block ending at the waist where the trouser block
+    // takes over.
+    marks.push(mass(top, capsule(cx, shoulderY + 0.015, cx, waistY, 0.105)));
+
+    // Far arm: a long hanging capsule at the figure's back side, small skin
+    // mitt at its end. Its shoulder overlap does the joint.
+    const backShX = cx - f * 0.075;
+    marks.push(
+      mass(top, capsule(backShX, shoulderY + 0.01, backShX - f * 0.015, shoulderY + 0.4, 0.041)),
+    );
+    marks.push(
+      mass(skin, ellipse(backShX - f * 0.015, shoulderY + 0.44, 0.026, 0.032)),
+    );
+
+    // Head: a blank skin oval — no face at all, every feature the style
+    // spends lives in the hair mass.
+    marks.push(mass(skin, ellipse(cx, headCY, hr * 0.9, hr, 18)));
+
+    // Hair: a flat mass riding the skull, offset back so a crescent of skin
+    // stays in front as the face field. Bob wraps the jaw; bun adds one
+    // circle at the back crown; short stops at the cap.
+    const hx = cx - f * 0.012;
+    marks.push(mass(hair, ellipse(hx, headCY - hr * 0.42, hr * 1.02, hr * 0.7, 16)));
+    if (v.hairKind === 'bob') {
+      marks.push(mass(hair, capsule(hx - f * 0.02, headCY - hr * 0.2, hx - f * 0.028, headCY + hr * 0.72, 0.052, 6)));
+    } else if (v.hairKind === 'bun') {
+      marks.push(mass(hair, ellipse(hx - f * hr * 1.15, headCY - hr * 0.55, 0.03, 0.028, 12)));
+    }
+
+    // Near arm: the bent one, bare below a short sleeve so the skin
+    // capsule reads crossing the top block. Upper capsule drops to the
+    // elbow outside the torso; the forearm capsule crosses the chest flat,
+    // its round end overlapping the torso block — the style's joint made
+    // of overlap.
+    const frontShX = cx + f * 0.075;
+    const elbowX = frontShX + f * 0.05 * v.bend;
+    const elbowY = shoulderY + 0.14 * v.bend;
+    marks.push(mass(top, capsule(frontShX, shoulderY + 0.01, elbowX, elbowY, 0.041)));
+    const handX = cx + f * 0.015;
+    marks.push(mass(skin, capsule(elbowX, elbowY, handX, chestY, 0.034)));
+
+    // Mug: a tiny ink rounded block at chest height, the hand's skin disc
+    // wrapping its near edge from behind.
+    marks.push(mass('ink', roundRect(handX + f * 0.034, chestY - 0.016, 0.06, 0.062, 0.015)));
+    marks.push(mass(skin, ellipse(handX + f * 0.004, chestY + 0.014, 0.024, 0.022, 12)));
+
+    return marks;
+  }
+
+  // ?plate=<0..2> collapses the row to one huge plate — the close look
+  // without a screenshot slicer.
+  const only = new URLSearchParams(window.location.search).get('plate');
+  const onlyN = only === null ? NaN : Number(only);
+  const shown: number[] =
+    Number.isInteger(onlyN) && onlyN >= 0 && onlyN < PLATES ? [onlyN] : [0, 1, 2];
+
+  function fit(box: { width: number; height: number; dpr: number }) {
+    const cols = shown.length;
+    const scale = Math.min(box.width / (cols * UNIT_PITCH_X), box.height / UNIT_PITCH_Y);
+    return { scale: box.dpr * scale, cx: (box.width * box.dpr) / 2, cy: (box.height * box.dpr) / 2 };
+  }
+
+  function plateOrigin(g: ReturnType<typeof fit>, k: number) {
+    const cols = shown.length;
+    return { ox: (k - (cols - 1) / 2) * UNIT_PITCH_X, oy: 0 };
+  }
+
+  function pointerEye(): (canvas: HTMLCanvasElement) => { x: number; y: number } {
+    const pointer = { x: 0, y: 0 };
+    window.addEventListener('pointermove', (e) => {
+      pointer.x = e.clientX / window.innerWidth - 0.5;
+      pointer.y = e.clientY / window.innerHeight - 0.5;
+    });
+    return () => ({ ...pointer });
+  }
+
+  // The glazing bars stand out of the wall, in front of the resident, so
+  // the head must land in a pane. Read the vertical pane borders off the
+  // shell marks and centre the tenant in the widest gap leaning away from
+  // the lamp; the shoulders may pass behind bars, the head may not. The
+  // coat stand sits at a nearer depth plane, so its pole would draw over
+  // the figure — a gap under the pole or the lamp is never taken.
+  function tenantCentre(opening: PaneRect, marks: Mark[], lampSide: number, standX: number | null): number {
+    const h = opening.bottom - opening.top;
+    const xs = [opening.left, opening.right];
+    for (const m of marks) {
+      if (m.kind === 'stroke' && m.pts.length === 2) {
+        const [a, b] = m.pts;
+        if (
+          Math.abs(a.x - b.x) < 0.02 &&
+          Math.abs(a.y - b.y) > h * 0.5 &&
+          a.x > opening.left + 0.05 &&
+          a.x < opening.right - 0.05
+        ) {
+          xs.push(Math.round(a.x * 100) / 100);
+        }
+      }
+    }
+    const sorted = [...new Set(xs)].sort((p, q) => p - q);
+    const centre = (opening.left + opening.right) / 2;
+    const target = centre - 0.15 * lampSide;
+    const lampX = lampSide === 1 ? opening.right - 0.25 : opening.left + 0.25;
+    let best = centre;
+    let bestScore = Infinity;
+    for (let k = 0; k < sorted.length - 1; k++) {
+      const mid = (sorted[k] + sorted[k + 1]) / 2;
+      if (sorted[k + 1] - sorted[k] < 0.34) continue;
+      if (Math.abs(mid - lampX) < 0.5) continue;
+      if (standX !== null && Math.abs(mid - standX) < 0.42) continue;
+      const score = Math.abs(mid - target);
+      if (score < bestScore) {
+        bestScore = score;
+        best = mid;
+      }
+    }
+    return best;
+  }
+
+  const labelFont = `${getComputedStyle(document.body).getPropertyValue('--typography-body2-fontFamily').trim() || 'sans-serif'}`;
+
+  // One window scene per plate: shell, the pinned coat stand opposite the
+  // lamp, the tenant centred on its plane, sill. No curtain: a rolled
+  // curtain would cover the figure it sits behind.
+  function tenantPlate(seed: number, i: number, theme: Theme, time: number, ctx: CanvasRenderingContext2D): void {
+    const pen = new Pen({ ...DEFAULT_TUNING }, windowSeed(seed, i, 0));
+    pen.setTime(time);
+    const plan = expandShell(pen.seed);
+    const opening: PaneRect = innerRect(plan.faceWidth);
+    const rng = fork(pen.seed, 'dna');
+    const sill = sillMarks(rng, opening);
+    const lamp = pinnedLamp({ location: i % 2 === 0 ? 'right' : 'left' });
+    const room = roomOf(opening);
+    const lampSide = lamp.location === 'right' ? 1 : -1;
+    const shell = shellMarks(plan);
+    const furniture = drawFurniture({ pieces: [{ kind: 'coatStand', plane: 4, side: lamp.location === 'right' ? 'left' : 'right' }] }, opening);
+    // The stand's pole is its tallest narrow fill; its centre x keeps the
+    // tenant out from under the nearer-plane silhouette.
+    let standX: number | null = null;
+    let bestTall = 0;
+    for (const m of furniture) {
+      if (m.kind !== 'fill') continue;
+      let lx = Infinity;
+      let rx = -Infinity;
+      let ly = Infinity;
+      let ry = -Infinity;
+      for (const p of m.pts) {
+        lx = Math.min(lx, p.x);
+        rx = Math.max(rx, p.x);
+        ly = Math.min(ly, p.y);
+        ry = Math.max(ry, p.y);
+      }
+      const tall = (ry - ly) / Math.max(rx - lx, 1e-4);
+      if (ry - ly > (opening.bottom - opening.top) * 0.4 && tall > bestTall) {
+        bestTall = tall;
+        standX = (lx + rx) / 2;
+      }
+    }
+    const cx = tenantCentre(opening, shell, lampSide, standX);
+    const x0 = cx - TENANT_W / 2;
+    const spot: Spot = { x0, x1: x0 + TENANT_W, floorY: room.bottom, topY: room.bottom - TENANT_H, w: TENANT_W, h: TENANT_H };
+    const v = rollVariant(seed, i, lampSide === 1);
+    execute(
+      [
+        ...shell,
+        ...furniture,
+        ...lampMarks(lamp, opening, theme.isNight),
+        ...humaaansMugTenant(spot, v),
+        ...sill,
+      ],
+      pen,
+      ctx,
+      windowPalette(pen.seed, theme),
+      makeProjection({ x: 0, y: 0 }),
+      opening,
+    );
+  }
+
+  function mountRow(canvas: HTMLCanvasElement, label: HTMLSpanElement, button: HTMLButtonElement): void {
+    if (shown.length === 1) {
+      const main = document.querySelector('main');
+      if (main) main.style.maxWidth = 'none';
+      canvas.style.width = '2900px';
+    }
+    let seed = rollSeed();
+    const show = () => (label.textContent = `seed ${seed}`);
+    show();
+    createDemoLoop(
+      canvas,
+      (ctx, time, theme: Theme) => {
+        const box = cssBox(canvas);
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.fillStyle = theme.paper;
+        ctx.fillRect(0, 0, box.width * box.dpr, box.height * box.dpr);
+        const g = fit(box);
+        ctx.setTransform(g.scale, 0, 0, g.scale, g.cx, g.cy);
+        shown.forEach((i, k) => {
+          const { ox, oy } = plateOrigin(g, k);
+          ctx.save();
+          ctx.translate(ox, oy);
+          tenantPlate(seed, i, theme, time, ctx);
+          ctx.restore();
+        });
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.fillStyle = theme.ink;
+        ctx.globalAlpha = 0.75;
+        ctx.font = `${Math.max(10, 0.16 * g.scale)}px ${labelFont}`;
+        ctx.textAlign = 'center';
+        shown.forEach((i, k) => {
+          const { ox, oy } = plateOrigin(g, k);
+          ctx.fillText(`humaaans-mug ${i + 1}`, g.cx + ox * g.scale, g.cy + oy * g.scale + 0.82 * g.scale);
+        });
+        ctx.globalAlpha = 1;
+      },
+      pointerEye(),
+    );
+    button.addEventListener('click', () => {
+      seed = rollSeed();
+      show();
+    });
+  }
+
+  const el = (id: string) => document.getElementById(id)!;
+  mountRow(el('row') as HTMLCanvasElement, el('row-seed'), el('row-reseed') as HTMLButtonElement);
+</script>
