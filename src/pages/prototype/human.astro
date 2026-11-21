@@ -6,16 +6,19 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
   <main>
     <h1>Human bench</h1>
     <p>
-      Prototype, throwaway, round three: ten illustration languages for the
-      tenant — each a different shape system and palette, the same pose.
-      Round two fixed the proportions but kept one silhouette; the eyeball
-      wants whole styles: the Notion avatar, the SANAA render figure, the
-      Sempé line, the Jullien blob, and so on. The tenant stands 1.25 on the
-      room floor at a furniture plane — below the coat stand's 1.4, the way
-      someone behind the room reads from the street. Every plate pins the
-      coat stand as the size anchor. The sheet gives every style one large
-      plate; the strip shows the same windows at street density. Daylight
-      pinned; the button re-rolls in place.
+      Prototype, throwaway, round three: ten illustration styles of drawing
+      the tenant — different constructions, not one shape with different
+      strokes. Each style names its reference: the SANAA rendering figure,
+      Notion's marketing people, the Modulor, watercolour render entourage,
+      the Bauhaus instruction figure, the pictogram, the Tokyo-night
+      silhouette, the Matisse cut-out, a Sempé ink figure, folk-flat. The
+      body follows the furniture's own scale convention — the pieces are
+      drawn compressed, and the standing tenant joins them at 1.0–1.42 units
+      against the coat stand's 1.4, so the pane shows a resident, the same
+      band the room divider reaches. Every plate pins a coat stand for that
+      judgment. The sheet gives every style one large plate; the strip shows
+      the same windows at street density. Daylight pinned; the button
+      re-rolls in place.
     </p>
 
     <section>
@@ -51,8 +54,8 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
 </style>
 
 <script>
-  // PROTOTYPE, throwaway: candidate illustration languages for the tenant,
-  // drawn as marks into a real window scene. The language the eye picks
+  // PROTOTYPE, throwaway: candidate styles for the tenant silhouette,
+  // drawn as marks into a real window scene. The style the eye picks
   // graduates into the occupant layer; this page does not survive the
   // milestone.
   import { createDemoLoop, cssBox } from '@/components/demoLoop';
@@ -80,8 +83,8 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
   // Daylight pinned: the interior judges best with the lamps dark.
   document.body.setAttribute('data-theme', 'light');
 
-  // The tenant stands behind the furniture plane — the street reads someone
-  // standing well back in the room, smaller than the coat stand in front.
+  // The tenant stands on the room floor at a furniture plane — a resident
+  // among the pieces, not a giant glued to the glass.
   const TENANT_DEPTH = -0.15;
   const TENANT_Z = -8.8;
   const atT = () => TENANT_DEPTH;
@@ -100,7 +103,7 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
     name: string;
     w: number;
     h: number;
-    draw: (s: Spot, seed: number, i: number) => Mark[];
+    draw: (s: Spot, hair: Hair) => Mark[];
   }
 
   const mass = (role: ColorRole, pts: Pt3[]): Mark => ({ kind: 'fill', pts, role, z: zT() });
@@ -122,364 +125,387 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
   });
   const cxOf = (s: Spot) => (s.x0 + s.x1) / 2;
 
+  // Where every tenant meets its room: the x centre with its per-window
+  // drift, the floor, the sightline the aperture cuts at.
+  function base(s: Spot, height: number) {
+    const sightY = s.floorY - 0.85;
+    return {
+      cx: cxOf(s) + 0.012 * s.h * Math.sin(s.x0 * 9.1),
+      crownY: s.floorY - height,
+      floorY: s.floorY,
+      sightY,
+    };
+  }
+
   function ellipse(cx: number, cy: number, rx: number, ry: number, n = 16): Pt3[] {
-    return Array.from({ length: n }, (_, i) => {
+    const pts: Pt3[] = [];
+    for (let i = 0; i < n; i++) {
       const a = (i / n) * Math.PI * 2;
-      return { x: cx + Math.cos(a) * rx, y: cy + Math.sin(a) * ry, z: atT() };
-    });
+      pts.push({ x: cx + Math.cos(a) * rx, y: cy + Math.sin(a) * ry, z: atT() });
+    }
+    return pts;
   }
 
   const circ = (cx: number, cy: number, r: number, n = 14) => ellipse(cx, cy, r, r, n);
 
-  // The shared build: crown, head, chin, shoulder line, sightline. Height
-  // 1.25 on the room floor shows a little over a third of the pane — the
-  // head, the neck, the top of the shoulders, the way someone standing well
-  // back reads from the street.
-  interface Build {
-    cx: number;
-    h: number;
-    crownY: number;
-    headRx: number;
-    headRy: number;
-    headCY: number;
-    chinY: number;
-    neckW: number;
-    shoulderY: number;
-    shoulderX: number;
-    sightY: number;
+  type Hair = 'crop' | 'bun' | 'curls' | 'sidePart';
+
+  function rollHair(seed: number, i: number): Hair {
+    const r = fork(windowSeed(seed, i, 0), 'tenant-hair');
+    return r.weighted([
+      { value: 'crop' as const, weight: 3 },
+      { value: 'bun' as const, weight: 2 },
+      { value: 'curls' as const, weight: 2 },
+      { value: 'sidePart' as const, weight: 2 },
+    ]);
   }
 
-  function build(s: Spot, height: number, headShare = 6.5): Build {
-    const cx = cxOf(s) + 0.012 * s.h * Math.sin(s.x0 * 9.1);
-    const crownY = s.floorY - height;
-    const headRx = height / headShare / 2.15;
-    const headRy = height / headShare / 1.85;
-    const headCY = crownY + headRy;
-    const chinY = headCY + headRy * 0.95;
-    const shoulderY = chinY + height * 0.05;
-    return {
-      cx,
-      h: height,
-      crownY,
-      headRx,
-      headRy,
-      headCY,
-      chinY,
-      neckW: height * 0.03,
-      shoulderY,
-      shoulderX: height * 0.115,
-      sightY: s.floorY - 0.85,
-    };
+  // A hair blob over a head circle: the outline above the skull is where a
+  // person stops being an egg (the reference's frisur layer).
+  function hairBlob(role: ColorRole, cx: number, headCY: number, headR: number, hair: Hair): Mark[] {
+    const marks: Mark[] = [];
+    const capY = headCY - headR * 0.35;
+    if (hair === 'crop' || hair === 'sidePart') {
+      const shift = hair === 'sidePart' ? headR * 0.3 : 0;
+      marks.push(mass(role, ellipse(cx + shift, capY, headR * 1.1, headR * 1.02)));
+    } else if (hair === 'curls') {
+      for (const off of [-0.7, -0.2, 0.3, 0.75]) {
+        marks.push(mass(role, circ(cx + off * headR * 1.1, capY - headR * 0.3 + Math.abs(off) * headR * 0.35, headR * 0.45)));
+      }
+    } else {
+      marks.push(mass(role, ellipse(cx, capY, headR * 1.1, headR * 1.02)));
+      marks.push(mass(role, circ(cx + headR * 0.6, headCY - headR * 1.15, headR * 0.42)));
+    }
+    return marks;
   }
 
   const CANDIDATES: Candidate[] = [
-    // 1. The Notion avatar: one flat pastel mass — round head flowing into
-    // rounded shoulders — no face, no outline.
+    // 1. The SANAA rendering figure: a pale, featureless, slightly-too-small
+    // resident lost in the room — the smallness is the statement. Barely a
+    // head bump over the sightline.
     {
-      name: 'notionAvatar',
-      w: 0.3,
-      h: 1.25,
+      name: 'sejima',
+      w: 0.24,
+      h: 1.05,
       draw: (s) => {
-        const b = build(s, 1.25, 5.5);
+        const b = base(s, 1.05);
+        const headR = 0.055;
+        const headCY = b.crownY + headR;
+        const bodyX = 0.075;
         return [
-          mass('fabric', circ(b.cx, b.headCY, b.headRx * 1.05)),
+          mass('furniture6', circ(b.cx, headCY, headR, 12)),
+          mass('furniture6', [
+            { x: b.cx - bodyX, y: headCY + headR * 0.6, z: atT() },
+            { x: b.cx + bodyX, y: headCY + headR * 0.6, z: atT() },
+            { x: b.cx + bodyX * 0.8, y: b.sightY + 0.1, z: atT() },
+            { x: b.cx - bodyX * 0.8, y: b.sightY + 0.1, z: atT() },
+          ]),
+        ];
+      },
+    },
+    // 2. The Notion-marketing person: solid dark blob head without a face,
+    // long body in one muted flat, a hint of one bent arm, a slight lean.
+    {
+      name: 'notion',
+      w: 0.44,
+      h: 1.35,
+      draw: (s, hair) => {
+        const b = base(s, 1.35);
+        const lean = b.cx + 0.02;
+        const headR = 0.088;
+        const headCY = b.crownY + headR * 1.15;
+        const bodyX = 0.15;
+        const bodyTop = headCY + headR * 1.5;
+        return [
+          ...hairBlob('ink', lean, headCY, headR, hair),
+          mass('ink', circ(lean, headCY, headR)),
           mass('fabric', [
-            { x: b.cx - b.shoulderX * 0.8, y: b.shoulderY, z: atT() },
-            { x: b.cx + b.shoulderX * 0.8, y: b.shoulderY, z: atT() },
-            { x: b.cx + b.shoulderX, y: b.shoulderY + 0.06, z: atT() },
-            { x: b.cx + b.shoulderX, y: b.sightY + 0.12, z: atT() },
-            { x: b.cx - b.shoulderX, y: b.sightY + 0.12, z: atT() },
-            { x: b.cx - b.shoulderX, y: b.shoulderY + 0.06, z: atT() },
+            { x: lean - bodyX * 0.72, y: bodyTop, z: atT() },
+            { x: lean + bodyX * 0.72, y: bodyTop, z: atT() },
+            { x: lean + bodyX, y: bodyTop + (b.sightY - bodyTop) * 0.45, z: atT() },
+            { x: lean + bodyX * 0.88, y: b.sightY + 0.1, z: atT() },
+            { x: lean - bodyX * 0.88, y: b.sightY + 0.1, z: atT() },
+            { x: lean - bodyX, y: bodyTop + (b.sightY - bodyTop) * 0.45, z: atT() },
           ]),
-          dot('ink', { x: b.cx - b.headRx * 0.38, y: b.headCY - b.headRy * 0.05 }, b.headRx * 0.11, 'notionAvatar-eyeL'),
-          dot('ink', { x: b.cx + b.headRx * 0.38, y: b.headCY - b.headRy * 0.05 }, b.headRx * 0.11, 'notionAvatar-eyeR'),
-        ];
-      },
-    },
-    // 2. The SANAA render figure: pale, featureless, one smooth continuous
-    // silhouette — a soft white symbol of a person, barely there.
-    {
-      name: 'sejimaFigure',
-      w: 0.28,
-      h: 1.3,
-      draw: (s) => {
-        const b = build(s, 1.3, 8);
-        return [
-          mass('furniture5', ellipse(b.cx, b.headCY, b.headRx, b.headRy * 1.04)),
-          mass('furniture5', [
-            { x: b.cx - b.neckW, y: b.chinY - b.headRy * 0.3, z: atT() },
-            { x: b.cx + b.neckW, y: b.chinY - b.headRy * 0.3, z: atT() },
-            { x: b.cx + b.shoulderX * 0.9, y: b.shoulderY + 0.05, z: atT() },
-            { x: b.cx + b.shoulderX * 0.82, y: b.sightY + 0.12, z: atT() },
-            { x: b.cx - b.shoulderX * 0.82, y: b.sightY + 0.12, z: atT() },
-            { x: b.cx - b.shoulderX * 0.9, y: b.shoulderY + 0.05, z: atT() },
-          ]),
-        ];
-      },
-    },
-    // 3. The Sempé line figure: one loose ink contour, a couple of gesture
-    // strokes inside — the drawn stranger in the crowd.
-    {
-      name: 'sempeLine',
-      w: 0.3,
-      h: 1.3,
-      draw: (s) => {
-        const b = build(s, 1.3, 7);
-        const crown: Pt3[] = Array.from({ length: 9 }, (_, i) => {
-          const a = Math.PI * (1 - i / 8);
-          return { x: b.cx + Math.cos(a) * b.headRx * 1.04, y: b.headCY + b.headRy * 0.1 - Math.sin(a) * b.headRy * 1.06, z: atT() };
-        });
-        const left: Pt3[] = [
-          { x: b.cx - b.shoulderX * 0.9, y: b.sightY + 0.12, z: atT() },
-          { x: b.cx - b.shoulderX * 0.95, y: b.shoulderY + 0.04, z: atT() },
-          { x: b.cx - b.neckW * 0.8, y: b.shoulderY - 0.02, z: atT() },
-          { x: b.cx - b.headRx * 0.9, y: b.chinY, z: atT() },
-          ...crown,
-        ];
-        const right: Pt3[] = [
-          { x: b.cx + b.headRx * 0.9, y: b.chinY, z: atT() },
-          { x: b.cx + b.neckW * 0.8, y: b.shoulderY - 0.02, z: atT() },
-          { x: b.cx + b.shoulderX * 0.95, y: b.shoulderY + 0.04, z: atT() },
-          { x: b.cx + b.shoulderX * 0.9, y: b.sightY + 0.12, z: atT() },
-        ];
-        return [
-          stroke('ink', [...left, ...right], 'sempeLine-contour', WEIGHTS.outline),
           stroke(
             'ink',
             [
-              { x: b.cx - b.shoulderX * 0.55, y: b.shoulderY + 0.05, z: atT() },
-              { x: b.cx - b.shoulderX * 0.3, y: b.sightY + 0.1, z: atT() },
+              { x: lean - bodyX * 0.8, y: bodyTop + 0.04, z: atT() },
+              { x: lean - bodyX * 1.15, y: bodyTop + 0.13, z: atT() },
+              { x: lean - bodyX * 1.05, y: bodyTop + 0.26, z: atT() },
             ],
-            'sempeLine-lapel',
-            WEIGHTS.detail,
+            'notion-arm',
+            WEIGHTS.outline,
+          ),
+        ];
+      },
+    },
+    // 3. The Modulor: Le Corbusier's scale figure — an upright, rigid,
+    // flat-cut silhouette standing to attention, the architecture drawing's
+    // yardstick.
+    {
+      name: 'modulor',
+      w: 0.4,
+      h: 1.42,
+      draw: (s) => {
+        const b = base(s, 1.42);
+        const headR = 0.07;
+        const headCY = b.crownY + headR;
+        const shoulderY = headCY + headR + 0.02;
+        const bodyX = 0.13;
+        const armX = 0.16;
+        return [
+          mass('ink', ellipse(b.cx, headCY, headR * 0.85, headR)),
+          mass('ink', [
+            { x: b.cx - bodyX, y: shoulderY + 0.05, z: atT() },
+            { x: b.cx + bodyX, y: shoulderY + 0.05, z: atT() },
+            { x: b.cx + bodyX * 0.85, y: b.sightY + 0.1, z: atT() },
+            { x: b.cx - bodyX * 0.85, y: b.sightY + 0.1, z: atT() },
+          ]),
+          mass('ink', [
+            { x: b.cx - armX - 0.015, y: shoulderY + 0.06, z: atT() },
+            { x: b.cx - armX + 0.02, y: shoulderY + 0.06, z: atT() },
+            { x: b.cx - armX * 0.85, y: b.sightY + 0.1, z: atT() },
+            { x: b.cx - armX - 0.02, y: b.sightY + 0.1, z: atT() },
+          ]),
+          mass('ink', [
+            { x: b.cx + armX - 0.02, y: shoulderY + 0.06, z: atT() },
+            { x: b.cx + armX + 0.02, y: shoulderY + 0.06, z: atT() },
+            { x: b.cx + armX + 0.02, y: b.sightY + 0.1, z: atT() },
+            { x: b.cx + armX * 0.85, y: b.sightY + 0.1, z: atT() },
+          ]),
+        ];
+      },
+    },
+    // 4. Render entourage: the watercolour person every architectural
+    // drawing scatters for scale — a hunched coat with a cowl, soft edges,
+    // no face, leaning into its own business.
+    {
+      name: 'entourage',
+      w: 0.44,
+      h: 1.38,
+      draw: (s) => {
+        const b = base(s, 1.38);
+        const lean = b.cx - 0.03;
+        const headR = 0.075;
+        const headCY = b.crownY + headR * 1.2;
+        const cowlTop = headCY + headR * 0.8;
+        return [
+          mass('fabric', circ(lean, headCY, headR)),
+          mass('fabric', [
+            { x: lean - 0.155, y: cowlTop + 0.09, z: atT() },
+            { x: lean + 0.12, y: cowlTop + 0.04, z: atT() },
+            { x: lean + 0.19, y: b.sightY + 0.1, z: atT() },
+            { x: lean - 0.2, y: b.sightY + 0.12, z: atT() },
+          ]),
+          mass('fabric', [
+            { x: lean - 0.185, y: cowlTop + 0.02, z: atT() },
+            { x: lean - 0.09, y: cowlTop - 0.075, z: atT() },
+            { x: lean + 0.02, y: cowlTop - 0.02, z: atT() },
+            { x: lean - 0.05, y: cowlTop + 0.07, z: atT() },
+          ]),
+        ];
+      },
+    },
+    // 5. The Bauhaus instruction figure: a circle-head outline, straight
+    // tube arms, a filled torso — the assembly-diagram person.
+    {
+      name: 'bauhaus',
+      w: 0.4,
+      h: 1.3,
+      draw: (s) => {
+        const b = base(s, 1.3);
+        const headR = 0.08;
+        const headCY = b.crownY + headR;
+        const shoulderY = headCY + headR + 0.015;
+        const bodyX = 0.115;
+        return [
+          stroke('ink', circ(b.cx, headCY, headR, 16), 'bauhaus-head', WEIGHTS.outline),
+          mass('ink', [
+            { x: b.cx - bodyX, y: shoulderY, z: atT() },
+            { x: b.cx + bodyX, y: shoulderY, z: atT() },
+            { x: b.cx + bodyX * 0.9, y: b.sightY + 0.1, z: atT() },
+            { x: b.cx - bodyX * 0.9, y: b.sightY + 0.1, z: atT() },
+          ]),
+          stroke(
+            'ink',
+            [
+              { x: b.cx - bodyX * 0.9, y: shoulderY + 0.01, z: atT() },
+              { x: b.cx - bodyX * 1.5, y: shoulderY + 0.1, z: atT() },
+              { x: b.cx - bodyX * 1.35, y: shoulderY + 0.26, z: atT() },
+            ],
+            'bauhaus-armL',
+            WEIGHTS.outline,
           ),
           stroke(
             'ink',
             [
-              { x: b.cx + b.headRx * 0.15, y: b.headCY + b.headRy * 0.3, z: atT() },
-              { x: b.cx + b.headRx * 0.5, y: b.headCY + b.headRy * 0.1, z: atT() },
+              { x: b.cx + bodyX * 0.9, y: shoulderY + 0.01, z: atT() },
+              { x: b.cx + bodyX * 1.5, y: shoulderY + 0.1, z: atT() },
+              { x: b.cx + bodyX * 1.35, y: shoulderY + 0.26, z: atT() },
             ],
-            'sempeLine-brow',
-            WEIGHTS.detail,
+            'bauhaus-armR',
+            WEIGHTS.outline,
           ),
         ];
       },
     },
-    // 4. The Jullien blob: thick black, no neck, the head melting into
-    // rounded shoulders, two dot eyes and a smile.
-    {
-      name: 'jullienBlob',
-      w: 0.34,
-      h: 1.3,
-      draw: (s) => {
-        const b = build(s, 1.3, 4.5);
-        return [
-          mass('ink', ellipse(b.cx, b.headCY + b.headRy * 0.35, b.headRx * 1.28, b.headRy * 1.5, 18)),
-          mass('ink', [
-            { x: b.cx - b.shoulderX, y: b.shoulderY + 0.02, z: atT() },
-            { x: b.cx + b.shoulderX, y: b.shoulderY + 0.02, z: atT() },
-            { x: b.cx + b.shoulderX * 0.92, y: b.sightY + 0.12, z: atT() },
-            { x: b.cx - b.shoulderX * 0.92, y: b.sightY + 0.12, z: atT() },
-          ]),
-          dot('paper', { x: b.cx - b.headRx * 0.4, y: b.headCY + b.headRy * 0.15 }, b.headRx * 0.13, 'jullien-eyeL'),
-          dot('paper', { x: b.cx + b.headRx * 0.4, y: b.headCY + b.headRy * 0.15 }, b.headRx * 0.13, 'jullien-eyeR'),
-          stroke(
-            'paper',
-            [
-              { x: b.cx - b.headRx * 0.32, y: b.headCY + b.headRy * 0.62, z: atT() },
-              { x: b.cx, y: b.headCY + b.headRy * 0.78, z: atT() },
-              { x: b.cx + b.headRx * 0.32, y: b.headCY + b.headRy * 0.62, z: atT() },
-            ],
-            'jullien-smile',
-            WEIGHTS.detail,
-          ),
-        ];
-      },
-    },
-    // 5. The paper cut: a crisp black profile facing out — forehead, nose,
-    // chin, the bun at the back of the skull.
-    {
-      name: 'papercutProfile',
-      w: 0.3,
-      h: 1.3,
-      draw: (s) => {
-        const b = build(s, 1.3, 6.5);
-        const face = b.cx + b.headRx * 0.5;
-        const marks: Mark[] = [
-          mass('ink', ellipse(b.cx, b.headCY, b.headRx, b.headRy * 0.98)),
-          mass('ink', [
-            { x: face + b.headRx * 0.45, y: b.headCY - b.headRy * 0.5, z: atT() },
-            { x: face + b.headRx * 0.72, y: b.headCY + b.headRy * 0.02, z: atT() },
-            { x: face + b.headRx * 0.55, y: b.headCY + b.headRy * 0.28, z: atT() },
-            { x: face + b.headRx * 0.25, y: b.headCY + b.headRy * 0.5, z: atT() },
-          ]),
-          mass('ink', circ(b.cx - b.headRx * 0.55, b.crownY + b.headRy * 0.42, b.headRx * 0.42)),
-          mass('ink', [
-            { x: b.cx - b.neckW * 1.1, y: b.chinY - b.headRy * 0.25, z: atT() },
-            { x: b.cx + b.neckW * 1.1, y: b.chinY - b.headRy * 0.25, z: atT() },
-            { x: b.cx + b.shoulderX * 0.95, y: b.shoulderY + 0.05, z: atT() },
-            { x: b.cx + b.shoulderX * 0.85, y: b.sightY + 0.12, z: atT() },
-            { x: b.cx - b.shoulderX * 0.85, y: b.sightY + 0.12, z: atT() },
-            { x: b.cx - b.shoulderX * 0.95, y: b.shoulderY + 0.05, z: atT() },
-          ]),
-        ];
-        return marks;
-      },
-    },
-    // 6. The pictogram: the icon grammar — a detached circle head over a
-    // tapered body, solid ink, the gap doing the work.
+    // 6. The pictogram: the AIGA-sign person — a detached round head over
+    // the rounded-shoulder tapered body, read at a glance from a car.
     {
       name: 'pictogram',
-      w: 0.3,
-      h: 1.3,
+      w: 0.38,
+      h: 1.25,
       draw: (s) => {
-        const b = build(s, 1.3, 6);
+        const b = base(s, 1.25);
+        const headR = 0.085;
+        const headCY = b.crownY + headR;
+        const bodyTop = headCY + headR * 1.7;
+        const bodyX = 0.145;
         return [
-          mass('ink', circ(b.cx, b.headCY, b.headRx)),
+          mass('ink', circ(b.cx, headCY, headR)),
           mass('ink', [
-            { x: b.cx - b.shoulderX * 0.62, y: b.shoulderY + 0.03, z: atT() },
-            { x: b.cx + b.shoulderX * 0.62, y: b.shoulderY + 0.03, z: atT() },
-            { x: b.cx + b.shoulderX * 0.4, y: b.sightY + 0.12, z: atT() },
-            { x: b.cx - b.shoulderX * 0.4, y: b.sightY + 0.12, z: atT() },
+            { x: b.cx - bodyX * 0.55, y: bodyTop, z: atT() },
+            { x: b.cx + bodyX * 0.55, y: bodyTop, z: atT() },
+            { x: b.cx + bodyX, y: bodyTop + 0.045, z: atT() },
+            { x: b.cx + bodyX * 0.78, y: b.sightY + 0.1, z: atT() },
+            { x: b.cx - bodyX * 0.78, y: b.sightY + 0.1, z: atT() },
+            { x: b.cx - bodyX, y: bodyTop + 0.045, z: atT() },
           ]),
         ];
       },
     },
-    // 7. The Matisse cutout: one organic coloured mass, lopsided, with
-    // paper-coloured leaf cuts floating inside.
+    // 7. The Tokyo-night silhouette: the back-lit resident against the warm
+    // room — dark hair and shoulders over the lamp's pool of light.
     {
-      name: 'matisseCut',
-      w: 0.36,
+      name: 'heimetric',
+      w: 0.46,
       h: 1.35,
-      draw: (s, seed, i) => {
-        const r = fork(windowSeed(seed, i, 0), 'tenant-matisse');
-        const lean = (r.float(0, 1) - 0.5) * b0(s).headRx * 0.9;
-        const b = build(s, 1.35, 5);
+      draw: (s, hair) => {
+        const b = base(s, 1.35);
+        const headR = 0.085;
+        const headCY = b.crownY + headR * 1.2;
+        const neckW = 0.035;
+        const shoulderY = headCY + headR + 0.045;
+        const bodyX = 0.175;
         return [
-          mass('fabric', ellipse(b.cx + lean, b.headCY + b.headRy * 0.15, b.headRx * 1.12, b.headRy * 1.08, 18)),
-          mass('fabric', [
-            { x: b.cx - b.shoulderX * 1.02, y: b.shoulderY + 0.02, z: atT() },
-            { x: b.cx + b.shoulderX * 0.86, y: b.shoulderY + 0.015, z: atT() },
-            { x: b.cx + b.shoulderX * 0.96, y: b.shoulderY + 0.08, z: atT() },
-            { x: b.cx + b.shoulderX * 0.8, y: b.sightY + 0.12, z: atT() },
-            { x: b.cx - b.shoulderX * 0.92, y: b.sightY + 0.12, z: atT() },
-            { x: b.cx - b.shoulderX * 1.06, y: b.shoulderY + 0.07, z: atT() },
+          mass('ambient', circ(b.cx, headCY + 0.02, headR * 2.4, 18)),
+          mass('ambient', [
+            { x: b.cx - bodyX * 1.9, y: shoulderY - 0.01, z: atT() },
+            { x: b.cx + bodyX * 1.9, y: shoulderY - 0.01, z: atT() },
+            { x: b.cx + bodyX * 1.6, y: b.sightY + 0.1, z: atT() },
+            { x: b.cx - bodyX * 1.6, y: b.sightY + 0.1, z: atT() },
           ]),
-          mass('paper', ellipse(b.cx + lean + b.headRx * 0.25, b.headCY - b.headRy * 0.1, b.headRx * 0.3, b.headRy * 0.22)),
-          mass('paper', ellipse(b.cx - b.shoulderX * 0.35, b.sightY - 0.02, b.headRx * 0.34, b.headRy * 0.2)),
-        ];
-      },
-    },
-    // 8. The woodblock print: ink hair in a topknot over a pale face, flat
-    // garment block with collar lines — ukiyo-e grammar.
-    {
-      name: 'woodblock',
-      w: 0.32,
-      h: 1.3,
-      draw: (s) => {
-        const b = build(s, 1.3, 6.5);
-        return [
-          mass('furniture6', ellipse(b.cx, b.headCY, b.headRx, b.headRy)),
-          mass('ink', ellipse(b.cx, b.headCY - b.headRy * 0.28, b.headRx * 1.08, b.headRy * 0.82)),
-          mass('ink', circ(b.cx, b.crownY + b.headRy * 0.18, b.headRx * 0.34)),
-          mass('fabric', [
-            { x: b.cx - b.shoulderX * 0.9, y: b.shoulderY, z: atT() },
-            { x: b.cx + b.shoulderX * 0.9, y: b.shoulderY, z: atT() },
-            { x: b.cx + b.shoulderX, y: b.shoulderY + 0.06, z: atT() },
-            { x: b.cx + b.shoulderX * 0.94, y: b.sightY + 0.12, z: atT() },
-            { x: b.cx - b.shoulderX * 0.94, y: b.sightY + 0.12, z: atT() },
-            { x: b.cx - b.shoulderX, y: b.shoulderY + 0.06, z: atT() },
-          ]),
-          stroke(
-            'ink',
-            [
-              { x: b.cx - b.neckW * 0.6, y: b.shoulderY - 0.01, z: atT() },
-              { x: b.cx - b.shoulderX * 0.18, y: b.shoulderY + 0.09, z: atT() },
-            ],
-            'woodblock-collarL',
-            WEIGHTS.detail,
-          ),
-          stroke(
-            'ink',
-            [
-              { x: b.cx + b.neckW * 0.6, y: b.shoulderY - 0.01, z: atT() },
-              { x: b.cx + b.shoulderX * 0.18, y: b.shoulderY + 0.09, z: atT() },
-            ],
-            'woodblock-collarR',
-            WEIGHTS.detail,
-          ),
-        ];
-      },
-    },
-    // 9. The one-line drawing: a single continuous stroke that wanders up
-    // the shoulder, around the crown, and back down — never lifting.
-    {
-      name: 'oneline',
-      w: 0.32,
-      h: 1.3,
-      draw: (s) => {
-        const b = build(s, 1.3, 6.5);
-        const crown: Pt3[] = Array.from({ length: 11 }, (_, i) => {
-          const a = Math.PI * (1 - i / 10);
-          return { x: b.cx + Math.cos(a) * b.headRx * 1.05, y: b.headCY + b.headRy * 0.12 - Math.sin(a) * b.headRy * 1.08, z: atT() };
-        });
-        const line: Pt3[] = [
-          { x: b.cx - b.shoulderX * 0.95, y: b.sightY + 0.12, z: atT() },
-          { x: b.cx - b.shoulderX * 0.9, y: b.shoulderY + 0.05, z: atT() },
-          { x: b.cx - b.neckW * 0.7, y: b.chinY + 0.01, z: atT() },
-          { x: b.cx - b.headRx * 0.85, y: b.headCY + b.headRy * 0.35, z: atT() },
-          ...crown,
-          { x: b.cx + b.headRx * 0.8, y: b.headCY + b.headRy * 0.55, z: atT() },
-          { x: b.cx + b.headRx * 0.35, y: b.chinY, z: atT() },
-          { x: b.cx + b.neckW * 0.7, y: b.shoulderY - 0.03, z: atT() },
-          { x: b.cx + b.shoulderX * 0.92, y: b.shoulderY + 0.06, z: atT() },
-          { x: b.cx + b.shoulderX * 0.6, y: b.sightY - 0.05, z: atT() },
-        ];
-        return [stroke('ink', line, 'oneline-stroke', WEIGHTS.outline)];
-      },
-    },
-    // 10. The deco block: angular bob helmet in ink, pale face, long neck,
-    // an angular garment block in a second colour — poster geometry.
-    {
-      name: 'decoBlock',
-      w: 0.32,
-      h: 1.3,
-      draw: (s) => {
-        const b = build(s, 1.3, 7);
-        return [
-          mass('furniture6', ellipse(b.cx, b.headCY + b.headRy * 0.1, b.headRx * 0.94, b.headRy * 0.92)),
+          mass('ink', circ(b.cx, headCY, headR)),
           mass('ink', [
-            { x: b.cx - b.headRx * 1.16, y: b.headCY + b.headRy * 0.28, z: atT() },
-            { x: b.cx - b.headRx * 1.02, y: b.headCY - b.headRy * 0.72, z: atT() },
-            { x: b.cx, y: b.headCY - b.headRy * 0.92, z: atT() },
-            { x: b.cx + b.headRx * 1.02, y: b.headCY - b.headRy * 0.72, z: atT() },
-            { x: b.cx + b.headRx * 1.16, y: b.headCY + b.headRy * 0.28, z: atT() },
-            { x: b.cx + b.headRx * 0.6, y: b.headCY + b.headRy * 0.42, z: atT() },
-            { x: b.cx - b.headRx * 0.6, y: b.headCY + b.headRy * 0.42, z: atT() },
+            { x: b.cx - neckW, y: headCY + headR * 0.5, z: atT() },
+            { x: b.cx + neckW, y: headCY + headR * 0.5, z: atT() },
+            { x: b.cx + neckW * 1.5, y: shoulderY + 0.02, z: atT() },
+            { x: b.cx - neckW * 1.5, y: shoulderY + 0.02, z: atT() },
           ]),
-          mass('fabric', [
-            { x: b.cx - b.shoulderX * 0.95, y: b.shoulderY + 0.05, z: atT() },
-            { x: b.cx + b.shoulderX * 0.95, y: b.shoulderY + 0.05, z: atT() },
-            { x: b.cx + b.shoulderX * 0.88, y: b.sightY + 0.12, z: atT() },
-            { x: b.cx - b.shoulderX * 0.88, y: b.sightY + 0.12, z: atT() },
+          mass('ink', [
+            { x: b.cx - bodyX, y: shoulderY + 0.05, z: atT() },
+            { x: b.cx + bodyX, y: shoulderY + 0.05, z: atT() },
+            { x: b.cx + bodyX * 0.92, y: b.sightY + 0.1, z: atT() },
+            { x: b.cx - bodyX * 0.92, y: b.sightY + 0.1, z: atT() },
           ]),
+          ...hairBlob('ink', b.cx, headCY, headR, hair),
+        ];
+      },
+    },
+    // 8. The Matisse cut-out: the body as one organic paper shape — curved
+    // asymmetric shoulder, swayed hip, the head fused on without a neck.
+    {
+      name: 'matisse',
+      w: 0.42,
+      h: 1.32,
+      draw: (s) => {
+        const b = base(s, 1.32);
+        const headR = 0.075;
+        const headCY = b.crownY + headR * 1.1;
+        const sway = 0.025;
+        const shoulderY = headCY + headR * 1.15;
+        return [
+          mass('ink', ellipse(b.cx + 0.012, headCY, headR * 0.92, headR)),
+          mass('ink', [
+            { x: b.cx - 0.115, y: shoulderY + 0.02, z: atT() },
+            { x: b.cx + 0.14, y: shoulderY - 0.01, z: atT() },
+            { x: b.cx + 0.185, y: shoulderY + 0.18, z: atT() },
+            { x: b.cx + 0.16 + sway, y: b.sightY + 0.1, z: atT() },
+            { x: b.cx - 0.13 + sway, y: b.sightY + 0.1, z: atT() },
+            { x: b.cx - 0.185, y: shoulderY + 0.22, z: atT() },
+          ]),
+        ];
+      },
+    },
+    // 9. The Sempé figure: a small, sparse ink line person — a circle head,
+    // two quick shoulder strokes, one hat brim — lost in the big quiet pane.
+    {
+      name: 'sempe',
+      w: 0.36,
+      h: 1.15,
+      draw: (s) => {
+        const b = base(s, 1.15);
+        const headR = 0.055;
+        const headCY = b.crownY + headR * 1.35;
+        const shoulderY = headCY + headR + 0.05;
+        const bodyX = 0.1;
+        return [
+          stroke('ink', circ(b.cx, headCY, headR, 14), 'sempe-head', WEIGHTS.outline),
           stroke(
             'ink',
             [
-              { x: b.cx, y: b.chinY + b.headRy * 0.1, z: atT() },
-              { x: b.cx, y: b.shoulderY, z: atT() },
+              { x: b.cx - headR * 1.7, y: headCY - headR * 0.55, z: atT() },
+              { x: b.cx, y: headCY - headR * 1.15, z: atT() },
+              { x: b.cx + headR * 1.9, y: headCY - headR * 0.45, z: atT() },
             ],
-            'decoBlock-neckline',
-            WEIGHTS.detail,
+            'sempe-brim',
+            WEIGHTS.outline,
           ),
+          stroke(
+            'ink',
+            [
+              { x: b.cx - bodyX, y: b.sightY + 0.1, z: atT() },
+              { x: b.cx - bodyX * 0.9, y: shoulderY + 0.02, z: atT() },
+              { x: b.cx, y: shoulderY, z: atT() },
+              { x: b.cx + bodyX * 0.9, y: shoulderY + 0.02, z: atT() },
+              { x: b.cx + bodyX, y: b.sightY + 0.1, z: atT() },
+            ],
+            'sempe-body',
+            WEIGHTS.outline,
+          ),
+        ];
+      },
+    },
+    // 10. Folk flat: the picture-book resident — a pale flat body, solid ink
+    // hair blob, two quiet dot eyes, frontal and unbothered.
+    {
+      name: 'folk',
+      w: 0.44,
+      h: 1.32,
+      draw: (s, hair) => {
+        const b = base(s, 1.32);
+        const headR = 0.088;
+        const headCY = b.crownY + headR * 1.2;
+        const shoulderY = headCY + headR + 0.04;
+        const bodyX = 0.16;
+        return [
+          mass('fabric', [
+            { x: b.cx - bodyX * 0.6, y: shoulderY - 0.01, z: atT() },
+            { x: b.cx + bodyX * 0.6, y: shoulderY - 0.01, z: atT() },
+            { x: b.cx + bodyX, y: shoulderY + 0.05, z: atT() },
+            { x: b.cx + bodyX * 0.9, y: b.sightY + 0.1, z: atT() },
+            { x: b.cx - bodyX * 0.9, y: b.sightY + 0.1, z: atT() },
+            { x: b.cx - bodyX, y: shoulderY + 0.05, z: atT() },
+          ]),
+          mass('ink', circ(b.cx, headCY, headR)),
+          ...hairBlob('ink', b.cx, headCY, headR, hair),
+          dot('ink', { x: b.cx - headR * 0.42, y: headCY + headR * 0.05 }, headR * 0.12, 'folk-eyeL'),
+          dot('ink', { x: b.cx + headR * 0.42, y: headCY + headR * 0.05 }, headR * 0.12, 'folk-eyeR'),
         ];
       },
     },
   ];
-
-  // The Matisse cut's helper reads the spot before its own build — one
-  // tiny local alias keeps the draw body readable.
-  const b0 = (s: Spot) => build(s, 1.35, 5);
 
   const KINDS_SHEET_COLS = 3;
   const STRIP_COLS = 5;
@@ -506,7 +532,7 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
 
   const labelFont = `${getComputedStyle(document.body).getPropertyValue('--typography-body2-fontFamily').trim() || 'sans-serif'}`;
 
-  // One window scene per language: shell, a pinned coat stand opposite the
+  // One window scene per style: shell, a pinned coat stand opposite the
   // lamp — the size anchor — the tenant centred on its plane, sill. No
   // curtain: a rolled curtain would cover the figure it sits behind.
   function humanPlate(c: Candidate, seed: number, i: number, theme: Theme, time: number, ctx: CanvasRenderingContext2D): void {
@@ -517,6 +543,7 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
     const rng = fork(pen.seed, 'dna');
     const sill = sillMarks(rng, opening);
     const lamp = pinnedLamp({ location: i % 2 === 0 ? 'innerRight' : 'innerLeft' });
+    const hair = rollHair(seed, i);
     const room = roomOf(opening);
     const cx = (opening.left + opening.right) / 2;
     const x0 = cx - c.w / 2;
@@ -526,7 +553,7 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
         ...shellMarks(plan),
         ...drawFurniture({ pieces: [{ kind: 'coatStand', plane: 4, side: lamp.location === 'innerRight' ? 'left' : 'right' }] }, opening),
         ...lampMarks(lamp, opening, theme.isNight),
-        ...c.draw(spot, seed, i),
+        ...c.draw(spot, hair),
         ...sill,
       ],
       pen,
