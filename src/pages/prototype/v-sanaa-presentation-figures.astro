@@ -1,0 +1,331 @@
+---
+import BaseLayout from '@/components/layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="SANAA presentation figures">
+  <main>
+    <h1>SANAA presentation figures</h1>
+    <p>
+      Prototype, throwaway: the tenant as a SANAA render entourage figure —
+      Kazuyo Sejima + Ryue Nishizawa's pale scattered people. The person is
+      two or three overlapping filled shapes and nothing else: clothing one
+      muted pastel block, hair a slightly darker cap, skin the lightest
+      shape. No features, no contour lines, no ink on the near figure; the
+      pose is still and upright. One plate rolls the same style three times
+      so the per-window variety shows — cap shape, colourway, a raised hand,
+      and a distant companion collapsed to a single deep-gray silhouette,
+      the way their terrace people read. The coat stand stays pinned as the
+      size anchor. Daylight pinned; the button re-rolls.
+    </p>
+
+    <section>
+      <canvas id="row" width="1500" height="620"></canvas>
+      <button id="row-reseed" type="button">New roll</button>
+      <span id="row-seed"></span>
+    </section>
+  </main>
+</BaseLayout>
+
+<style>
+  main {
+    max-width: 1560px;
+    margin: 0 auto;
+    padding: 1rem;
+  }
+  canvas {
+    width: 100%;
+    height: auto;
+    display: block;
+    border: var(--border);
+  }
+  section {
+    margin-bottom: 2rem;
+  }
+</style>
+
+<script>
+  // PROTOTYPE, throwaway: one candidate tenant style (SANAA presentation
+  // figures) drawn three times in a row of real window scenes.
+  import { createDemoLoop, cssBox } from '@/components/demoLoop';
+  import { Pen } from '@/pen/pen';
+  import { DEFAULT_TUNING } from '@/pen/tuning';
+  import { rollSeed } from '@/components/mount';
+  import type { Theme, ColorRole } from '@/styling/roles';
+  import { windowPalette } from '@/styling/colourway';
+  import { fork, windowSeed } from '@/core/randomness/rng';
+  import { execute, type Mark } from '@/core/scene';
+  import { shellMarks, expandShell } from '@/core/window-shell';
+  import { innerRect, type PaneRect } from '@/core/window-shell/shell';
+  import { sillMarks } from '@/core/sill';
+  import { pinnedLamp } from '@/core/light/light';
+  import { lampMarks } from '@/core/light/drawLamp';
+  import type { Pt3 } from '@/motion/projection';
+  import { roomOf } from '@/core/furniture/room';
+  import { drawFurniture } from '@/core/furniture/drawFurniture';
+  import { makeProjection } from '@/motion/projection';
+
+  const UNIT_PITCH_X = 2.3;
+  const UNIT_PITCH_Y = 1.8;
+
+  // Daylight pinned: the interior judges best with the lamps dark.
+  document.body.setAttribute('data-theme', 'light');
+
+  const atT = () => -0.15;
+  const zT = () => -8.8;
+
+  interface Spot {
+    x0: number;
+    x1: number;
+    floorY: number;
+    topY: number;
+    w: number;
+    h: number;
+  }
+
+  interface Variant {
+    h: number;
+    headR: number;
+    bodyX: number;
+    lean: number;
+    // The clothing's solid body plus a cloth wash laid over it: the wash
+    // alone is the curtain's translucent cap and would read as nothing on
+    // a person, so the pale gray carries the shape and the wash carries
+    // the window's pastel.
+    clothBase: ColorRole;
+    hair: ColorRole;
+    cap: 'round' | 'low' | 'bun';
+    raised: boolean;
+    companion: boolean;
+  }
+
+  const mass = (role: ColorRole, pts: Pt3[]): Mark => ({ kind: 'fill', pts, role, z: zT() });
+  const cxOf = (s: Spot) => (s.x0 + s.x1) / 2;
+
+  // The tenant's frame: the x centre with a small per-window drift, the
+  // crown, the floor, and the sightline the aperture cuts at.
+  function base(s: Spot, height: number) {
+    const sightY = s.floorY - 0.85;
+    return {
+      cx: cxOf(s) + 0.012 * s.h * Math.sin(s.x0 * 9.1),
+      crownY: s.floorY - height,
+      floorY: s.floorY,
+      sightY,
+    };
+  }
+
+  function ellipse(cx: number, cy: number, rx: number, ry: number, n = 16): Pt3[] {
+    const pts: Pt3[] = [];
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2;
+      pts.push({ x: cx + Math.cos(a) * rx, y: cy + Math.sin(a) * ry, z: atT() });
+    }
+    return pts;
+  }
+
+  const circ = (cx: number, cy: number, r: number, n = 14) => ellipse(cx, cy, r, r, n);
+
+  function rollVariant(seed: number, i: number): Variant {
+    const r = fork(windowSeed(seed, i, 0), 'sanaa-variant');
+    return {
+      h: r.float(1.2, 1.4),
+      headR: r.float(0.082, 0.098),
+      bodyX: r.float(0.16, 0.2),
+      lean: r.float(-0.03, 0.05),
+      clothBase: r.weighted([
+        { value: 'furniture3' as const, weight: 1 },
+        { value: 'furniture4' as const, weight: 1 },
+      ]),
+      hair: r.weighted([
+        { value: 'furniture2' as const, weight: 1 },
+        { value: 'furniture3' as const, weight: 1 },
+      ]),
+      cap: r.weighted([
+        { value: 'round' as const, weight: 1 },
+        { value: 'low' as const, weight: 1 },
+        { value: 'bun' as const, weight: 1 },
+      ]),
+      raised: r.weighted([
+        { value: true, weight: 2 },
+        { value: false, weight: 3 },
+      ]),
+      companion: r.weighted([
+        { value: true, weight: 2 },
+        { value: false, weight: 1 },
+      ]),
+    };
+  }
+
+  // The figure: overlapping flat shapes only, no strokes anywhere — the
+  // pen never touches this style. Draw order is depth order: distant
+  // companion, torso, raised arm, neck, head, hair cap.
+  function tenantMarks(s: Spot, v: Variant): Mark[] {
+    const b = base(s, v.h);
+    const cx = b.cx + v.lean;
+    const headCY = b.crownY + v.headR * 1.1;
+    // Short neck: the shoulders tuck under the chin, or the paper neck
+    // vanishes against the room and the head floats.
+    const shoulderY = headCY + v.headR * 0.85;
+    const torso = [
+      { x: cx - v.bodyX, y: shoulderY + 0.05, z: atT() },
+      { x: cx - v.bodyX * 0.55, y: shoulderY, z: atT() },
+      { x: cx + v.bodyX * 0.55, y: shoulderY, z: atT() },
+      { x: cx + v.bodyX, y: shoulderY + 0.05, z: atT() },
+      { x: cx + v.bodyX * 0.9, y: b.sightY + 0.15, z: atT() },
+      { x: cx - v.bodyX * 0.9, y: b.sightY + 0.15, z: atT() },
+    ];
+    const marks: Mark[] = [];
+
+    if (v.companion) {
+      // The distant figure of their terrace renders: one deep-gray
+      // silhouette, head over narrow shoulders, dwarfed and quiet.
+      const side = Math.sin(b.cx * 7.3) > 0 ? 1 : -1;
+      const dx = cx + side * 0.45;
+      const cR = v.headR * 0.5;
+      const cCY = s.floorY - 1.06 + cR;
+      const shY = cCY + cR * 0.85;
+      const cW = v.bodyX * 0.34;
+      marks.push(
+        mass('furniture6', [
+          ...circ(dx, cCY, cR, 12).slice(0, 9),
+          { x: dx + cW, y: shY, z: atT() },
+          { x: dx + cW, y: b.sightY + 0.12, z: atT() },
+          { x: dx - cW, y: b.sightY + 0.12, z: atT() },
+          { x: dx - cW, y: shY, z: atT() },
+        ]),
+      );
+    }
+
+    marks.push(mass(v.clothBase, torso));
+    // The pastel: one translucent cloth pass over the solid gray.
+    marks.push(mass('fabric', torso));
+
+    if (v.raised) {
+      const armX = cx + v.bodyX * 0.72;
+      const handY = headCY - v.headR * 1.15;
+      marks.push(
+        mass(v.clothBase, [
+          { x: armX - 0.026, y: shoulderY + 0.04, z: atT() },
+          { x: armX + 0.032, y: shoulderY + 0.02, z: atT() },
+          { x: armX + 0.028, y: handY, z: atT() },
+          { x: armX - 0.028, y: handY, z: atT() },
+        ]),
+      );
+      marks.push(mass('furniture5', circ(armX, handY - 0.024, 0.028, 10)));
+    }
+
+    // The skin: the lightest shape, one step off the paper so it holds an
+    // edge against the pane.
+    marks.push(
+      mass('furniture5', [
+        { x: cx - 0.036, y: headCY + v.headR * 0.2, z: atT() },
+        { x: cx + 0.036, y: headCY + v.headR * 0.2, z: atT() },
+        { x: cx + 0.05, y: shoulderY + 0.03, z: atT() },
+        { x: cx - 0.05, y: shoulderY + 0.03, z: atT() },
+      ]),
+    );
+
+    marks.push(mass('furniture5', ellipse(cx, headCY, v.headR * 0.92, v.headR)));
+
+    if (v.cap === 'round') {
+      marks.push(mass(v.hair, ellipse(cx, headCY - v.headR * 0.52, v.headR * 1.04, v.headR * 0.64)));
+    } else if (v.cap === 'low') {
+      marks.push(mass(v.hair, ellipse(cx, headCY - v.headR * 0.3, v.headR * 1.04, v.headR * 0.78)));
+    } else {
+      marks.push(mass(v.hair, ellipse(cx, headCY - v.headR * 0.52, v.headR * 1.04, v.headR * 0.64)));
+      marks.push(mass(v.hair, circ(cx - v.headR * 0.75, headCY - v.headR * 0.9, v.headR * 0.34)));
+    }
+
+    return marks;
+  }
+
+  function fit(box: { width: number; height: number; dpr: number }, cols: number, rows: number) {
+    const scale = Math.min(box.width / (cols * UNIT_PITCH_X), box.height / (rows * UNIT_PITCH_Y));
+    return { scale: box.dpr * scale, cx: (box.width * box.dpr) / 2, cy: (box.height * box.dpr) / 2 };
+  }
+
+  function plateOrigin(g: ReturnType<typeof fit>, i: number, cols: number) {
+    const ox = ((i % cols) - (cols - 1) / 2) * UNIT_PITCH_X;
+    const oy = 0;
+    return { ox, oy };
+  }
+
+  function pointerEye(): (canvas: HTMLCanvasElement) => { x: number; y: number } {
+    const pointer = { x: 0, y: 0 };
+    window.addEventListener('pointermove', (e) => {
+      pointer.x = e.clientX / window.innerWidth - 0.5;
+      pointer.y = e.clientY / window.innerHeight - 0.5;
+    });
+    return () => ({ ...pointer });
+  }
+
+  const TENANT_W = 0.55;
+  const TENANT_H = 1.35;
+
+  // One window scene: shell, a pinned coat stand opposite the lamp — the
+  // size anchor — the SANAA tenant centred on its plane, sill. No curtain:
+  // a rolled curtain would cover the figure it sits behind.
+  function plate(seed: number, i: number, theme: Theme, time: number, ctx: CanvasRenderingContext2D): void {
+    const pen = new Pen({ ...DEFAULT_TUNING }, windowSeed(seed, i, 0));
+    pen.setTime(time);
+    const plan = expandShell(pen.seed);
+    const opening: PaneRect = innerRect(plan.faceWidth);
+    const rng = fork(pen.seed, 'dna');
+    const sill = sillMarks(rng, opening);
+    const lamp = pinnedLamp({ location: i % 2 === 0 ? 'innerRight' : 'innerLeft' });
+    const variant = rollVariant(seed, i);
+    const room = roomOf(opening);
+    const cx = (opening.left + opening.right) / 2;
+    // The figures scatter, they never line up: drift the tenant off the
+    // pane's centre and away from the lamp so the head stays clear.
+    const shift = (lamp.location === 'innerRight' ? -1 : 1) * 0.16;
+    const x0 = cx - TENANT_W / 2 + shift;
+    const spot: Spot = { x0, x1: x0 + TENANT_W, floorY: room.bottom, topY: room.bottom - TENANT_H, w: TENANT_W, h: TENANT_H };
+    execute(
+      [
+        ...shellMarks(plan),
+        ...drawFurniture({ pieces: [{ kind: 'coatStand', plane: 4, side: lamp.location === 'innerRight' ? 'left' : 'right' }] }, opening),
+        ...lampMarks(lamp, opening, theme.isNight),
+        ...tenantMarks(spot, variant),
+        ...sill,
+      ],
+      pen,
+      ctx,
+      windowPalette(pen.seed, theme),
+      makeProjection({ x: 0, y: 0 }),
+      opening,
+    );
+  }
+
+  function mount(canvas: HTMLCanvasElement, label: HTMLSpanElement, button: HTMLButtonElement): void {
+    let seed = rollSeed();
+    const show = () => (label.textContent = `seed ${seed}`);
+    show();
+    createDemoLoop(
+      canvas,
+      (ctx, time, theme: Theme) => {
+        const box = cssBox(canvas);
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.fillStyle = theme.paper;
+        ctx.fillRect(0, 0, box.width * box.dpr, box.height * box.dpr);
+        const cols = 3;
+        const g = fit(box, cols, 1);
+        ctx.setTransform(g.scale, 0, 0, g.scale, g.cx, g.cy);
+        for (let i = 0; i < cols; i++) {
+          const { ox, oy } = plateOrigin(g, i, cols);
+          ctx.save();
+          ctx.translate(ox, oy);
+          plate(seed, i, theme, time, ctx);
+          ctx.restore();
+        }
+      },
+      pointerEye(),
+    );
+    button.addEventListener('click', () => {
+      seed = rollSeed();
+      show();
+    });
+  }
+
+  const el = (id: string) => document.getElementById(id)!;
+  mount(el('row') as HTMLCanvasElement, el('row-seed'), el('row-reseed') as HTMLButtonElement);
+</script>

@@ -1,0 +1,496 @@
+---
+import BaseLayout from '@/components/layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="Notion tenant preview">
+  <main>
+    <h1>Notion illustrations — tenant preview</h1>
+    <p>
+      Prototype, throwaway. One style, three plates: the Notion marketing
+      person as the tenant — solid ink hair sweeping into a bun or pointed
+      tips, a paper face with one closed eye and an open smile, a line-drawn
+      jacket with hatch clusters at the garment edges, a fabric shirt block
+      inside the collar. The coat stand stays pinned opposite the lamp as
+      the size anchor. Daylight pinned; the button re-rolls in place.
+    </p>
+
+    <section>
+      <canvas id="row" width="1500" height="620"></canvas>
+      <button id="row-reseed" type="button">New sheet</button>
+      <span id="row-seed"></span>
+    </section>
+  </main>
+</BaseLayout>
+
+<style>
+  main {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 1rem;
+  }
+  canvas {
+    width: 100%;
+    height: auto;
+    display: block;
+    border: var(--border);
+  }
+  section {
+    margin-bottom: 2rem;
+  }
+</style>
+
+<script>
+  // PROTOTYPE, throwaway: the Notion-illustrations tenant drawn as marks
+  // into a real window scene, three plates for per-window variety.
+  import { createDemoLoop, cssBox } from '@/components/demoLoop';
+  import { Pen } from '@/pen/pen';
+  import { DEFAULT_TUNING } from '@/pen/tuning';
+  import { rollSeed } from '@/components/mount';
+  import type { Theme, ColorRole } from '@/styling/roles';
+  import { WEIGHTS } from '@/styling/weights';
+  import { windowPalette } from '@/styling/colourway';
+  import { fork, windowSeed } from '@/core/randomness/rng';
+  import { execute, type Mark } from '@/core/scene';
+  import { shellMarks, expandShell } from '@/core/window-shell';
+  import { innerRect, type PaneRect } from '@/core/window-shell/shell';
+  import { sillMarks } from '@/core/sill';
+  import { pinnedLamp } from '@/core/light/light';
+  import { lampMarks } from '@/core/light/drawLamp';
+  import { roomOf } from '@/core/furniture/room';
+  import { drawFurniture } from '@/core/furniture/drawFurniture';
+  import { makeProjection } from '@/motion/projection';
+  import type { Pt3 } from '@/motion/projection';
+
+  const UNIT_PITCH_X = 2.3;
+  const UNIT_PITCH_Y = 1.8;
+  const PLATES = 3;
+
+  document.body.setAttribute('data-theme', 'light');
+
+  const TENANT_DEPTH = -0.15;
+  const TENANT_Z = -8.8;
+  const atT = () => TENANT_DEPTH;
+  const zT = () => TENANT_Z;
+
+  interface Spot {
+    x0: number;
+    x1: number;
+    floorY: number;
+    topY: number;
+    w: number;
+    h: number;
+  }
+
+  const mass = (role: ColorRole, pts: Pt3[]): Mark => ({ kind: 'fill', pts, role, z: zT() });
+  const stroke = (role: ColorRole, pts: Pt3[], name: string, widthUnits: number): Mark => ({
+    kind: 'stroke',
+    pts,
+    name,
+    widthUnits,
+    role,
+    z: zT(),
+  });
+
+  interface Variant {
+    facing: 1 | -1;
+    hairKind: 'bun' | 'tips';
+    tips: number;
+    lean: number;
+    shoulderDrop: number;
+    sway: number;
+    smile: number;
+  }
+
+  function rollVariant(seed: number, i: number, lampRight: boolean): Variant {
+    const r = fork(windowSeed(seed, i, 0), 'notion-tenant');
+    return {
+      facing: lampRight ? 1 : -1,
+      hairKind: r.weighted([
+        { value: 'bun' as const, weight: 2 },
+        { value: 'tips' as const, weight: 3 },
+      ]),
+      tips: r.weighted([
+        { value: 2, weight: 1 },
+        { value: 3, weight: 1 },
+      ]),
+      lean: r.float(-0.05, 0.05),
+      shoulderDrop: r.float(0.1, 0.3),
+      sway: r.float(-0.2, 0.2),
+      smile: r.float(0.85, 1.2),
+    };
+  }
+
+  const TENANT_W = 0.58;
+  const TENANT_H = 1.4;
+  const HEAD_R = 0.12;
+
+  // The figure is built in head-radius measures around the head centre;
+  // every x offset flips with the facing so the three-quarter view turns
+  // toward the lamp.
+  function notionTenant(s: Spot, v: Variant): Mark[] {
+    const marks: Mark[] = [];
+    const cx = (s.x0 + s.x1) / 2 + v.lean;
+    const hx = cx + v.facing * HEAD_R * 0.2;
+    const hy = s.floorY - TENANT_H + HEAD_R * 1.05;
+    const f = v.facing;
+    const r = HEAD_R;
+    const P = (dx: number, dy: number): Pt3 => ({ x: hx + f * dx * r, y: hy + dy * r, z: atT() });
+
+    const bez = (
+      p0: [number, number],
+      c1: [number, number],
+      c2: [number, number],
+      p3: [number, number],
+      n: number,
+    ): Pt3[] =>
+      Array.from({ length: n }, (_, k) => {
+        const t = k / (n - 1);
+        const u = 1 - t;
+        return P(
+          u * u * u * p0[0] + 3 * u * u * t * c1[0] + 3 * u * t * t * c2[0] + t * t * t * p3[0],
+          u * u * u * p0[1] + 3 * u * u * t * c1[1] + 3 * u * t * t * c2[1] + t * t * t * p3[1],
+        );
+      });
+
+    // Cursive motion swirl: a loose loop trailing above the hair mass,
+    // jittered per window. Its whole path stays clear of the hair so the
+    // two never read as one tangle.
+    const j = fork(windowSeed(0, Math.round(hx * 1000), Math.round(hy * 1000)), 'notion-swirl');
+    const sw = (dx: number, dy: number): Pt3 => ({
+      x: hx + f * dx * r + j.float(-0.008, 0.008),
+      y: hy + dy * r + j.float(-0.008, 0.008),
+      z: atT(),
+    });
+    marks.push(
+      stroke(
+        'ink',
+        [
+          sw(-0.3, -2.3),
+          sw(-0.9, -3.2),
+          sw(-1.8, -3.45),
+          sw(-2.6, -3.1),
+          sw(-2.1, -2.9),
+          sw(-1.5, -3.05),
+          sw(-0.9, -3.3),
+          sw(-0.2, -3.4),
+          sw(0.6, -3.2),
+        ],
+        'notion-swirl',
+        WEIGHTS.detail,
+      ),
+    );
+
+    const drop = v.shoulderDrop;
+    const sway = v.sway;
+
+    // Jacket field: paper, so the contour lines carry the whole garment.
+    // The torso hangs off the lean with an uneven shoulder and a swayed
+    // hem — the reference's figure is gestural, never mirrored.
+    marks.push(
+      mass('paper', [
+        P(0.35, 1.4),
+        P(1.7, 2.05),
+        P(1.95, 3.5),
+        P(1.85 + sway, 4.85),
+        P(-1.9 + sway * 0.5, 4.95),
+        P(-1.8, 3.5),
+        P(-1.55, 2.2 + drop),
+        P(-0.55, 1.55 + drop),
+      ]),
+    );
+
+    // Shirt block inside the collar V.
+    marks.push(mass('fabric', [P(0.1, 1.95), P(0.5, 2.6), P(0.15, 2.75), P(-0.05, 2.3)]));
+
+    // Trousers: the second solid ink mass; only a hip sliver survives the
+    // sightline, the bunched ankle sits below the crop.
+    marks.push(
+      mass('ink', [
+        P(-1.85 + sway * 0.5, 4.95),
+        P(1.85 + sway, 4.85),
+        { x: hx + f * 0.15, y: s.floorY - 0.05, z: atT() },
+        { x: hx - f * 0.13, y: s.floorY - 0.02, z: atT() },
+      ]),
+    );
+
+    // Head field: paper — the face is a paper surface the hair mass sits
+    // on, never a colour fill.
+    const headEllipse = (rxf: number, ryf: number, n = 18): Pt3[] =>
+      Array.from({ length: n }, (_, k) => {
+        const a = (k / n) * Math.PI * 2;
+        return P(Math.cos(a) * rxf, Math.sin(a) * ryf);
+      });
+    marks.push(mass('paper', headEllipse(0.88, 1.05)));
+
+    // Face contour: one medium-thin line from the front hairline around
+    // the brow, cheek and chin to the jaw's turn under the ear. Three-
+    // quarter view — the far side lives inside the hair mass.
+    const faceArc = (from: number, to: number, n: number, name: string, w: number): Mark =>
+      stroke(
+        'ink',
+        Array.from({ length: n }, (_, k) => {
+          const a = ((from + ((to - from) * k) / (n - 1)) * Math.PI) / 180;
+          return P(Math.cos(a) * 0.85, Math.sin(a) * 1.05);
+        }),
+        name,
+        w,
+      );
+    marks.push(faceArc(-58, 148, 9, 'notion-face', WEIGHTS.outline));
+    marks.push(stroke('ink', [P(0.12, 1.15), P(0.18, 1.5)], 'notion-neck', WEIGHTS.outline));
+
+    // Hair: filled masses, never outlined. The dome is one smooth curve —
+    // sampled beziers, no straight facets — rising off the skull and
+    // sweeping back-down to the nape; the hairline runs as a gentle
+    // diagonal from the temple, so the brow tucks inside the hair and the
+    // eye stays on paper. Flying tips attach as their own tapered curved
+    // shards flowing back-down.
+    const dome: Pt3[] = [
+      ...bez([0.78, -0.42], [0.98, -0.9], [0.5, -1.55], [-0.1, -1.62], 10),
+      ...bez([-0.1, -1.62], [-0.68, -1.74], [-1.3, -1.5], [-1.6, -1.0], 10),
+      ...bez([-1.6, -1.0], [-1.78, -0.6], [-1.72, -0.25], [-1.45, 0.05], 8),
+      ...bez([-1.45, 0.05], [-0.6, -0.55], [0.1, -0.65], [0.78, -0.42], 10),
+    ];
+    marks.push(mass('ink', dome));
+    if (v.hairKind === 'bun') {
+      const bun: Pt3[] = [];
+      for (let k = 0; k < 12; k++) {
+        const a = (k / 12) * Math.PI * 2;
+        bun.push(P(-1.75 + Math.cos(a) * 0.48, -1.15 + Math.sin(a) * 0.45));
+      }
+      marks.push(mass('ink', bun));
+    } else {
+      for (let k = 0; k < v.tips; k++) {
+        const baseY = -0.95 + k * 0.42;
+        marks.push(
+          mass('ink', [
+            ...bez([-1.45, baseY - 0.18], [-2.2, baseY - 0.25], [-2.65, baseY + 0.25], [-2.85, baseY + 0.7], 8),
+            ...bez([-2.85, baseY + 0.7], [-2.15, baseY + 0.2], [-1.75, baseY + 0.15], [-1.45, baseY + 0.14], 8),
+          ]),
+        );
+      }
+    }
+
+    // Features: one eye only, all at the one light weight so they stay
+    // legible at the crop's small head. Brow tucked at the hairline, eye
+    // a full brow-width below it — the two never read as one squint.
+    marks.push(
+      stroke('ink', [P(0.2, -0.38), P(0.45, -0.46), P(0.65, -0.36)], 'notion-brow', WEIGHTS.detail),
+    );
+    marks.push(
+      stroke('ink', [P(0.22, -0.02), P(0.42, 0.06), P(0.6, -0.02)], 'notion-eye', WEIGHTS.detail),
+    );
+    marks.push(stroke('ink', [P(0.6, -0.02), P(0.7, -0.14)], 'notion-lash', WEIGHTS.detail));
+    marks.push(
+      stroke('ink', [P(0.68, 0.16), P(0.82, 0.24), P(0.7, 0.3)], 'notion-nose', WEIGHTS.detail),
+    );
+    marks.push(
+      stroke(
+        'ink',
+        [P(0.3, 0.48), P(0.48 * v.smile, 0.58), P(0.66 * v.smile, 0.46)],
+        'notion-smile',
+        WEIGHTS.detail,
+      ),
+    );
+    marks.push(
+      stroke('ink', [P(0.36, 0.66), P(0.54 * v.smile, 0.68)], 'notion-lowerlip', WEIGHTS.detail),
+    );
+
+    // Jacket silhouette edges: the two confident lines that give the
+    // line-drawn garment its shape — uneven sloped shoulders into sleeve
+    // seams, following the lean and the sway.
+    marks.push(
+      stroke(
+        'ink',
+        [P(-0.55, 1.55 + drop), P(-1.55, 2.2 + drop), P(-1.8, 3.5), P(-1.85 + sway * 0.5, 4.8)],
+        'notion-edgeB',
+        WEIGHTS.outline,
+      ),
+    );
+    marks.push(
+      stroke(
+        'ink',
+        [P(0.35, 1.4), P(1.7, 2.05), P(1.95, 3.5), P(1.85 + sway, 4.8)],
+        'notion-edgeF',
+        WEIGHTS.outline,
+      ),
+    );
+
+    // Jacket contours: a shallow collar V closing on the chest, one lapel
+    // folding outward from its point.
+    marks.push(stroke('ink', [P(0.55, 1.65), P(0.35, 2.6)], 'notion-collarF', WEIGHTS.outline));
+    marks.push(
+      stroke('ink', [P(-0.5, 1.7 + drop * 0.3), P(0.3, 2.65)], 'notion-collarB', WEIGHTS.outline),
+    );
+    marks.push(stroke('ink', [P(0.35, 2.6), P(0.85, 3.4)], 'notion-lapel', WEIGHTS.outline));
+
+    // Hatch clusters at the garment edges: separate short parallel
+    // diagonal strokes — sleeve seams near the sightline, the chest.
+    const cluster = (ox: number, oy: number, n: number, name: string): void => {
+      for (let k = 0; k < n; k++) {
+        const t = (k - (n - 1) / 2) * 0.18;
+        marks.push(
+          stroke(
+            'ink',
+            [P(ox + t, oy - t * 0.3), P(ox + 0.38 + t, oy + 0.3 - t * 0.3)],
+            `${name}-${k}`,
+            WEIGHTS.detail,
+          ),
+        );
+      }
+    };
+    cluster(-1.55, 3.4, 4, 'notion-hatch-sleeveB');
+    cluster(1.6, 3.6, 4, 'notion-hatch-sleeveF');
+    cluster(-0.8, 3.1, 3, 'notion-hatch-chest');
+
+    return marks;
+  }
+
+  // ?plate=<0..2> collapses the row to one huge plate — the close look
+  // without a screenshot slicer.
+  const only = new URLSearchParams(window.location.search).get('plate');
+  const onlyN = only === null ? NaN : Number(only);
+  const shown: number[] =
+    Number.isInteger(onlyN) && onlyN >= 0 && onlyN < PLATES ? [onlyN] : [0, 1, 2];
+
+  function fit(box: { width: number; height: number; dpr: number }) {
+    const cols = shown.length;
+    const scale = Math.min(box.width / (cols * UNIT_PITCH_X), box.height / UNIT_PITCH_Y);
+    return { scale: box.dpr * scale, cx: (box.width * box.dpr) / 2, cy: (box.height * box.dpr) / 2 };
+  }
+
+  function plateOrigin(g: ReturnType<typeof fit>, k: number) {
+    const cols = shown.length;
+    return { ox: (k - (cols - 1) / 2) * UNIT_PITCH_X, oy: 0 };
+  }
+
+  function pointerEye(): (canvas: HTMLCanvasElement) => { x: number; y: number } {
+    const pointer = { x: 0, y: 0 };
+    window.addEventListener('pointermove', (e) => {
+      pointer.x = e.clientX / window.innerWidth - 0.5;
+      pointer.y = e.clientY / window.innerHeight - 0.5;
+    });
+    return () => ({ ...pointer });
+  }
+
+  // The glazing bars stand out of the wall, in front of the resident, so
+  // the face must land in a pane. Read the vertical pane borders off the
+  // shell marks and centre the tenant in the widest gap leaning away from
+  // the lamp; the shoulders may pass behind bars, the face may not.
+  function tenantCentre(opening: PaneRect, marks: Mark[], lampSide: number): number {
+    const h = opening.bottom - opening.top;
+    const xs = [opening.left, opening.right];
+    for (const m of marks) {
+      if (m.kind === 'stroke' && m.pts.length === 2) {
+        const [a, b] = m.pts;
+        if (
+          Math.abs(a.x - b.x) < 0.02 &&
+          Math.abs(a.y - b.y) > h * 0.5 &&
+          a.x > opening.left + 0.05 &&
+          a.x < opening.right - 0.05
+        ) {
+          xs.push(Math.round(a.x * 100) / 100);
+        }
+      }
+    }
+    const sorted = [...new Set(xs)].sort((p, q) => p - q);
+    const centre = (opening.left + opening.right) / 2;
+    const target = centre - 0.15 * lampSide;
+    const lampX = lampSide === 1 ? opening.right - 0.25 : opening.left + 0.25;
+    let best = centre;
+    let bestScore = Infinity;
+    for (let k = 0; k < sorted.length - 1; k++) {
+      const mid = (sorted[k] + sorted[k + 1]) / 2;
+      if (sorted[k + 1] - sorted[k] < 0.34) continue;
+      if (Math.abs(mid - lampX) < 0.5) continue;
+      const score = Math.abs(mid - target);
+      if (score < bestScore) {
+        bestScore = score;
+        best = mid;
+      }
+    }
+    return best;
+  }
+
+  const labelFont = `${getComputedStyle(document.body).getPropertyValue('--typography-body2-fontFamily').trim() || 'sans-serif'}`;
+
+  // One window scene per plate: shell, the pinned coat stand opposite the
+  // lamp, the tenant centred on its plane, sill. No curtain: a rolled
+  // curtain would cover the figure it sits behind.
+  function tenantPlate(seed: number, i: number, theme: Theme, time: number, ctx: CanvasRenderingContext2D): void {
+    const pen = new Pen({ ...DEFAULT_TUNING }, windowSeed(seed, i, 0));
+    pen.setTime(time);
+    const plan = expandShell(pen.seed);
+    const opening: PaneRect = innerRect(plan.faceWidth);
+    const rng = fork(pen.seed, 'dna');
+    const sill = sillMarks(rng, opening);
+    const lamp = pinnedLamp({ location: i % 2 === 0 ? 'right' : 'left' });
+    const room = roomOf(opening);
+    const lampSide = lamp.location === 'right' ? 1 : -1;
+    const shell = shellMarks(plan);
+    const cx = tenantCentre(opening, shell, lampSide);
+    const x0 = cx - TENANT_W / 2;
+    const spot: Spot = { x0, x1: x0 + TENANT_W, floorY: room.bottom, topY: room.bottom - TENANT_H, w: TENANT_W, h: TENANT_H };
+    const v = rollVariant(seed, i, lampSide === 1);
+    execute(
+      [
+        ...shell,
+        ...drawFurniture({ pieces: [{ kind: 'coatStand', plane: 4, side: lamp.location === 'right' ? 'left' : 'right' }] }, opening),
+        ...lampMarks(lamp, opening, theme.isNight),
+        ...notionTenant(spot, v),
+        ...sill,
+      ],
+      pen,
+      ctx,
+      windowPalette(pen.seed, theme),
+      makeProjection({ x: 0, y: 0 }),
+      opening,
+    );
+  }
+
+  function mountRow(canvas: HTMLCanvasElement, label: HTMLSpanElement, button: HTMLButtonElement): void {
+    if (shown.length === 1) {
+      const main = document.querySelector('main');
+      if (main) main.style.maxWidth = 'none';
+      canvas.style.width = '2900px';
+    }
+    let seed = rollSeed();
+    const show = () => (label.textContent = `seed ${seed}`);
+    show();
+    createDemoLoop(
+      canvas,
+      (ctx, time, theme: Theme) => {
+        const box = cssBox(canvas);
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.fillStyle = theme.paper;
+        ctx.fillRect(0, 0, box.width * box.dpr, box.height * box.dpr);
+        const g = fit(box);
+        ctx.setTransform(g.scale, 0, 0, g.scale, g.cx, g.cy);
+        shown.forEach((i, k) => {
+          const { ox, oy } = plateOrigin(g, k);
+          ctx.save();
+          ctx.translate(ox, oy);
+          tenantPlate(seed, i, theme, time, ctx);
+          ctx.restore();
+        });
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.fillStyle = theme.ink;
+        ctx.globalAlpha = 0.75;
+        ctx.font = `${Math.max(10, 0.16 * g.scale)}px ${labelFont}`;
+        ctx.textAlign = 'center';
+        shown.forEach((i, k) => {
+          const { ox, oy } = plateOrigin(g, k);
+          ctx.fillText(`notion ${i + 1}`, g.cx + ox * g.scale, g.cy + oy * g.scale + 0.82 * g.scale);
+        });
+        ctx.globalAlpha = 1;
+      },
+      pointerEye(),
+    );
+    button.addEventListener('click', () => {
+      seed = rollSeed();
+      show();
+    });
+  }
+
+  const el = (id: string) => document.getElementById(id)!;
+  mountRow(el('row') as HTMLCanvasElement, el('row-seed'), el('row-reseed') as HTMLButtonElement);
+</script>

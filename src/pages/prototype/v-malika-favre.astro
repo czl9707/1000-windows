@@ -1,0 +1,391 @@
+---
+import BaseLayout from '@/components/layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="Favre tenant">
+  <main>
+    <h1>Malika Favre tenant</h1>
+    <p>
+      Prototype, throwaway: one candidate tenant style, three plates in a
+      row so the eye sees per-window variety. The reference is Malika
+      Favre's own poster work — the profile face carved in negative space
+      by a flat dark field, a solid hat mass with a scalloped lower edge,
+      a single eyelid wedge as the only eye, pointed lips, a striped
+      shoulder following its own curve, and a long slender neck. No
+      contour lines exist anywhere; every edge is the boundary between two
+      flat colour fields. The coat stand stays pinned opposite the lamp as
+      the size anchor. Daylight pinned; the button re-rolls in place.
+    </p>
+
+    <section>
+      <canvas id="row" width="1500" height="620"></canvas>
+      <button id="reseed" type="button">New sheet</button>
+      <span id="seed"></span>
+    </section>
+  </main>
+</BaseLayout>
+
+<style>
+  main {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 1rem;
+  }
+  canvas {
+    width: 100%;
+    height: auto;
+    display: block;
+    border: var(--border);
+  }
+  section {
+    margin-bottom: 2rem;
+  }
+</style>
+
+<script>
+  // PROTOTYPE, throwaway: the Favre construction tried in a real window
+  // scene, three seeds side by side. Does not survive the milestone.
+  import { createDemoLoop, cssBox } from '@/components/demoLoop';
+  import { Pen } from '@/pen/pen';
+  import { DEFAULT_TUNING } from '@/pen/tuning';
+  import { rollSeed } from '@/components/mount';
+  import type { Theme, ColorRole } from '@/styling/roles';
+  import { WEIGHTS } from '@/styling/weights';
+  import { windowPalette } from '@/styling/colourway';
+  import { fork, windowSeed } from '@/core/randomness/rng';
+  import { execute, type Mark } from '@/core/scene';
+  import { shellMarks, expandShell } from '@/core/window-shell';
+  import { innerRect, type PaneRect } from '@/core/window-shell/shell';
+  import { sillMarks } from '@/core/sill';
+  import { pinnedLamp } from '@/core/light/light';
+  import { lampMarks } from '@/core/light/drawLamp';
+  import type { Pt3 } from '@/motion/projection';
+  import { roomOf } from '@/core/furniture/room';
+  import { drawFurniture } from '@/core/furniture/drawFurniture';
+  import { makeProjection } from '@/motion/projection';
+
+  const UNIT_PITCH_X = 2.3;
+  const UNIT_PITCH_Y = 1.8;
+
+  // Daylight pinned: the interior judges best with the lamps dark.
+  document.body.setAttribute('data-theme', 'light');
+
+  // The tenant stands on the room floor at a furniture plane — a resident
+  // among the pieces, not a giant glued to the glass.
+  const TENANT_DEPTH = -0.15;
+  const TENANT_Z = -8.8;
+  const atT = () => TENANT_DEPTH;
+  const zT = () => TENANT_Z;
+
+  interface Spot {
+    x0: number;
+    x1: number;
+    floorY: number;
+    topY: number;
+    w: number;
+    h: number;
+  }
+
+  const mass = (role: ColorRole, pts: Pt3[]): Mark => ({ kind: 'fill', pts, role, z: zT() });
+  const stroke = (role: ColorRole, pts: Pt3[], name: string, widthUnits: number): Mark => ({
+    kind: 'stroke',
+    pts,
+    name,
+    widthUnits,
+    role,
+    z: zT(),
+  });
+
+  function ellipse(cx: number, cy: number, rx: number, ry: number, n = 16): Pt3[] {
+    const pts: Pt3[] = [];
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2;
+      pts.push({ x: cx + Math.cos(a) * rx, y: cy + Math.sin(a) * ry, z: atT() });
+    }
+    return pts;
+  }
+
+  // The whole figure lives in head-radius measures: offsets are multiples
+  // of R, x mirrored by the facing sign, y down from the head centre.
+  // Every mark is a flat field — the only stroke on the figure is the
+  // lash hairline under the eyelid wedge.
+  function favreTenant(s: Spot, seed: number, i: number, facing: 1 | -1): Mark[] {
+    const rng = fork(windowSeed(seed, i, 'favre'), 'tenant');
+    const cx = (s.x0 + s.x1) / 2;
+    const floorY = s.floorY;
+    const R = 0.21 * rng.float(0.95, 1.06);
+    const headCY = floorY - 1.28;
+    const sg = facing;
+    const X = (off: number) => cx + sg * off * R;
+    const Y = (off: number) => headCY + off * R;
+    const P = (ox: number, oy: number): Pt3 => ({ x: X(ox), y: Y(oy), z: atT() });
+    // The aperture's bottom edge sits at the sightline, so every downward
+    // extent runs past it by a margin and the clip trims the rest.
+    const cut = floorY - 0.8;
+
+    // The accent carries the window's one cloth colour — hat, stripes,
+    // eyelid and lips all wear it, the reference's red-on-black-and-white.
+    // Every other field is ink or paper. The cloth roles resolve
+    // translucent (the curtain cap), so each accent field lays a furniture
+    // gray under three cloth lays — opaque, and loud against the ink.
+    const hatRole = rng.weighted([
+      { value: 'shade' as const, weight: 2 },
+      { value: 'fabric' as const, weight: 2 },
+      { value: 'blind' as const, weight: 1 },
+    ]);
+    const marks: Mark[] = [];
+
+    const solid = (role: ColorRole, pts: Pt3[]): void => {
+      if (role === 'fabric' || role === 'shade' || role === 'blind') {
+        marks.push(mass('furniture4', pts));
+        marks.push(mass(role, pts));
+        marks.push(mass(role, pts));
+        marks.push(mass(role, pts));
+      } else {
+        marks.push(mass(role, pts));
+      }
+    };
+
+    // The profile: the field's inner edge, read top to bottom — forehead,
+    // brow, eye dip, the long nose wedge, under-nose, the two lip points,
+    // chin, jaw. Few segments, each a named feature: this edge is the
+    // whole style, so it must read as a face at street distance.
+    const profile: [number, number][] = [
+      [0.4, -1.3],
+      [0.7, -0.7],
+      [0.72, -0.38],
+      [0.44, -0.24],
+      [1.15, 0.28],
+      [0.46, 0.42],
+      [0.56, 0.58],
+      [0.5, 0.66],
+      [0.6, 0.8],
+      [0.54, 0.9],
+      [0.6, 1.1],
+      [0.42, 1.26],
+      [0.22, 1.38],
+      [-0.55, 1.5],
+    ];
+
+    // The dark field: everything right of the profile edge, oversized in
+    // every direction — up past the crown, out past the frame, down past
+    // the aperture — so the glass crops it into the poster's flat black.
+    const field: Pt3[] = profile.map(([ox, oy]) => P(ox, oy));
+    field.push({ x: X(-0.55), y: cut, z: atT() });
+    field.push({ x: X(2.6), y: cut, z: atT() });
+    field.push(P(2.6, -3.2));
+    marks.push(mass('ink', field));
+
+    // The face is the paper carved out of that field: its right edge rides
+    // the profile, overlapped a hair into the ink so the boundary never
+    // seams. Its left and top dissolve into the window's own paper — the
+    // hat and the neck carry those boundaries, exactly the reference's
+    // white face floating on white ground.
+    const face: Pt3[] = profile.map(([ox, oy]) => P(ox + 0.06, oy));
+    face.push(P(-1.5, 1.05));
+    face.push(P(-1.85, -0.1));
+    face.push(P(-1.35, -1.55));
+    marks.push(mass('paper', face));
+
+    // Long slender neck, a hair under the head's width, laid back over
+    // the field.
+    marks.push(
+      mass('paper', [P(0.34, 1.15), P(0.42, 2.4), P(-0.72, 2.4), P(-0.6, 1.3)]),
+    );
+
+    // Striped shoulder: a paper garment base banded with the accent
+    // colour, stripes following the shoulder's curve — highest at the
+    // neck, falling away outward — with a per-plate tilt for variety.
+    // The curve peaks just under the chin: the band rides high enough to
+    // clear the aperture's bottom edge with two full stripes to show.
+    const tilt = rng.float(-0.12, 0.12);
+    const stripePitch = R * 0.26;
+    const curveY = (ox: number) =>
+      Y(1.3) + R * 0.5 * Math.pow((ox - 0.5) / 2.6, 2) + R * tilt * (ox / 2.6);
+    const xs = [0.95, 0.45, -0.15, -0.8, -1.45, -2.1];
+    const garm: Pt3[] = [
+      ...xs.map((ox) => ({ x: X(ox), y: curveY(ox), z: atT() })),
+      { x: X(0.95), y: cut, z: atT() },
+      { x: X(-2.1), y: cut, z: atT() },
+    ];
+    marks.push(mass('paper', garm));
+    const bandPts = (k: number): Pt3[] => {
+      const tops = xs.map((ox) => ({ x: X(ox), y: curveY(ox) + k * stripePitch, z: atT() }));
+      const bots = xs.map((ox) => ({
+        x: X(ox),
+        y: curveY(ox) + k * stripePitch + stripePitch * 0.45,
+        z: atT(),
+      }));
+      return [...tops, ...bots.reverse()];
+    };
+    for (let k = 0; k < 4; k++) solid(hatRole, bandPts(k));
+
+    // The hat mass: a dome swept low over the brow, its lower edge
+    // scalloped where it lifts off the face. The swoop variant is all
+    // hair — deeper at the back, ending in a point at the nape.
+    const swoop = rng.weighted([
+      { value: true, weight: 1 },
+      { value: false, weight: 2 },
+    ]);
+    const hatPts: [number, number][] = swoop
+      ? [
+          [0.9, -0.5],
+          [0.6, -1.45],
+          [-0.3, -2.15],
+          [-1.45, -1.7],
+          [-2.1, -0.5],
+          [-2.15, 0.7],
+          [-1.35, 1.35],
+          [-0.75, 1.0],
+          [-0.25, 0.65],
+          [0.1, 0.1],
+          [0.4, -0.4],
+          [0.65, -0.6],
+        ]
+      : [
+          [0.95, -0.5],
+          [0.85, -1.15],
+          [0.35, -2.1],
+          [-0.55, -2.35],
+          [-1.45, -1.85],
+          [-1.95, -0.9],
+          [-2.1, 0.05],
+          [-1.65, -0.2],
+          [-1.3, -0.62],
+          [-0.85, -0.4],
+          [-0.45, -0.8],
+          [0.0, -0.5],
+          [0.4, -0.9],
+          [0.7, -0.65],
+        ];
+    solid(hatRole, hatPts.map(([ox, oy]) => P(ox, oy)));
+
+    // Dark hair wedge at the nape, under the hat's back edge, merging
+    // into the field behind the neck (the reference's black sweep).
+    if (!swoop && rng.float(0, 1) < 0.5) {
+      marks.push(
+        mass('ink', [P(-2.0, -0.1), P(-1.8, 1.2), P(-0.3, 1.6), P(-0.35, 0.6), P(-1.1, -0.3)]),
+      );
+    }
+
+    // Two features only, both in the accent colour: the eyelid wedge —
+    // the single eye, with its ink lash hairline — and the pointed
+    // cupid's-bow lips straddling the profile edge.
+    solid(hatRole, [P(0.5, -0.32), P(0.02, -0.18), P(0.44, 0.05)]);
+    marks.push(
+      stroke('ink', [P(0.46, 0.02), P(0.04, -0.16)], 'favre-lash', WEIGHTS.hairline),
+    );
+    solid(hatRole, [P(0.36, 0.5), P(0.58, 0.58), P(0.42, 0.7), P(0.56, 0.84), P(0.32, 0.78)]);
+
+    return marks;
+  }
+
+  function fit(box: { width: number; height: number; dpr: number }, cols: number, rows: number) {
+    const scale = Math.min(box.width / (cols * UNIT_PITCH_X), box.height / (rows * UNIT_PITCH_Y));
+    return { scale: box.dpr * scale, cx: (box.width * box.dpr) / 2, cy: (box.height * box.dpr) / 2 };
+  }
+
+  function plateOrigin(g: ReturnType<typeof fit>, i: number, cols: number, rows: number) {
+    const ox = ((i % cols) - (cols - 1) / 2) * UNIT_PITCH_X;
+    const oy = (Math.floor(i / cols) - (rows - 1) / 2) * UNIT_PITCH_Y;
+    return { ox, oy };
+  }
+
+  function pointerEye(): (canvas: HTMLCanvasElement) => { x: number; y: number } {
+    const pointer = { x: 0, y: 0 };
+    window.addEventListener('pointermove', (e) => {
+      pointer.x = e.clientX / window.innerWidth - 0.5;
+      pointer.y = e.clientY / window.innerHeight - 0.5;
+    });
+    return () => ({ ...pointer });
+  }
+
+  const labelFont = `${getComputedStyle(document.body).getPropertyValue('--typography-body2-fontFamily').trim() || 'sans-serif'}`;
+
+  // One window scene per plate: shell, a pinned coat stand opposite the
+  // lamp — the size anchor — the tenant on the quarter opposite the lamp,
+  // sill. No curtain: a rolled curtain would cover the figure it sits
+  // behind.
+  function favrePlate(seed: number, i: number, theme: Theme, time: number, ctx: CanvasRenderingContext2D): void {
+    const w = 0.92;
+    const h = 1.28;
+    const pen = new Pen({ ...DEFAULT_TUNING }, windowSeed(seed, i, 0));
+    pen.setTime(time);
+    const plan = expandShell(pen.seed);
+    const opening: PaneRect = innerRect(plan.faceWidth);
+    const rng = fork(pen.seed, 'dna');
+    const sill = sillMarks(rng, opening);
+    const lamp = pinnedLamp({ location: i % 2 === 0 ? 'innerRight' : 'innerLeft' });
+    const room = roomOf(opening);
+    const span = opening.right - opening.left;
+    const cx =
+      lamp.location === 'innerRight'
+        ? opening.left + span * 0.32
+        : opening.right - span * 0.32;
+    const facing: 1 | -1 = lamp.location === 'innerRight' ? 1 : -1;
+    const x0 = cx - w / 2;
+    const spot: Spot = { x0, x1: x0 + w, floorY: room.bottom, topY: room.bottom - h, w, h };
+    execute(
+      [
+        ...shellMarks(plan),
+        ...drawFurniture({ pieces: [{ kind: 'coatStand', plane: 4, side: lamp.location === 'innerRight' ? 'left' : 'right' }] }, opening),
+        ...lampMarks(lamp, opening, theme.isNight),
+        ...favreTenant(spot, seed, i, facing),
+        ...sill,
+      ],
+      pen,
+      ctx,
+      windowPalette(pen.seed, theme),
+      makeProjection({ x: 0, y: 0 }),
+      opening,
+    );
+  }
+
+  const PLATES = 3;
+
+  function mount(canvas: HTMLCanvasElement, label: HTMLSpanElement, button: HTMLButtonElement): void {
+    let seed = rollSeed();
+    const show = () => (label.textContent = `malika favre — seed ${seed}`);
+    show();
+    createDemoLoop(
+      canvas,
+      (ctx, time, theme: Theme) => {
+        const box = cssBox(canvas);
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.fillStyle = theme.paper;
+        ctx.fillRect(0, 0, box.width * box.dpr, box.height * box.dpr);
+        // ?plate=<i> collapses the row to one huge plate — the close
+        // look without a screenshot slicer.
+        const one = new URLSearchParams(window.location.search).get('plate');
+        const shown = one ? [Number(one)] : [0, 1, 2];
+        const zoom = Number(new URLSearchParams(window.location.search).get('zoom') ?? 1);
+        const cols = shown.length;
+        const g = fit(box, cols, 1);
+        g.scale *= zoom;
+        ctx.setTransform(g.scale, 0, 0, g.scale, g.cx, g.cy);
+        for (const i of shown) {
+          const { ox, oy } = plateOrigin(g, shown.indexOf(i), cols, 1);
+          ctx.save();
+          ctx.translate(ox, oy);
+          favrePlate(seed, i, theme, time, ctx);
+          ctx.restore();
+        }
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.fillStyle = theme.ink;
+        ctx.globalAlpha = 0.75;
+        ctx.font = `${Math.max(10, 0.14 * g.scale)}px ${labelFont}`;
+        ctx.textAlign = 'center';
+        ctx.fillText(label.textContent ?? '', box.width * box.dpr / 2, box.height * box.dpr - 0.12 * g.scale);
+        ctx.globalAlpha = 1;
+      },
+      pointerEye(),
+    );
+    button.addEventListener('click', () => {
+      seed = rollSeed();
+      show();
+    });
+  }
+
+  const el = (id: string) => document.getElementById(id)!;
+  mount(el('row') as HTMLCanvasElement, el('seed'), el('reseed') as HTMLButtonElement);
+</script>

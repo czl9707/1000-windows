@@ -1,0 +1,482 @@
+---
+import BaseLayout from '@/components/layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="Jean Jullien tenant">
+  <main>
+    <h1>Jean Jullien tenant</h1>
+    <p>
+      Prototype, throwaway: one style drawn three times — the reference is
+      Jean Jullien's own figure vocabulary (the Icônes sheet): one thick
+      wobbly ink contour doing all the drawing, flat fills separate from
+      it, a profile head about a third of the figure dominated by a big
+      pointed nose wedge, hair a solid dark mass to the shoulders with a
+      rounded crown, dot eyes, tube limbs with no seams, ground dashes
+      under the feet. Daylight pinned; the button re-rolls in place.
+    </p>
+
+    <section>
+      <canvas id="row" width="1500" height="620"></canvas>
+      <button id="row-reseed" type="button">New row</button>
+      <span id="row-seed"></span>
+    </section>
+  </main>
+</BaseLayout>
+
+<style>
+  main {
+    max-width: 1560px;
+    margin: 0 auto;
+    padding: 1rem;
+  }
+  canvas {
+    width: 100%;
+    height: auto;
+    display: block;
+    border: var(--border);
+  }
+  section {
+    margin-bottom: 2rem;
+  }
+</style>
+
+<script>
+  // PROTOTYPE, throwaway: the Jean Jullien tenant candidate, three plates
+  // of the same construction so per-window variety shows. This page does
+  // not survive the milestone.
+  import { createDemoLoop, cssBox } from '@/components/demoLoop';
+  import { Pen } from '@/pen/pen';
+  import { DEFAULT_TUNING } from '@/pen/tuning';
+  import { rollSeed } from '@/components/mount';
+  import type { Theme, ColorRole } from '@/styling/roles';
+  import { WEIGHTS } from '@/styling/weights';
+  import { windowPalette } from '@/styling/colourway';
+  import { fork, windowSeed } from '@/core/randomness/rng';
+  import { execute, type Mark } from '@/core/scene';
+  import { shellMarks, expandShell } from '@/core/window-shell';
+  import { innerRect, type PaneRect } from '@/core/window-shell/shell';
+  import { sillMarks } from '@/core/sill';
+  import { pinnedLamp } from '@/core/light/light';
+  import { lampMarks } from '@/core/light/drawLamp';
+  import type { Pt3 } from '@/motion/projection';
+  import { roomOf } from '@/core/furniture/room';
+  import { drawFurniture } from '@/core/furniture/drawFurniture';
+  import { makeProjection } from '@/motion/projection';
+
+  const UNIT_PITCH_X = 2.3;
+  const UNIT_PITCH_Y = 1.8;
+  const COLS = 3;
+
+  // Daylight pinned: the interior judges best with the lamps dark.
+  document.body.setAttribute('data-theme', 'light');
+
+  // The tenant stands on the room floor at a furniture plane — a resident
+  // among the pieces, not a giant glued to the glass.
+  const TENANT_DEPTH = -0.15;
+  const TENANT_Z = -8.8;
+  const atT = () => TENANT_DEPTH;
+  const zT = () => TENANT_Z;
+
+  interface Spot {
+    x0: number;
+    x1: number;
+    floorY: number;
+    topY: number;
+    w: number;
+    h: number;
+  }
+
+  const mass = (role: ColorRole, pts: Pt3[]): Mark => ({ kind: 'fill', pts, role, z: zT() });
+  const stroke = (role: ColorRole, pts: Pt3[], name: string, widthUnits: number): Mark => ({
+    kind: 'stroke',
+    pts,
+    name,
+    widthUnits,
+    role,
+    z: zT(),
+  });
+
+  // Where the tenant meets its room: the x centre with its per-window
+  // drift, the crown, the floor, the sightline the aperture cuts at.
+  function base(s: Spot, height: number) {
+    const cx = (s.x0 + s.x1) / 2 + 0.012 * s.h * Math.sin(s.x0 * 9.1);
+    return {
+      cx,
+      crownY: s.floorY - height,
+      floorY: s.floorY,
+      sightY: s.floorY - 0.85,
+    };
+  }
+
+  type Hair = 'fall' | 'bob';
+
+  function rollFigure(seed: number, i: number): { hair: Hair; nose: number; top: ColorRole; lean: number } {
+    const r = fork(windowSeed(seed, i, 0), 'jj-figure');
+    return {
+      hair: r.weighted([
+        { value: 'fall' as const, weight: 3 },
+        { value: 'bob' as const, weight: 1 },
+      ]),
+      nose: r.float(0.45, 0.6),
+      top: r.weighted([
+        { value: 'fabric' as const, weight: 4 },
+        { value: 'blind' as const, weight: 2 },
+        { value: 'shade' as const, weight: 1 },
+      ]),
+      lean: r.float(-0.02, 0.02),
+    };
+  }
+
+  function ellipse(cx: number, cy: number, rx: number, ry: number, n = 18): Pt3[] {
+    const pts: Pt3[] = [];
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2;
+      pts.push({ x: cx + Math.cos(a) * rx, y: cy + Math.sin(a) * ry, z: atT() });
+    }
+    return pts;
+  }
+
+  // The Jullien figure in profile, facing left. The head is just under a
+  // third of the figure and the sightline cuts at the chest, so the plank
+  // nose, the dot eye, the pale face field and the hair band carry the
+  // read, with the garment's shoulder wrap in the strip below. Flat fills
+  // first, the one thick contour over them; no shading, no seams.
+  function drawJullien(s: Spot, seed: number, i: number): Mark[] {
+    const H = 1.4;
+    const b = base(s, H);
+    const fig = rollFigure(seed, i);
+
+    const headH = H * 0.3;
+    const headW = headH * 0.85;
+    const headCY = b.crownY + headH * 0.5;
+    const fx = b.cx + fig.lean - headW * 0.55; // the face plane, figure faces left
+    const bx = b.cx + fig.lean + headW * 0.5; // the back of the skull
+    const nose = headW * fig.nose; // the plank wedge dominates the profile
+
+    const W = WEIGHTS.outline;
+    const marks: Mark[] = [];
+
+    // Top garment: one flat fill the contour merely wraps — pale pastel;
+    // its shoulder wrap is the band the sightline crop leaves visible.
+    const shoulderY = headCY + headH * 0.48;
+    const bodyX = headW * 0.8;
+    const bxc = b.cx + fig.lean;
+    marks.push(
+      mass(fig.top, [
+        { x: bxc - bodyX, y: shoulderY + 0.04, z: atT() },
+        { x: bxc + bodyX * 0.7, y: shoulderY, z: atT() },
+        { x: bxc + bodyX * 0.85, y: b.sightY + 0.14, z: atT() },
+        { x: bxc - bodyX * 0.85, y: b.sightY + 0.14, z: atT() },
+      ]),
+    );
+
+    // Trousers: a second flat fill below the top, below the crop.
+    marks.push(
+      mass('shade', [
+        { x: b.cx - bodyX * 0.5, y: b.sightY + 0.12, z: atT() },
+        { x: b.cx + bodyX * 0.5, y: b.sightY + 0.12, z: atT() },
+        { x: b.cx + bodyX * 0.42, y: b.floorY - 0.02, z: atT() },
+        { x: b.cx - bodyX * 0.42, y: b.floorY - 0.02, z: atT() },
+      ]),
+    );
+
+    // Hair: a solid ink crown band with a rounded crown, falling at the
+    // back to the shoulders — the face keeps the pale field the reference
+    // gives it, and the fall stays behind the neck so the collar reads.
+    // The bob variant stops at the nape.
+    const hairTop = b.crownY - headH * 0.04;
+    const hairBottom = fig.hair === 'bob' ? headCY + headH * 0.55 : headCY + headH * 0.85;
+    marks.push(
+      mass('ink', [
+        { x: fx + headW * 0.3, y: hairTop + headH * 0.12, z: atT() },
+        { x: b.cx + fig.lean - headW * 0.05, y: hairTop, z: atT() },
+        { x: bx + headW * 0.18, y: hairTop + headH * 0.06, z: atT() },
+        { x: bx + headW * 0.36, y: headCY + headH * 0.08, z: atT() },
+        { x: bx + headW * 0.3, y: hairBottom - headH * 0.12, z: atT() },
+        { x: bx - headW * 0.1, y: hairBottom, z: atT() },
+        { x: fx + headW * 0.6, y: headCY + headH * 0.3, z: atT() },
+        { x: fx + headW * 0.44, y: headCY - headH * 0.1, z: atT() },
+      ]),
+    );
+
+    // The contour: one thick wobbly brush line doing all the drawing. Each
+    // stroke gets its own name so the pen warps them independently.
+    // Crown and back, over the hair band's outer edge.
+    marks.push(
+      stroke(
+        'ink',
+        [
+          { x: fx + headW * 0.3, y: hairTop + headH * 0.12, z: atT() },
+          { x: b.cx + fig.lean - headW * 0.05, y: hairTop, z: atT() },
+          { x: bx + headW * 0.18, y: hairTop + headH * 0.06, z: atT() },
+          { x: bx + headW * 0.36, y: headCY - headH * 0.06, z: atT() },
+          { x: bx + headW * 0.3, y: hairBottom - headH * 0.12, z: atT() },
+          { x: bx - headW * 0.1, y: hairBottom, z: atT() },
+        ],
+        'jj-crown',
+        W * 2.4,
+      ),
+    );
+    // The hair band's front edge: temple down behind the jaw.
+    marks.push(
+      stroke(
+        'ink',
+        [
+          { x: fx + headW * 0.44, y: headCY - headH * 0.1, z: atT() },
+          { x: fx + headW * 0.6, y: headCY + headH * 0.3, z: atT() },
+          { x: bx - headW * 0.1, y: hairBottom, z: atT() },
+        ],
+        'jj-hairEdge',
+        W * 1.6,
+      ),
+    );
+    // The face: hairline down the brow, out along the top of the plank
+    // nose to its pointed tip, back under its base, then the chin and jaw
+    // receding back toward the neck — hugging the face plane here would
+    // let the fat brush ribbon bulge forward into a lower beak. No notch
+    // in the path either: the pen turns a zigzag into a dark wedge, so
+    // the mouth is its own tick below.
+    marks.push(
+      stroke(
+        'ink',
+        [
+          { x: fx + headW * 0.3, y: headCY - headH * 0.42, z: atT() },
+          { x: fx + headW * 0.06, y: headCY - headH * 0.14, z: atT() },
+          { x: fx - headW * 0.02, y: headCY - headH * 0.04, z: atT() },
+          { x: fx - nose, y: headCY + headH * 0.02, z: atT() },
+          { x: fx + headW * 0.02, y: headCY + headH * 0.13, z: atT() },
+          { x: fx + headW * 0.12, y: headCY + headH * 0.28, z: atT() },
+          { x: fx + headW * 0.3, y: headCY + headH * 0.44, z: atT() },
+        ],
+        'jj-face',
+        W * 2.2,
+      ),
+    );
+    // Neck strokes down into the collar.
+    marks.push(
+      stroke(
+        'ink',
+        [
+          { x: fx + headW * 0.3, y: headCY + headH * 0.44, z: atT() },
+          { x: fx + headW * 0.26, y: shoulderY + 0.02, z: atT() },
+        ],
+        'jj-neckFront',
+        W * 1.4,
+      ),
+    );
+    marks.push(
+      stroke(
+        'ink',
+        [
+          { x: bx - headW * 0.04, y: headCY + headH * 0.3, z: atT() },
+          { x: bx - headW * 0.04, y: shoulderY + 0.02, z: atT() },
+        ],
+        'jj-neckBack',
+        W * 1.4,
+      ),
+    );
+    // The torso contour wrapping the garment fill: shoulder caps and side
+    // tubes down past the sightline, no seams.
+    marks.push(
+      stroke(
+        'ink',
+        [
+          { x: fx + headW * 0.24, y: shoulderY + 0.04, z: atT() },
+          { x: bxc - bodyX * 0.92, y: shoulderY + 0.1, z: atT() },
+          { x: bxc - bodyX, y: shoulderY + 0.3, z: atT() },
+          { x: bxc - bodyX * 0.88, y: b.sightY + 0.12, z: atT() },
+        ],
+        'jj-torsoL',
+        W * 2.0,
+      ),
+    );
+    marks.push(
+      stroke(
+        'ink',
+        [
+          { x: bx + headW * 0.2, y: shoulderY + 0.04, z: atT() },
+          { x: bxc + bodyX * 0.68, y: shoulderY + 0.08, z: atT() },
+          { x: bxc + bodyX * 0.84, y: shoulderY + 0.32, z: atT() },
+          { x: bxc + bodyX * 0.82, y: b.sightY + 0.12, z: atT() },
+        ],
+        'jj-torsoR',
+        W * 2.0,
+      ),
+    );
+    // Tube arms hanging dead, slight bend, no elbow seam.
+    marks.push(
+      stroke(
+        'ink',
+        [
+          { x: bxc - bodyX * 0.9, y: shoulderY + 0.08, z: atT() },
+          { x: bxc - bodyX * 1.12, y: shoulderY + 0.3, z: atT() },
+          { x: bxc - bodyX * 1.06, y: shoulderY + 0.5, z: atT() },
+        ],
+        'jj-armL',
+        W * 2.0,
+      ),
+    );
+    marks.push(
+      stroke(
+        'ink',
+        [
+          { x: bxc + bodyX * 0.76, y: shoulderY + 0.1, z: atT() },
+          { x: bxc + bodyX * 0.94, y: shoulderY + 0.32, z: atT() },
+          { x: bxc + bodyX * 0.88, y: shoulderY + 0.52, z: atT() },
+        ],
+        'jj-armR',
+        W * 2.0,
+      ),
+    );
+    // Ear: one small loop tick on the pale cheek, high in front of the
+    // hair edge — never at mouth height, where it reads as a second mouth.
+    const ear = ellipse(fx + headW * 0.34, headCY - headH * 0.02, 0.012, 0.016, 10);
+    marks.push(stroke('ink', ear, 'jj-ear', WEIGHTS.detail));
+
+    // The eye: one plain filled dot at the nose wedge's root — a fill, so
+    // the pen cannot wobble it into a dash. The far eye does not exist.
+    marks.push(mass('ink', ellipse(fx + headW * 0.1, headCY - headH * 0.02, 0.015, 0.019, 14)));
+    // One short mouth line under the nose base, on the receding jaw.
+    marks.push(
+      stroke(
+        'ink',
+        [
+          { x: fx + headW * 0.06, y: headCY + headH * 0.19, z: atT() },
+          { x: fx + headW * 0.14, y: headCY + headH * 0.195, z: atT() },
+        ],
+        'jj-mouth',
+        WEIGHTS.detail,
+      ),
+    );
+
+    // Ground contact: a thin ink dash under each foot, below the crop.
+    marks.push(
+      stroke(
+        'ink',
+        [
+          { x: b.cx - bodyX * 0.6, y: b.floorY, z: atT() },
+          { x: b.cx - bodyX * 0.1, y: b.floorY, z: atT() },
+        ],
+        'jj-shadowL',
+        WEIGHTS.detail,
+      ),
+    );
+    marks.push(
+      stroke(
+        'ink',
+        [
+          { x: b.cx + bodyX * 0.15, y: b.floorY, z: atT() },
+          { x: b.cx + bodyX * 0.62, y: b.floorY, z: atT() },
+        ],
+        'jj-shadowR',
+        WEIGHTS.detail,
+      ),
+    );
+
+    return marks;
+  }
+
+  function fit(box: { width: number; height: number; dpr: number }, cols: number, rows: number) {
+    const scale = Math.min(box.width / (cols * UNIT_PITCH_X), box.height / (rows * UNIT_PITCH_Y));
+    return { scale: box.dpr * scale, cx: (box.width * box.dpr) / 2, cy: (box.height * box.dpr) / 2 };
+  }
+
+  function plateOrigin(g: ReturnType<typeof fit>, i: number, cols: number, rows: number) {
+    const ox = ((i % cols) - (cols - 1) / 2) * UNIT_PITCH_X;
+    const oy = (Math.floor(i / cols) - (rows - 1) / 2) * UNIT_PITCH_Y;
+    return { ox, oy };
+  }
+
+  function pointerEye(): (canvas: HTMLCanvasElement) => { x: number; y: number } {
+    const pointer = { x: 0, y: 0 };
+    window.addEventListener('pointermove', (e) => {
+      pointer.x = e.clientX / window.innerWidth - 0.5;
+      pointer.y = e.clientY / window.innerHeight - 0.5;
+    });
+    return () => ({ ...pointer });
+  }
+
+  const labelFont = `${getComputedStyle(document.body).getPropertyValue('--typography-body2-fontFamily').trim() || 'sans-serif'}`;
+
+  // One window scene per plate: shell, a pinned coat stand opposite the
+  // lamp — the size anchor — the tenant centred on its plane, sill. No
+  // curtain: a rolled curtain would cover the figure it sits behind.
+  function jullienPlate(seed: number, i: number, theme: Theme, time: number, ctx: CanvasRenderingContext2D): void {
+    const pen = new Pen({ ...DEFAULT_TUNING }, windowSeed(seed, i, 0));
+    pen.setTime(time);
+    const plan = expandShell(pen.seed);
+    const opening: PaneRect = innerRect(plan.faceWidth);
+    const rng = fork(pen.seed, 'dna');
+    const sill = sillMarks(rng, opening);
+    // The lamp pins to the outer right anchor: on the inner anchors its
+    // shade hangs at head height dead on the figure, and the tenant stands
+    // at the room's left third to keep the whole head-to-chest read clear
+    // of both lamp and coat stand.
+    const lamp = pinnedLamp({ location: 'right' });
+    const room = roomOf(opening);
+    execute(
+      [
+        ...shellMarks(plan),
+        ...drawFurniture({ pieces: [{ kind: 'coatStand', plane: 4, side: 'right' }] }, opening),
+        ...lampMarks(lamp, opening, theme.isNight),
+        ...drawJullien(
+          {
+            x0: room.left + (room.right - room.left) * 0.31 - 0.25,
+            x1: room.left + (room.right - room.left) * 0.31 + 0.25,
+            floorY: room.bottom,
+            topY: room.bottom - 1.4,
+            w: 0.5,
+            h: 1.4,
+          },
+          seed,
+          i,
+        ),
+        ...sill,
+      ],
+      pen,
+      ctx,
+      windowPalette(pen.seed, theme),
+      makeProjection({ x: 0, y: 0 }),
+      opening,
+    );
+  }
+
+  function mountRow(canvas: HTMLCanvasElement, label: HTMLSpanElement, button: HTMLButtonElement): void {
+    let seed = rollSeed();
+    const show = () => (label.textContent = `seed ${seed}`);
+    show();
+    createDemoLoop(
+      canvas,
+      (ctx, time, theme: Theme) => {
+        const box = cssBox(canvas);
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.fillStyle = theme.paper;
+        ctx.fillRect(0, 0, box.width * box.dpr, box.height * box.dpr);
+        const g = fit(box, COLS, 1);
+        ctx.setTransform(g.scale, 0, 0, g.scale, g.cx, g.cy);
+        for (let i = 0; i < COLS; i++) {
+          const { ox, oy } = plateOrigin(g, i, COLS, 1);
+          ctx.save();
+          ctx.translate(ox, oy);
+          jullienPlate(seed, i, theme, time, ctx);
+          ctx.restore();
+        }
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.fillStyle = theme.ink;
+        ctx.globalAlpha = 0.75;
+        ctx.font = `${Math.max(11, 0.055 * g.scale)}px ${labelFont}`;
+        ctx.textAlign = 'center';
+        ctx.fillText('jean jullien — three plates, one seed', g.cx, g.cy + 0.98 * g.scale);
+        ctx.globalAlpha = 1;
+      },
+      pointerEye(),
+    );
+    button.addEventListener('click', () => {
+      seed = rollSeed();
+      show();
+    });
+  }
+
+  const el = (id: string) => document.getElementById(id)!;
+  mountRow(el('row') as HTMLCanvasElement, el('row-seed'), el('row-reseed') as HTMLButtonElement);
+</script>

@@ -1,0 +1,498 @@
+---
+import BaseLayout from '@/components/layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="Carson Ellis tenant" wide>
+  <main>
+    <h1>Carson Ellis tenant</h1>
+    <p>
+      Prototype, throwaway: one style, three plates. The reference is Carson
+      Ellis's soft flat gouache register — the self-portrait sheet and the Home
+      cover. Flat matte colour fields, no contour lines anywhere: hair one
+      solid mass with a scalloped fringe stepping over the brow, a single
+      almond eye glancing sideways, a wedge nose, freckle dots, one flat tee —
+      striped on the Home-cover plates — and a pigeon companion on the sill
+      where the glance lands. The coat stand stays pinned opposite the lamp as
+      the size anchor. Daylight pinned; the button re-rolls in place.
+    </p>
+
+    <section>
+      <canvas id="row" width="1500" height="370"></canvas>
+      <button id="row-reseed" type="button">New row</button>
+      <span id="row-seed"></span>
+    </section>
+  </main>
+</BaseLayout>
+
+<style>
+  main {
+    max-width: 1560px;
+    margin: 0 auto;
+    padding: 1rem;
+  }
+  canvas {
+    width: 100%;
+    height: auto;
+    display: block;
+    border: var(--border);
+  }
+  section {
+    margin-bottom: 2rem;
+  }
+</style>
+
+<script>
+  // PROTOTYPE, throwaway: the Carson Ellis gouache candidate for the tenant,
+  // drawn as flat colour-field marks into a real window scene.
+  import { createDemoLoop, cssBox } from '@/components/demoLoop';
+  import { Pen } from '@/pen/pen';
+  import { DEFAULT_TUNING } from '@/pen/tuning';
+  import { rollSeed } from '@/components/mount';
+  import type { Theme, ColorRole } from '@/styling/roles';
+  import { WEIGHTS } from '@/styling/weights';
+  import { windowPalette } from '@/styling/colourway';
+  import { fork, windowSeed, type Rng } from '@/core/randomness/rng';
+  import { execute, type Mark } from '@/core/scene';
+  import { shellMarks, expandShell } from '@/core/window-shell';
+  import { innerRect, rectPts, type PaneRect } from '@/core/window-shell/shell';
+  import type { ShellPlan } from '@/core/window-shell/archetypes';
+  import { sillMarks } from '@/core/sill';
+  import { pinnedLamp } from '@/core/light/light';
+  import { lampMarks } from '@/core/light/drawLamp';
+  import type { Pt3 } from '@/motion/projection';
+  import { roomOf } from '@/core/furniture/room';
+  import { drawFurniture } from '@/core/furniture/drawFurniture';
+  import { makeProjection } from '@/motion/projection';
+
+  const UNIT_PITCH_X = 2.3;
+  const UNIT_PITCH_Y = 1.8;
+  const PLATES = 3;
+
+  // Daylight pinned: the gouache palette judges best in daylight.
+  document.body.setAttribute('data-theme', 'light');
+
+  const TENANT_DEPTH = -0.15;
+  const TENANT_Z = -8.8;
+  const atT = () => TENANT_DEPTH;
+  const zT = () => TENANT_Z;
+
+  interface Spot {
+    x0: number;
+    x1: number;
+    cx: number;
+    pigeonX: number;
+    floorY: number;
+    topY: number;
+    w: number;
+    h: number;
+  }
+
+  interface Look {
+    height: number;
+    hair: 'bowl' | 'bun';
+    hairRole: ColorRole;
+    striped: boolean;
+    glance: 1 | -1;
+    warmX: 1 | -1;
+    freckles: number;
+    companion: boolean;
+  }
+
+  const mass = (role: ColorRole, pts: Pt3[]): Mark => ({ kind: 'fill', pts, role, z: zT() });  const stroke = (role: ColorRole, pts: Pt3[], name: string, widthUnits: number): Mark => ({
+    kind: 'stroke',
+    pts,
+    name,
+    widthUnits,
+    role,
+    z: zT(),
+  });
+  const dot = (role: ColorRole, p: { x: number; y: number }, r: number, name: string): Mark => ({
+    kind: 'dot',
+    pts: [{ x: p.x, y: p.y, z: atT() }],
+    role,
+    z: zT(),
+    name,
+    r,
+  });
+
+  function ellipse(cx: number, cy: number, rx: number, ry: number, n = 18): Pt3[] {
+    const pts: Pt3[] = [];
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2;
+      pts.push({ x: cx + Math.cos(a) * rx, y: cy + Math.sin(a) * ry, z: atT() });
+    }
+    return pts;
+  }
+
+  const circ = (cx: number, cy: number, r: number, n = 14) => ellipse(cx, cy, r, r, n);
+
+  // One roll per plate: the reference's own wardrobe variants — bowl cut or
+  // the swept bun, dark or warm hair, the Home cover's striped shirt, and
+  // whether the pigeon shares the sill. The plate overrides pin the row's
+  // variety: the middle plate is the Home cover scene, the third the bun.
+  function rollLook(seed: number, i: number, pin?: { hair?: Look['hair']; striped?: boolean; companion?: boolean; glance?: 1 | -1 }): Look {
+    const r = fork(windowSeed(seed, i, 1), 'carson-look');
+    const companion = pin?.companion ?? r.weighted([
+      { value: true, weight: 3 },
+      { value: false, weight: 1 },
+    ]);
+    const glance: 1 | -1 = pin?.glance ?? (companion ? (i % 2 === 0 ? 1 : -1) : r.weighted([
+      { value: 1 as const, weight: 1 },
+      { value: -1 as const, weight: 1 },
+    ]));
+    return {
+      height: r.float(1.15, 1.36),
+      hair: pin?.hair ?? r.weighted([
+        { value: 'bowl' as const, weight: 3 },
+        { value: 'bun' as const, weight: 2 },
+      ]),
+      // The gouache register: hair never rolls as ink — ink is the engine's
+      // line-work role, and a hair mass in it reads as a black cutout.
+      hairRole: r.weighted([
+        { value: 'furniture2' as const, weight: 3 },
+        { value: 'shade' as const, weight: 1 },
+      ]),
+      striped: pin?.striped ?? r.weighted([
+        { value: true, weight: 3 },
+        { value: false, weight: 2 },
+      ]),
+      glance,
+      warmX: 1,
+      freckles: Math.floor(r.float(8, 14)),
+      companion,
+    };
+  }
+
+  // The Home-cover girl fills one clear pane: the tenant centers in the
+  // widest vertical gap on the lamp-opposite side. The gap mirrors the
+  // shell's own verticals — sliding panels included, so a panel slid open
+  // never draws its stile through the face. A transom adds a horizontal
+  // line only, below the tenant's crown, so verticals are the whole story.
+  function headGap(plan: ShellPlan, opening: PaneRect, side: 'left' | 'right'): { c: number; lo: number; hi: number } {
+    const L = opening.left;
+    const R = opening.right;
+    const W = R - L;
+    const lines: number[] = [L, R];
+    if (plan.archetype === 'casement') {
+      if (plan.layout === 'pair') lines.push(0);
+      else lines.push(L + W / 3);
+    } else if (plan.archetype === 'sliding') {
+      const panels = plan.layout === 'three' ? 3 : 2;
+      const pw = W / panels;
+      const travel = ({ open: 0.7, 'half-open': 0.35, closed: 0 } as const)[plan.open] * (pw - 0.12);
+      const dirs = plan.layout === 'three'
+        ? (plan.slideSide === 'left' ? [1, 0, 0] : [0, 0, -1])
+        : (plan.slideSide === 'left' ? [1, 0] : [0, -1]);
+      for (let i = 0; i < panels; i++) {
+        lines.push(L + i * pw + travel * dirs[i], L + (i + 1) * pw + travel * dirs[i]);
+      }
+    }
+    const sorted = [...new Set(lines)].sort((a, b) => a - b);
+    let best = { score: -Infinity, c: (L + R) / 2, lo: L, hi: R };
+    for (let k = 0; k + 1 < sorted.length; k++) {
+      const gap = sorted[k + 1] - sorted[k];
+      if (gap < 0.36) continue;
+      const c = (sorted[k] + sorted[k + 1]) / 2;
+      const onSide = side === 'left' ? c <= 0 : c >= 0;
+      const score = (onSide ? 10 : 0) + gap;
+      if (score > best.score) best = { score, c, lo: sorted[k], hi: sorted[k + 1] };
+    }
+    return best;
+  }
+
+  // The tenant: head, neck, shoulders only — the aperture cuts at the
+  // sightline, so everything below the upper chest is wasted ink.
+  function carsonTenant(s: Spot, look: Look, opening: PaneRect): Mark[] {
+    const marks: Mark[] = [];
+    const cx = s.cx + 0.012 * s.h * Math.sin(s.x0 * 9.1);
+    const sightY = s.floorY - 0.85;
+    const crownY = s.floorY - look.height;
+    // Ellis heads are big — nearly half the visible crop is face.
+    const headR = look.height * 0.105;
+    const headCY = crownY + headR * 1.05;
+    const g = look.glance;
+    const shoulderY = headCY + headR + 0.045;
+    const bodyX = headR * 1.75;
+
+    // The flat gouache ground: one muted wash over the whole opening. It
+    // sorts behind the coat stand's plane so the anchor stays readable.
+    marks.push({
+      kind: 'fill',
+      pts: rectPts(opening.left + 0.03, opening.bottom, opening.right - 0.03, opening.top, atT),
+      role: 'blind',
+      z: -9.0,
+    });
+
+    // Neck — the flat pale field continues down from the jaw, warmed with
+    // the same ambient pass the face takes.
+    const neckW = headR * 0.34;
+    const neckPts = [
+      { x: cx - neckW, y: headCY + headR * 0.5, z: atT() },
+      { x: cx + neckW, y: headCY + headR * 0.5, z: atT() },
+      { x: cx + neckW * 1.35, y: shoulderY + 0.02, z: atT() },
+      { x: cx - neckW * 1.35, y: shoulderY + 0.02, z: atT() },
+    ];
+    marks.push(mass('paper', neckPts));
+    marks.push(mass('ambient', neckPts));
+
+    // The garment: the Home cover's shirt is paper ground under bold dark
+    // bands; the plain tee is one mid gouache mass a step darker at the
+    // sleeves. Both sit well apart in value from the pale blind wash —
+    // wash-on-wash garment values left the tenant a floating head.
+    const groundTop = shoulderY - 0.01;
+    const groundBottom = sightY + 0.1;
+    const hwAt = (y: number) => {
+      const t = Math.max(0, Math.min(1, (y - shoulderY) / (groundBottom - shoulderY)));
+      return bodyX * (0.62 + 0.4 * t);
+    };
+    marks.push(mass(look.striped ? 'paper' : 'furniture3', [
+      { x: cx - bodyX * 0.62, y: groundTop, z: atT() },
+      { x: cx + bodyX * 0.62, y: groundTop, z: atT() },
+      { x: cx + bodyX, y: shoulderY + 0.06, z: atT() },
+      { x: cx + bodyX * 1.02, y: groundBottom, z: atT() },
+      { x: cx - bodyX * 1.02, y: groundBottom, z: atT() },
+      { x: cx - bodyX, y: shoulderY + 0.06, z: atT() },
+    ]));
+    if (look.striped) {
+      const bandH = 0.03;
+      const period = 0.06;
+      for (let y0 = groundTop + 0.008; y0 + bandH <= groundBottom; y0 += period) {
+        const y1 = y0 + bandH;
+        const dip = 0.01;
+        const hw0 = hwAt(y0) + 0.012;
+        const hw1 = hwAt(y1) + 0.012;
+        marks.push(mass('furniture2', [
+          { x: cx - hw0, y: y0 + dip, z: atT() },
+          { x: cx + hw0, y: y0 + dip, z: atT() },
+          { x: cx + hw1, y: y1 + dip, z: atT() },
+          { x: cx - hw1, y: y1 + dip, z: atT() },
+        ]));
+      }
+    } else {
+      // Sleeve masses a step darker on each shoulder, plus one soft shadow
+      // fold beside the collar.
+      for (const side of [-1, 1]) {
+        marks.push(mass('furniture2', [
+          { x: cx + side * bodyX * 0.52, y: shoulderY + 0.005, z: atT() },
+          { x: cx + side * bodyX * 0.98, y: shoulderY + 0.09, z: atT() },
+          { x: cx + side * bodyX * 1.0, y: groundBottom, z: atT() },
+          { x: cx + side * bodyX * 0.74, y: groundBottom, z: atT() },
+          { x: cx + side * bodyX * 0.66, y: shoulderY + 0.16, z: atT() },
+        ]));
+      }
+      marks.push(mass('furniture2', [
+        { x: cx + g * bodyX * 0.2, y: shoulderY + 0.1, z: atT() },
+        { x: cx + g * bodyX * 0.34, y: shoulderY + 0.14, z: atT() },
+        { x: cx + g * bodyX * 0.3, y: Math.min(groundBottom, shoulderY + 0.34), z: atT() },
+        { x: cx + g * bodyX * 0.18, y: Math.min(groundBottom, shoulderY + 0.3), z: atT() },
+      ]));
+    }
+
+    // The face: a flat pale field, no contour anywhere — warmed once over
+    // the whole oval and again on the lamp-side cheek, so the skin never
+    // reads as a plain paper mask against the wash.
+    marks.push(mass('paper', ellipse(cx, headCY, headR * 0.9, headR, 20)));
+    marks.push(mass('ambient', ellipse(cx, headCY, headR * 0.9, headR, 20)));
+    marks.push(mass('ambient', ellipse(cx + look.warmX * headR * 0.38, headCY + headR * 0.12, headR * 0.42, headR * 0.6, 16)));
+
+    // Hair: one solid flat mass, laid as the dark furniture paint washed
+    // once with the room's warmth — matte and a step toward auburn, never
+    // the line-work ink. The bun knots at the nape behind the skull, drawn
+    // first so the head hides all but its crescent.
+    const hairFill = (pts: Pt3[]) => {
+      marks.push(mass(look.hairRole, pts));
+      marks.push(mass('ambient', pts));
+    };
+    if (look.hair === 'bun') {
+      marks.push(mass(look.hairRole, circ(cx - g * headR * 1.12, headCY - headR * 0.3, headR * 0.3, 14)));
+    }
+    hairFill(ellipse(cx + (look.hair === 'bun' ? -g * headR * 0.12 : 0), headCY - headR * 0.58, headR * 1.06, headR * 0.6, 20));
+    if (look.hair === 'bowl') {
+      // The fringe is a scallop row stepping over the brow: each scallop
+      // hangs a visible bump below the mass edge, above the eye.
+      for (let k = -2; k <= 2; k++) {
+        hairFill(circ(cx + k * headR * 0.42, headCY - headR * 0.14, headR * 0.26, 12));
+      }
+      // The bowl wraps down past the ears on both sides.
+      for (const side of [-1, 1]) {
+        hairFill(ellipse(cx + side * headR * 0.88, headCY + headR * 0.08, headR * 0.27, headR * 0.55, 14));
+      }
+    }
+
+    // One almond eye glancing toward its companion; the pupil sits at the
+    // far end of the almond, small inside the outline. A whisper of ink —
+    // the reference eye is the quietest mark on the face.
+    const eyeX = cx + g * headR * 0.3;
+    const eyeY = headCY + headR * 0.26;
+    marks.push(stroke('ink', ellipse(eyeX, eyeY, headR * 0.2, headR * 0.095, 14), 'carson-eye', WEIGHTS.hairline));
+    marks.push(dot('ink', { x: eyeX + g * headR * 0.1, y: eyeY }, headR * 0.045, 'carson-pupil'));
+
+    // A simple wedge nose, one hairline tick.
+    marks.push(stroke('ink', [
+      { x: cx + g * headR * 0.04, y: headCY + headR * 0.44, z: atT() },
+      { x: cx + g * headR * 0.18, y: headCY + headR * 0.6, z: atT() },
+      { x: cx + g * headR * 0.0, y: headCY + headR * 0.62, z: atT() },
+    ], 'carson-nose', WEIGHTS.hairline));
+
+    // Closed lips: one small darker shape.
+    marks.push(mass('furniture3', ellipse(cx + g * headR * 0.1, headCY + headR * 0.74, headR * 0.1, headR * 0.04, 12)));
+
+    return marks;
+  }
+
+  // A scatter of freckle dots over the glancing cheek, rolled per plate.
+  // Warm gray at a dot the eye can find at wall scale — hairline specks
+  // vanish into the skin's ambient pass.
+  function freckleMarks(s: Spot, look: Look, rng: Rng): Mark[] {
+    const cx = s.cx + 0.012 * s.h * Math.sin(s.x0 * 9.1);
+    const headR = look.height * 0.105;
+    const headCY = s.floorY - look.height + headR * 1.05;
+    const marks: Mark[] = [];
+    for (let k = 0; k < look.freckles; k++) {
+      // The glancing cheek, clear of the eye above, the nose inside, and
+      // the lips below.
+      const fx = cx + look.glance * headR * (0.25 + rng.float(0, 0.35));
+      const fy = headCY + headR * (0.42 + rng.float(0, 0.22));
+      marks.push(dot('ink', { x: fx, y: fy }, headR * 0.07, `carson-freckle-${k}`));
+    }
+    return marks;
+  }
+
+  // The pigeon companion on the sill, the Home cover's silent other half —
+  // standing where the glance lands, beside the tenant, clear of the sill's
+  // own corner props. A gray bird a hand's height tall: pale-on-pale at
+  // prop scale vanished into the sill.
+  function pigeonMarks(opening: PaneRect, s: Spot, look: Look): Mark[] {
+    const baseY = opening.bottom + 0.01;
+    const g = look.glance;
+    const x = s.pigeonX;
+    return [
+      mass('furniture3', ellipse(x, baseY - 0.075, 0.095, 0.07, 16)),
+      mass('furniture2', ellipse(x - g * 0.014, baseY - 0.085, 0.06, 0.04, 14)),
+      mass('furniture3', circ(x + g * 0.072, baseY - 0.15, 0.038, 12)),
+      stroke('furniture2', [
+        { x: x + g * 0.103, y: baseY - 0.155, z: atT() },
+        { x: x + g * 0.132, y: baseY - 0.143, z: atT() },
+      ], 'carson-beak', WEIGHTS.detail),
+      dot('ink', { x: x + g * 0.082, y: baseY - 0.158 }, 0.009, 'carson-pigeon-eye'),
+      stroke('furniture2', [
+        { x: x - 0.028, y: baseY - 0.026, z: atT() },
+        { x: x - 0.028, y: baseY, z: atT() },
+      ], 'carson-legL', WEIGHTS.detail),
+      stroke('furniture2', [
+        { x: x + 0.022, y: baseY - 0.026, z: atT() },
+        { x: x + 0.022, y: baseY, z: atT() },
+      ], 'carson-legR', WEIGHTS.detail),
+    ];
+  }
+
+  function fit(box: { width: number; height: number; dpr: number }) {
+    const scale = Math.min(box.width / (PLATES * UNIT_PITCH_X), box.height / UNIT_PITCH_Y);
+    // The tenant band hangs below the window's origin (floor drop), so the
+    // row centers on the band, not on the pane midpoint.
+    return { scale: box.dpr * scale, cx: (box.width * box.dpr) / 2, cy: (box.height * box.dpr) / 2 - 0.35 * box.dpr * scale };
+  }
+
+  function pointerEye(): (canvas: HTMLCanvasElement) => { x: number; y: number } {
+    const pointer = { x: 0, y: 0 };
+    window.addEventListener('pointermove', (e) => {
+      pointer.x = e.clientX / window.innerWidth - 0.5;
+      pointer.y = e.clientY / window.innerHeight - 0.5;
+    });
+    return () => ({ ...pointer });
+  }
+
+  const labelFont = `${getComputedStyle(document.body).getPropertyValue('--typography-body2-fontFamily').trim() || 'sans-serif'}`;
+
+  // One window scene per plate: shell, the coat stand pinned opposite the
+  // lamp, the tenant, the pigeon where the roll puts one, sill.
+  function plate(seed: number, i: number, theme: Theme, time: number, ctx: CanvasRenderingContext2D): void {
+    const pen = new Pen({ ...DEFAULT_TUNING }, windowSeed(seed, i, 0));
+    pen.setTime(time);
+    const plan = expandShell(pen.seed);
+    const opening: PaneRect = innerRect(plan.faceWidth);
+    const rng = fork(pen.seed, 'dna');
+    const sill = sillMarks(rng, opening);
+    const lamp = pinnedLamp({ location: i % 2 === 0 ? 'innerRight' : 'innerLeft' });
+    const pin = i === 1 ? { striped: true, companion: true, glance: 1 as const } : i === 2 ? { hair: 'bun' as const } : { hair: 'bowl' as const };
+    const look = rollLook(seed, i, pin);
+    const room = roomOf(opening);
+    const w = 0.5;
+    // Stand clear of the lamp, in one whole pane: the head centers in the
+    // vertical gap opposite it, the way the Home cover's girl keeps her
+    // half of the window clear of the frame.
+    const side: 'left' | 'right' = lamp.location === 'innerRight' ? 'left' : 'right';
+    const gap = headGap(plan, opening, side);
+    const cx = gap.c;
+    const x0 = cx - w / 2;
+    // The pigeon stands where the glance lands, inside the head's own gap:
+    // beside the head when the gap allows, else on the head's other side —
+    // and the glance turns to follow it.
+    const headR = look.height * 0.105;
+    const clampToGap = (u: number) => Math.max(gap.lo + 0.1, Math.min(gap.hi - 0.1, u));
+    let pigeonX = clampToGap(cx + (side === 'left' ? -1 : 1) * 0.42);
+    if (Math.abs(pigeonX - cx) < headR * 1.9) pigeonX = clampToGap(cx + (side === 'left' ? 1 : -1) * 0.42);
+    look.glance = pigeonX >= cx ? 1 : -1;
+    const spot: Spot = { x0, x1: x0 + w, cx, pigeonX, floorY: room.bottom, topY: room.bottom - look.height, w, h: look.height };
+    look.warmX = lamp.location === 'innerRight' ? 1 : -1;
+    const freckleRng = fork(windowSeed(seed, i, 2), 'carson-freckles');
+    execute(
+      [
+        ...shellMarks(plan),
+        ...drawFurniture({ pieces: [{ kind: 'coatStand', plane: 4, side: lamp.location === 'innerRight' ? 'left' : 'right' }] }, opening),
+        ...lampMarks(lamp, opening, theme.isNight),
+        ...carsonTenant(spot, look, opening),
+        ...freckleMarks(spot, look, freckleRng),
+        ...(look.companion ? pigeonMarks(opening, spot, look) : []),
+        ...sill,
+      ],
+      pen,
+      ctx,
+      windowPalette(pen.seed, theme),
+      makeProjection({ x: 0, y: 0 }),
+      opening,
+    );
+  }
+
+  const el = (id: string) => document.getElementById(id)!;
+  const canvas = el('row') as HTMLCanvasElement;
+  const label = el('row-seed');
+  const button = el('row-reseed') as HTMLButtonElement;
+  let seed = rollSeed();
+  const show = () => (label.textContent = `seed ${seed}`);
+  show();
+  createDemoLoop(
+    canvas,
+    (ctx, time, theme: Theme) => {
+      const box = cssBox(canvas);
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.fillStyle = theme.paper;
+      ctx.fillRect(0, 0, box.width * box.dpr, box.height * box.dpr);
+      const g = fit(box);
+      ctx.setTransform(g.scale, 0, 0, g.scale, g.cx, g.cy);
+      for (let i = 0; i < PLATES; i++) {
+        const ox = (i - (PLATES - 1) / 2) * UNIT_PITCH_X;
+        ctx.save();
+        ctx.translate(ox, 0);
+        plate(seed, i, theme, time, ctx);
+        ctx.restore();
+      }
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.fillStyle = theme.ink;
+      ctx.globalAlpha = 0.75;
+      ctx.font = `${Math.max(10, 0.16 * g.scale)}px ${labelFont}`;
+      ctx.textAlign = 'center';
+      ctx.fillText(
+        `carson ellis — flat gouache: scalloped fringe, one glancing eye, freckles, striped tee, pigeon companion · seed ${seed}`,
+        g.cx,
+        g.cy + 0.95 * g.scale,
+      );
+      ctx.globalAlpha = 1;
+    },
+    pointerEye(),
+  );
+  button.addEventListener('click', () => {
+    seed = rollSeed();
+    show();
+  });
+</script>

@@ -1,0 +1,539 @@
+---
+import BaseLayout from '@/components/layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="v-quentin-blake">
+  <main>
+    <h1>Quentin Blake tenant</h1>
+    <canvas id="row" width="1500" height="620"></canvas>
+    <button id="reseed" type="button">New seed</button>
+    <span id="seed"></span>
+  </main>
+</BaseLayout>
+
+<style>
+  main {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 1rem;
+  }
+  canvas {
+    width: 100%;
+    height: auto;
+    display: block;
+    border: var(--border);
+  }
+</style>
+
+<script>
+  // PROTOTYPE, throwaway: one tenant style, Quentin Blake — wiry doubled ink
+  // line with loose washes drifting past the edges. Three plates of the same
+  // style so the eye reads the per-window variety; the coat stand stays
+  // pinned as the size anchor.
+  import { createDemoLoop, cssBox } from '@/components/demoLoop';
+  import { Pen } from '@/pen/pen';
+  import { DEFAULT_TUNING } from '@/pen/tuning';
+  import { rollSeed } from '@/components/mount';
+  import type { Theme, ColorRole } from '@/styling/roles';
+  import { WEIGHTS } from '@/styling/weights';
+  import { windowPalette } from '@/styling/colourway';
+  import { fork, windowSeed, type Rng } from '@/core/randomness/rng';
+  import { ANCHOR_X } from '@/core/light/catalogue';
+  import { execute, type Mark } from '@/core/scene';
+  import { shellMarks, expandShell } from '@/core/window-shell';
+  import { innerRect, type PaneRect } from '@/core/window-shell/shell';
+  import { sillMarks } from '@/core/sill';
+  import { pinnedLamp } from '@/core/light/light';
+  import { lampMarks } from '@/core/light/drawLamp';
+  import { roomOf } from '@/core/furniture/room';
+  import { drawFurniture } from '@/core/furniture/drawFurniture';
+  import { makeProjection } from '@/motion/projection';
+  import type { Pt3 } from '@/motion/projection';
+
+  const UNIT_PITCH_X = 2.3;
+  const UNIT_PITCH_Y = 1.8;
+  const PLATES = 3;
+
+  document.body.setAttribute('data-theme', 'light');
+
+  const TENANT_DEPTH = -0.15;
+  const TENANT_Z = -8.8;
+  const atT = () => TENANT_DEPTH;
+  const zT = () => TENANT_Z;
+
+  interface Spot {
+    cx: number;
+    x0: number;
+    x1: number;
+    floorY: number;
+    topY: number;
+    w: number;
+    h: number;
+  }
+
+  const T = (x: number, y: number): Pt3 => ({ x, y, z: atT() });
+
+  const stroke = (role: ColorRole, pts: Pt3[], name: string, widthUnits: number): Mark => ({
+    kind: 'stroke',
+    pts,
+    name,
+    widthUnits,
+    role,
+    z: zT(),
+  });
+  const mass = (role: ColorRole, pts: Pt3[]): Mark => ({ kind: 'fill', pts, role, z: zT() });
+  const dot = (role: ColorRole, x: number, y: number, r: number, name: string): Mark => ({
+    kind: 'dot',
+    pts: [T(x, y)],
+    role,
+    z: zT(),
+    name,
+    r,
+  });
+
+  // One wiry line split into two near-parallel traces — Blake's doubled
+  // stroke, each trace at its own weight so the pair reads as two nervous
+  // scratches, both overshooting the ends so the corners stay open.
+  function doubled(
+    role: ColorRole,
+    pts: Pt3[],
+    name: string,
+    wA: number,
+    wB: number,
+    gapX: number,
+    gapY: number,
+    over: number,
+  ): Mark[] {
+    const a = pts[0];
+    const b = pts[pts.length - 1];
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const len = Math.hypot(dx, dy) || 1;
+    const ux = dx / len;
+    const uy = dy / len;
+    const shift = (p: Pt3, gx: number, gy: number): Pt3 => ({
+      x: p.x + ux * over + gx,
+      y: p.y + uy * over + gy,
+      z: atT(),
+    });
+    const mid = (pts: Pt3[]) => pts.slice(1, -1).map((p) => shift(p, 0, 0));
+    return [
+      stroke(role, [shift(a, 0, 0), ...mid(pts), shift(b, 0, 0)], `${name}-a`, wA),
+      stroke(
+        role,
+        [shift(a, gapX, gapY), ...mid(pts).map((p) => ({ ...p, x: p.x + gapX, y: p.y + gapY })), shift(b, gapX, gapY)],
+        `${name}-b`,
+        wB,
+      ),
+    ];
+  }
+
+  interface BlakeRoll {
+    dx: 1 | -1;
+    height: number;
+    nose: number;
+    wash: ColorRole;
+    armUp: 1 | -1;
+    scruff: number;
+  }
+
+  function rollBlake(seed: number, i: number): BlakeRoll {
+    const r = fork(windowSeed(seed, i, 0), 'blake');
+    return {
+      dx: r.weighted([
+        { value: 1 as const, weight: 1 },
+        { value: -1 as const, weight: 1 },
+      ]),
+      height: 1.18 + r.float(0, 1) * 0.16,
+      nose: 0.85 + r.float(0, 1) * 0.4,
+      wash: r.weighted([
+        { value: 'fabric' as const, weight: 3 },
+        { value: 'blind' as const, weight: 2 },
+        { value: 'shade' as const, weight: 2 },
+      ]),
+      armUp: r.weighted([
+        { value: 1 as const, weight: 1 },
+        { value: -1 as const, weight: 1 },
+      ]),
+      scruff: r.float(0, 1),
+    };
+  }
+
+  function blakeTenant(s: Spot, roll: BlakeRoll, r: Rng): Mark[] {
+    const marks: Mark[] = [];
+    const cx = s.cx;
+    const sightY = s.floorY - 0.85;
+    const crownY = s.floorY - roll.height;
+    const headR = 0.115;
+    // The lean carries the posture: head and chest drift toward dx with
+    // depth, the whole figure mid-reach rather than at attention.
+    const lean = (depth: number) => cx + roll.dx * depth;
+    const headCX = lean(0.045);
+    const headCY = crownY + headR * 1.15;
+    const browY = headCY - headR * 0.3;
+    const noseTipX = headCX + roll.dx * headR * 2.0 * roll.nose;
+    const shoulderY = headCY + headR * 1.35;
+    const bodyX = 0.115;
+    const chestX = 0.135;
+    const back = -roll.dx;
+    const jit = (v: number) => v + r.float(-0.012, 0.012);
+
+    // Washes first, laid loose and irregular — the pool bleeds past the
+    // shoulder line on the face side only, its vertices jittered so no edge
+    // reads straight. A second, smaller pass pools lower, the way a double-
+    // loaded brush lays its darker patch.
+    const washTop = shoulderY - 0.025;
+    marks.push(
+      mass(roll.wash, [
+        T(jit(headCX - bodyX * 0.7), washTop + 0.05),
+        T(jit(headCX + bodyX * 0.8), washTop + 0.02),
+        T(headCX + roll.dx * (chestX + 0.055 + r.float(0, 0.03)), shoulderY + 0.18 + r.float(-0.02, 0.02)),
+        T(jit(headCX + chestX * 0.4), sightY + 0.1),
+        T(jit(headCX - chestX * 0.9), sightY + 0.12 + r.float(0, 0.03)),
+        T(headCX - roll.dx * (chestX * 0.75), shoulderY + 0.16),
+      ]),
+    );
+    marks.push(
+      mass(roll.wash, [
+        T(headCX + roll.dx * (chestX + 0.03), shoulderY + 0.2),
+        T(headCX + roll.dx * (chestX + 0.02), sightY + 0.05),
+        T(jit(headCX - roll.dx * chestX * 0.3), sightY + 0.08),
+        T(headCX - roll.dx * chestX * 0.8, shoulderY + 0.24),
+      ]),
+    );
+
+    // Skull: one open wiry arc, its face-side end left dangling so the nose
+    // stroke takes over the profile.
+    marks.push(
+      stroke(
+        'ink',
+        [
+          T(headCX - roll.dx * headR * 0.6, headCY + headR * 0.62),
+          T(headCX - roll.dx * headR * 1.02, headCY - headR * 0.05),
+          T(headCX - roll.dx * headR * 0.4, headCY - headR * 1.02),
+          T(headCX + roll.dx * headR * 0.45, headCY - headR * 0.98),
+          T(headCX + roll.dx * headR * 0.8, headCY - headR * 0.2),
+        ],
+        'blake-skull',
+        WEIGHTS.detail,
+      ),
+    );
+
+    // The enormous hooked nose: the largest mark on the head, one long
+    // stroke out and hooking under, a second wiry echo overlapping it.
+    marks.push(
+      stroke(
+        'ink',
+        [
+          T(headCX + roll.dx * headR * 0.1, browY),
+          T(headCX + roll.dx * headR * 1.05, headCY - headR * 0.22),
+          T(noseTipX, headCY + headR * 0.25),
+          T(headCX + roll.dx * headR * 1.15, headCY + headR * 0.66),
+          T(headCX + roll.dx * headR * 0.45, headCY + headR * 0.52),
+        ],
+        'blake-nose',
+        WEIGHTS.detail,
+      ),
+    );
+    marks.push(
+      stroke(
+        'ink',
+        [
+          T(headCX + roll.dx * headR * 0.7, headCY - headR * 0.05),
+          T(noseTipX - roll.dx * headR * 0.12, headCY + headR * 0.3),
+          T(headCX + roll.dx * headR * 0.9, headCY + headR * 0.74),
+          T(headCX + roll.dx * headR * 0.3, headCY + headR * 0.6),
+        ],
+        'blake-nose2',
+        WEIGHTS.hairline,
+      ),
+    );
+
+    // Eyes: tiny dots tucked under the nose bridge; a quick mouth tick.
+    marks.push(dot('ink', headCX + roll.dx * headR * 0.42, headCY + headR * 0.18, 0.006, 'blake-eye'));
+    if (roll.scruff > 0.35) {
+      marks.push(dot('ink', headCX - roll.dx * headR * 0.28, headCY + headR * 0.16, 0.005, 'blake-eye2'));
+    }
+    marks.push(
+      stroke(
+        'ink',
+        [T(headCX + roll.dx * headR * 0.15, headCY + headR * 0.82), T(headCX + roll.dx * headR * 0.55, headCY + headR * 0.78)],
+        'blake-mouth',
+        WEIGHTS.hairline,
+      ),
+    );
+
+    // Wild hair: a burst off the crown whose strokes vary wildly in length,
+    // angle and curl — most fan back off the face side, a few cross over the
+    // crown, each bent mid-stroke by its own kink.
+    const hairN = 9 + Math.floor(r.float(0, 1) * 5);
+    const bx = headCX - roll.dx * headR * 0.15;
+    const by = headCY - headR * 0.45;
+    for (let k = 0; k < hairN; k++) {
+      const t = hairN === 1 ? 0.5 : k / (hairN - 1);
+      const cross = k % 4 === 3;
+      const phi = cross ? -0.5 + t * 0.55 : 0.35 + t * 1.85 + r.float(-0.15, 0.15);
+      const len = headR * (0.5 + r.float(0, 1) * 1.5);
+      const bend = r.float(-0.35, 0.35);
+      const ux = Math.sin(phi) * back;
+      const uy = Math.cos(phi);
+      const kx = -uy * bend;
+      const ky = ux * bend;
+      marks.push(
+        stroke(
+          'ink',
+          [
+            T(bx + ux * headR * 0.25, by + uy * headR * 0.25),
+            T(bx + ux * len * 0.55 + kx * len, by + uy * len * 0.5 + ky * len),
+            T(bx + ux * len, by + uy * len),
+          ],
+          `blake-hair-${k}`,
+          r.float(0, 1) > 0.7 ? WEIGHTS.detail : WEIGHTS.hairline,
+        ),
+      );
+    }
+
+    // Neck: one short stroke down to the collar.
+    marks.push(
+      stroke(
+        'ink',
+        [T(headCX + roll.dx * headR * 0.35, headCY + headR * 0.85), T(headCX + roll.dx * headR * 0.3, shoulderY + 0.01)],
+        'blake-neck',
+        WEIGHTS.hairline,
+      ),
+    );
+
+    // Chest and shoulders in doubled wiry contours, the heavy trace riding
+    // a lighter echo a visible step away, every line overshooting its corner.
+    marks.push(
+      ...doubled(
+        'ink',
+        [
+          T(headCX - bodyX * 0.95, shoulderY + 0.02),
+          T(headCX - chestX, shoulderY + 0.09 + r.float(-0.01, 0.01)),
+          T(headCX - chestX * 0.92, sightY + 0.12),
+        ],
+        'blake-chestB',
+        WEIGHTS.detail,
+        WEIGHTS.hairline,
+        -0.012,
+        0.006,
+        0.02,
+      ),
+    );
+    marks.push(
+      ...doubled(
+        'ink',
+        [
+          T(headCX + bodyX * 0.95, shoulderY + 0.01),
+          T(headCX + chestX, shoulderY + 0.1),
+          T(headCX + chestX * 0.9, sightY + 0.14),
+        ],
+        'blake-chestF',
+        WEIGHTS.detail,
+        WEIGHTS.hairline,
+        0.013,
+        0.004,
+        0.02,
+      ),
+    );
+    // The collar scratch: a quick doubled V where the neck meets the sweater.
+    marks.push(
+      ...doubled(
+        'ink',
+        [
+          T(headCX - headR * 0.5, shoulderY + 0.03),
+          T(headCX, shoulderY + 0.09),
+          T(headCX + headR * 0.5, shoulderY + 0.02),
+        ],
+        'blake-collar',
+        WEIGHTS.hairline,
+        WEIGHTS.hairline,
+        0,
+        0.01,
+        0.014,
+      ),
+    );
+
+    // One arm thrown up mid-reach — three separated wiry strokes with open
+    // air between them, ending in a splayed rake of long finger lines. No
+    // fist mass anywhere.
+    const armSide = roll.armUp;
+    const elbowX = headCX + armSide * (chestX + 0.05);
+    const elbowY = shoulderY + 0.1;
+    const handX = headCX + armSide * (chestX + 0.15);
+    const handY = shoulderY - 0.17;
+    for (let a = 0; a < 3; a++) {
+      const off = (a - 1) * 0.016;
+      marks.push(
+        stroke(
+          'ink',
+          [
+            T(headCX + armSide * (bodyX * 0.75 + a * 0.012), shoulderY + 0.05 + off * 0.5),
+            T(elbowX + armSide * off * 0.4, elbowY + off * 0.6),
+            T(handX + armSide * off, handY + off * 0.4),
+          ],
+          `blake-armUp-${a}`,
+          a === 1 ? WEIGHTS.detail : WEIGHTS.hairline,
+        ),
+      );
+    }
+    for (let f = 0; f < 4; f++) {
+      const fa = -1.15 + f * 0.38 + r.float(-0.08, 0.08);
+      const fl = 0.045 + r.float(0, 0.015);
+      marks.push(
+        stroke(
+          'ink',
+          [
+            T(handX + armSide * 0.008, handY),
+            T(handX + armSide * 0.012 + Math.cos(fa) * fl * armSide, handY - 0.01 + Math.sin(fa) * fl),
+          ],
+          `blake-finger-${f}`,
+          WEIGHTS.hairline,
+        ),
+      );
+    }
+
+    // The far arm hangs into the chest line, two wiry strokes, mostly lost
+    // below the crop.
+    marks.push(
+      stroke(
+        'ink',
+        [
+          T(headCX - armSide * bodyX * 0.7, shoulderY + 0.06),
+          T(headCX - armSide * (chestX + 0.04), shoulderY + 0.22),
+          T(headCX - armSide * (chestX + 0.02), sightY + 0.02),
+        ],
+        'blake-armDown',
+        WEIGHTS.hairline,
+      ),
+    );
+    marks.push(
+      stroke(
+        'ink',
+        [
+          T(headCX - armSide * bodyX * 0.5, shoulderY + 0.08),
+          T(headCX - armSide * (chestX - 0.01), shoulderY + 0.24),
+          T(headCX - armSide * (chestX - 0.04), sightY + 0.05),
+        ],
+        'blake-armDown2',
+        WEIGHTS.hairline,
+      ),
+    );
+
+    // Sweater texture: a few short hatch ticks where the wash pools.
+    const hatchN = 3 + Math.floor(roll.scruff * 3);
+    for (let k = 0; k < hatchN; k++) {
+      const hx = headCX + ((k * 53) % 11) / 11 * chestX * 1.4 - chestX * 0.7;
+      const hy = shoulderY + 0.12 + ((k * 29) % 10) / 10 * 0.14;
+      marks.push(
+        stroke(
+          'ink',
+          [T(hx, hy), T(hx + 0.022, hy + 0.016)],
+          `blake-hatch-${k}`,
+          WEIGHTS.texture,
+        ),
+      );
+    }
+
+    return marks;
+  }
+
+  function fit(box: { width: number; height: number; dpr: number }, cols: number, rows: number) {
+    const scale = Math.min(box.width / (cols * UNIT_PITCH_X), box.height / (rows * UNIT_PITCH_Y));
+    return { scale: box.dpr * scale, cx: (box.width * box.dpr) / 2, cy: (box.height * box.dpr) / 2 };
+  }
+
+  function plateOrigin(g: ReturnType<typeof fit>, i: number, cols: number, rows: number) {
+    const ox = ((i % cols) - (cols - 1) / 2) * UNIT_PITCH_X;
+    const oy = (Math.floor(i / cols) - (rows - 1) / 2) * UNIT_PITCH_Y;
+    return { ox, oy };
+  }
+
+  function pointerEye(): (canvas: HTMLCanvasElement) => { x: number; y: number } {
+    const pointer = { x: 0, y: 0 };
+    window.addEventListener('pointermove', (e) => {
+      pointer.x = e.clientX / window.innerWidth - 0.5;
+      pointer.y = e.clientY / window.innerHeight - 0.5;
+    });
+    return () => ({ ...pointer });
+  }
+
+  const labelFont = `${getComputedStyle(document.body).getPropertyValue('--typography-body2-fontFamily').trim() || 'sans-serif'}`;
+
+  function blakePlate(seed: number, i: number, theme: Theme, time: number, ctx: CanvasRenderingContext2D): void {
+    const pen = new Pen({ ...DEFAULT_TUNING }, windowSeed(seed, i, 0));
+    pen.setTime(time);
+    const plan = expandShell(pen.seed);
+    const opening: PaneRect = innerRect(plan.faceWidth);
+    const rng = fork(pen.seed, 'dna');
+    const sill = sillMarks(rng, opening);
+    const lamp = pinnedLamp({ location: i % 2 === 0 ? 'innerRight' : 'innerLeft' });
+    const room = roomOf(opening);
+    const roll = rollBlake(seed, i);
+    // The figure stands off the lamp's side so the shade never crosses the
+    // face, and looks away from it — the hooked nose stays in the clear.
+    const openCx = (opening.left + opening.right) / 2;
+    const lampX = opening.left + ANCHOR_X[lamp.location] * (opening.right - opening.left);
+    const away: 1 | -1 = lampX < openCx ? 1 : -1;
+    roll.dx = away;
+    const r2 = fork(windowSeed(seed, i, 1), 'blake-draw');
+    const w = 0.46;
+    const cx = openCx + away * 0.15;
+    const x0 = cx - w / 2;
+    const spot: Spot = { cx, x0, x1: x0 + w, floorY: room.bottom, topY: room.bottom - roll.height, w, h: roll.height };
+    execute(
+      [
+        ...shellMarks(plan),
+        ...drawFurniture({ pieces: [{ kind: 'coatStand', plane: 4, side: lamp.location === 'innerRight' ? 'left' : 'right' }] }, opening),
+        ...lampMarks(lamp, opening, theme.isNight),
+        ...blakeTenant(spot, roll, r2),
+        ...sill,
+      ],
+      pen,
+      ctx,
+      windowPalette(pen.seed, theme),
+      makeProjection({ x: 0, y: 0 }),
+      opening,
+    );
+  }
+
+  function mount(canvas: HTMLCanvasElement, label: HTMLSpanElement, button: HTMLButtonElement): void {
+    let seed = rollSeed();
+    const show = () => (label.textContent = `quentin-blake — seed ${seed}`);
+    show();
+    createDemoLoop(
+      canvas,
+      (ctx, time, theme: Theme) => {
+        const box = cssBox(canvas);
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.fillStyle = theme.paper;
+        ctx.fillRect(0, 0, box.width * box.dpr, box.height * box.dpr);
+        const g = fit(box, PLATES, 1);
+        ctx.setTransform(g.scale, 0, 0, g.scale, g.cx, g.cy);
+        for (let i = 0; i < PLATES; i++) {
+          const { ox, oy } = plateOrigin(g, i, PLATES, 1);
+          ctx.save();
+          ctx.translate(ox, oy);
+          blakePlate(seed, i, theme, time, ctx);
+          ctx.restore();
+        }
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.fillStyle = theme.ink;
+        ctx.globalAlpha = 0.75;
+        ctx.font = `${Math.max(10, 0.15 * g.scale)}px ${labelFont}`;
+        ctx.textAlign = 'center';
+        ctx.fillText('quentin-blake — line and wash, hooked nose, radiating hair', g.cx, g.cy + 1.05 * g.scale);
+        ctx.globalAlpha = 1;
+      },
+      pointerEye(),
+    );
+    button.addEventListener('click', () => {
+      seed = rollSeed();
+      show();
+    });
+  }
+
+  const el = (id: string) => document.getElementById(id)!;
+  mount(el('row') as HTMLCanvasElement, el('seed'), el('reseed') as HTMLButtonElement);
+</script>

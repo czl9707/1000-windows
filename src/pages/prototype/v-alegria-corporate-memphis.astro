@@ -1,0 +1,451 @@
+---
+import BaseLayout from '@/components/layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="Alegria tenant">
+  <main>
+    <h1>Corporate Memphis / Alegria</h1>
+    <canvas id="row" width="1500" height="620"></canvas>
+    <button id="row-reseed" type="button">New sheet</button>
+    <span id="row-seed"></span>
+  </main>
+</BaseLayout>
+
+<style>
+  main {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 1rem;
+  }
+  canvas {
+    width: 100%;
+    height: auto;
+    display: block;
+    border: var(--border);
+  }
+  section {
+    margin-bottom: 2rem;
+  }
+</style>
+
+<script>
+  // PROTOTYPE, throwaway: the Corporate Memphis / Alegria tenant — flat
+  // vector masses with no outlines, tube limbs, a comically small head on a
+  // big torso, non-natural skin, one strong diagonal through the pose.
+  import { createDemoLoop, cssBox } from '@/components/demoLoop';
+  import { Pen } from '@/pen/pen';
+  import { DEFAULT_TUNING } from '@/pen/tuning';
+  import { rollSeed } from '@/components/mount';
+  import type { Theme, ColorRole } from '@/styling/roles';
+  import { WEIGHTS } from '@/styling/weights';
+  import { windowPalette } from '@/styling/colourway';
+  import { fork, windowSeed } from '@/core/randomness/rng';
+  import { execute, type Mark } from '@/core/scene';
+  import { shellMarks, expandShell } from '@/core/window-shell';
+  import { innerRect, type PaneRect } from '@/core/window-shell/shell';
+  import { sillMarks } from '@/core/sill';
+  import { pinnedLamp } from '@/core/light/light';
+  import { lampMarks } from '@/core/light/drawLamp';
+  import type { Pt3 } from '@/motion/projection';
+  import { roomOf } from '@/core/furniture/room';
+  import { drawFurniture } from '@/core/furniture/drawFurniture';
+  import { makeProjection } from '@/motion/projection';
+
+  const UNIT_PITCH_X = 2.3;
+  const UNIT_PITCH_Y = 1.8;
+
+  document.body.setAttribute('data-theme', 'light');
+
+  const TENANT_DEPTH = -0.15;
+  const TENANT_Z = -8.8;
+  const atT = () => TENANT_DEPTH;
+  const zT = () => TENANT_Z;
+
+  interface Spot {
+    x0: number;
+    x1: number;
+    floorY: number;
+    topY: number;
+    w: number;
+    h: number;
+  }
+
+  const mass = (role: ColorRole, pts: Pt3[]): Mark => ({ kind: 'fill', pts, role, z: zT() });
+  const stroke = (role: ColorRole, pts: Pt3[], name: string, widthUnits: number): Mark => ({
+    kind: 'stroke',
+    pts,
+    name,
+    widthUnits,
+    role,
+    z: zT(),
+  });
+  const dot = (role: ColorRole, p: { x: number; y: number }, r: number, name: string): Mark => ({
+    kind: 'dot',
+    pts: [{ x: p.x, y: p.y, z: atT() }],
+    role,
+    z: zT(),
+    name,
+    r,
+  });
+  const cxOf = (s: Spot) => (s.x0 + s.x1) / 2;
+
+  function base(s: Spot, height: number) {
+    const sightY = s.floorY - 0.85;
+    return {
+      cx: cxOf(s) + 0.012 * s.h * Math.sin(s.x0 * 9.1),
+      crownY: s.floorY - height,
+      floorY: s.floorY,
+      sightY,
+    };
+  }
+
+  function ellipse(cx: number, cy: number, rx: number, ry: number, n = 16): Pt3[] {
+    const pts: Pt3[] = [];
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2;
+      pts.push({ x: cx + Math.cos(a) * rx, y: cy + Math.sin(a) * ry, z: atT() });
+    }
+    return pts;
+  }
+
+  const circ = (cx: number, cy: number, r: number, n = 14) => ellipse(cx, cy, r, r, n);
+
+  // A closed control polygon sampled through Catmull-Rom, so a body mass
+  // keeps the flat-vector softness — no straight polygon facets.
+  function smooth(pts: Pt3[], per = 8): Pt3[] {
+    const out: Pt3[] = [];
+    // Each control point doubled once, so the curve hugs its corners instead
+    // of overshooting them into little beaks.
+    const ring = pts.flatMap((p) => [p, p]);
+    const n = ring.length;
+    for (let i = 0; i < n; i++) {
+      const p0 = ring[(i - 1 + n) % n];
+      const p1 = ring[i];
+      const p2 = ring[(i + 1) % n];
+      const p3 = ring[(i + 2) % n];
+      for (let j = 0; j < per; j++) {
+        const t = j / per;
+        const t2 = t * t;
+        const t3 = t2 * t;
+        out.push({
+          x: 0.5 * (2 * p1.x + (-p0.x + p2.x) * t + (2 * p0.x - 5 * p1.x + 4 * p2.x - p3.x) * t2 + (-p0.x + 3 * p1.x - 3 * p2.x + p3.x) * t3),
+          y: 0.5 * (2 * p1.y + (-p0.y + p2.y) * t + (2 * p0.y - 5 * p1.y + 4 * p2.y - p3.y) * t2 + (-p0.y + 3 * p1.y - 3 * p2.y + p3.y) * t3),
+          z: atT(),
+        });
+      }
+    }
+    return out;
+  }
+
+  // A limb as the style draws it: a smooth-bending tapered tube sampled
+  // along a quadratic path, wide at the shoulder, thin at the mitt.
+  function tube(a: Pt3, mid: Pt3, b: Pt3, wA: number, wB: number, n = 10): Pt3[] {
+    const at = (t: number): Pt3 => {
+      const u = 1 - t;
+      return {
+        x: u * u * a.x + 2 * u * t * mid.x + t * t * b.x,
+        y: u * u * a.y + 2 * u * t * mid.y + t * t * b.y,
+        z: atT(),
+      };
+    };
+    const spine: Pt3[] = [];
+    for (let i = 0; i <= n; i++) spine.push(at(i / n));
+    const left: Pt3[] = [];
+    const right: Pt3[] = [];
+    for (let i = 0; i <= n; i++) {
+      const p = spine[i];
+      const q = spine[Math.min(i + 1, n)];
+      const r = spine[Math.max(i - 1, 0)];
+      const dx = q.x - r.x;
+      const dy = q.y - r.y;
+      const len = Math.hypot(dx, dy) || 1;
+      const w = (wA + (wB - wA) * (i / n)) / 2;
+      left.push({ x: p.x + (-dy / len) * w, y: p.y + (dx / len) * w, z: atT() });
+      right.push({ x: p.x - (-dy / len) * w, y: p.y - (dx / len) * w, z: atT() });
+    }
+    return [...left, ...right.reverse()];
+  }
+
+  type Hairdo = 'ponytail' | 'curls' | 'crop';
+
+  interface Roll {
+    dir: 1 | -1;
+    lean: 1 | -1;
+    hairdo: Hairdo;
+    dashEye: boolean;
+  }
+
+  function rollAlegria(seed: number, i: number): Roll {
+    const r = fork(windowSeed(seed, i, 1), 'alegria');
+    const hairdo = r.weighted<Hairdo>([
+      { value: 'ponytail', weight: 3 },
+      { value: 'curls', weight: 3 },
+      { value: 'crop', weight: 2 },
+    ]);
+    return {
+      dir: r.float(0, 1) < 0.5 ? -1 : 1,
+      lean: r.float(0, 1) < 0.5 ? -1 : 1,
+      hairdo,
+      dashEye: r.float(0, 1) < 0.6,
+    };
+  }
+
+  function drawAlegria(s: Spot, roll: Roll): Mark[] {
+    // The band's top, coat-stand parity: the room floor hides behind the sill,
+    // so the figure plants its feet on the sill ledge's own line and every
+    // shoe stays inside the pane.
+    const H = 1.4;
+    const b = base(s, H);
+    const marks: Mark[] = [];
+    const dir = roll.dir;
+    const L = roll.lean * 0.1;
+    const headR = 0.058;
+    const headCY = b.crownY + headR * 1.05;
+    // The figure carries the frame's loudest colour, the way every reference
+    // puts its person in front of a quiet room: skin in the window's saturated
+    // warmth, the outfit two bright hue blocks, hair and shoes dark.
+    const skin: ColorRole = 'light';
+    const top: ColorRole = 'mullion';
+    const pants: ColorRole = 'box';
+    const hair: ColorRole = 'lamp';
+
+    const shoulderY = headCY + headR + 0.02;
+    const botY = b.sightY - 0.27;
+    const shift = (y: number) => L * ((y - shoulderY) / (botY - shoulderY));
+
+    // Legs: fat tapered tubes in bright pants, the mid-stride split every
+    // reference walks with — front foot planted ahead, back foot trailing
+    // behind, tiny dark shoes on the visible sill line.
+    const hipX = b.cx + shift(botY);
+    const stride = 0.11;
+    for (const side of [1, -1] as const) {
+      const footX = hipX + dir * stride * side;
+      const kneeX = hipX + dir * stride * 0.6 * side - dir * 0.015;
+      marks.push(
+        mass(
+          pants,
+          tube(
+            { x: hipX + dir * 0.025 * side, y: botY - 0.02, z: atT() },
+            { x: kneeX, y: b.sightY - 0.15, z: atT() },
+            { x: footX, y: b.sightY - 0.035, z: atT() },
+            0.07,
+            0.042,
+          ),
+        ),
+      );
+      marks.push(mass('ink', ellipse(footX + dir * 0.02, b.sightY - 0.02, 0.048, 0.018, 12)));
+    }
+
+    // Torso: one huge soft mass, widening downward, carrying the lean.
+    const midY = shoulderY + (botY - shoulderY) * 0.5;
+    marks.push(
+      mass(
+        top,
+        smooth([
+          { x: b.cx - 0.115 + shift(shoulderY), y: shoulderY + 0.02, z: atT() },
+          { x: b.cx + 0.13 + shift(shoulderY), y: shoulderY + 0.04, z: atT() },
+          { x: b.cx + 0.175 + shift(midY), y: midY, z: atT() },
+          { x: b.cx + 0.16 + shift(botY), y: botY, z: atT() },
+          { x: b.cx - 0.155 + shift(botY), y: botY, z: atT() },
+          { x: b.cx - 0.168 + shift(midY), y: midY, z: atT() },
+        ]),
+      ),
+    );
+
+    // The flung arm: a tube rising above the shoulder line, paddle mitt.
+    const shX = b.cx + L * 0.2 + dir * 0.11;
+    const handX = shX + dir * 0.26;
+    const handY = b.crownY + 0.03;
+    marks.push(
+      mass(
+        top,
+        tube(
+          { x: shX, y: shoulderY + 0.02, z: atT() },
+          { x: shX + dir * 0.11, y: shoulderY - 0.14, z: atT() },
+          { x: handX, y: handY, z: atT() },
+          0.06,
+          0.034,
+        ),
+      ),
+    );
+    marks.push(mass(skin, ellipse(handX + dir * 0.024, handY + 0.006, 0.034, 0.03)));
+
+    // Oversized collar covering the neck base, the Humaaans move — the
+    // garment stays one solid block, no chest cut-out.
+    marks.push(mass(top, ellipse(b.cx + L * 0.05, shoulderY + 0.005, 0.115, 0.042)));
+
+    // Neck: a short skin tube the small head sits on.
+    marks.push(
+      mass(
+        skin,
+        tube(
+          { x: b.cx + L * 0.05, y: headCY + headR * 0.5, z: atT() },
+          { x: b.cx + L * 0.05, y: headCY + headR + 0.02, z: atT() },
+          { x: b.cx + L * 0.05, y: shoulderY, z: atT() },
+          0.04,
+          0.046,
+          4,
+        ),
+      ),
+    );
+
+    // Head: comically small oval, face blank or one dash eye.
+    marks.push(mass(skin, ellipse(b.cx + L * 0.02, headCY, headR * 0.88, headR, 18)));
+
+    // Hair: a rounded blob mass — cap always, then the trailing comma or
+    // the curl cluster. The comma trails low behind the head, at collar
+    // height, so it never doubles the flung arm's arc.
+    const hx = b.cx + L * 0.02;
+    marks.push(mass(hair, ellipse(hx, headCY - headR * 0.42, headR * 1.12, headR * 0.8, 16)));
+    if (roll.hairdo === 'ponytail') {
+      const bx = hx - dir * headR * 0.8;
+      marks.push(
+        mass(
+          hair,
+          tube(
+            { x: bx, y: headCY - headR * 0.2, z: atT() },
+            { x: bx - dir * 0.045, y: headCY + headR * 0.15, z: atT() },
+            { x: bx - dir * 0.06, y: headCY + headR * 0.55, z: atT() },
+            0.028,
+            0.042,
+          ),
+        ),
+      );
+      marks.push(mass(hair, circ(bx - dir * 0.065, headCY + headR * 0.7, 0.028)));
+    } else if (roll.hairdo === 'curls') {
+      for (const off of [-0.55, -0.1, 0.4]) {
+        marks.push(mass(hair, circ(hx + off * headR, headCY - headR * 0.78, headR * 0.46)));
+      }
+    }
+
+    if (roll.dashEye) {
+      const ex = hx + dir * 0.028;
+      marks.push(
+        stroke(
+          'ink',
+          [
+            { x: ex, y: headCY + 0.004, z: atT() },
+            { x: ex + dir * 0.02, y: headCY + 0.009, z: atT() },
+          ],
+          'alegria-eye',
+          WEIGHTS.detail,
+        ),
+      );
+    }
+
+    // Noise-grain accent on the torso's lower fill edge: a whisper of short
+    // parallel ticks, the way the Buck renders break a flat fill.
+    const gx = b.cx - 0.13 + shift(botY);
+    for (let k = 0; k < 4; k++) {
+      const gy = midY - 0.02 + k * 0.03;
+      marks.push(
+        stroke(
+          'ink',
+          [
+            { x: gx + k * 0.012, y: gy, z: atT() },
+            { x: gx + k * 0.012 + 0.02, y: gy + 0.018, z: atT() },
+          ],
+          'alegria-grain',
+          WEIGHTS.hairline,
+        ),
+      );
+    }
+    return marks;
+  }
+
+  const PLATE_W = 0.56;
+
+  function fit(box: { width: number; height: number; dpr: number }, cols: number, rows: number) {
+    const scale = Math.min(box.width / (cols * UNIT_PITCH_X), box.height / (rows * UNIT_PITCH_Y));
+    return { scale: box.dpr * scale, cx: (box.width * box.dpr) / 2, cy: (box.height * box.dpr) / 2 };
+  }
+
+  function plateOrigin(g: ReturnType<typeof fit>, i: number, cols: number, rows: number) {
+    const ox = ((i % cols) - (cols - 1) / 2) * UNIT_PITCH_X;
+    const oy = (Math.floor(i / cols) - (rows - 1) / 2) * UNIT_PITCH_Y;
+    return { ox, oy };
+  }
+
+  function pointerEye(): (canvas: HTMLCanvasElement) => { x: number; y: number } {
+    const pointer = { x: 0, y: 0 };
+    window.addEventListener('pointermove', (e) => {
+      pointer.x = e.clientX / window.innerWidth - 0.5;
+      pointer.y = e.clientY / window.innerHeight - 0.5;
+    });
+    return () => ({ ...pointer });
+  }
+
+  const labelFont = `${getComputedStyle(document.body).getPropertyValue('--typography-body2-fontFamily').trim() || 'sans-serif'}`;
+
+  function alegriaPlate(seed: number, i: number, theme: Theme, time: number, ctx: CanvasRenderingContext2D): void {
+    const pen = new Pen({ ...DEFAULT_TUNING }, windowSeed(seed, i, 0));
+    pen.setTime(time);
+    const plan = expandShell(pen.seed);
+    const opening: PaneRect = innerRect(plan.faceWidth);
+    const rng = fork(pen.seed, 'dna');
+    const sill = sillMarks(rng, opening);
+    const lamp = pinnedLamp({ location: i % 2 === 0 ? 'innerRight' : 'innerLeft' });
+    const room = roomOf(opening);
+    const cx = (opening.left + opening.right) / 2;
+    // Stand clear of the lamp's shade so the tiny head never hides behind it.
+    const cxOff = lamp.location === 'innerRight' ? -0.2 : 0.2;
+    const x0 = cx + cxOff - PLATE_W / 2;
+    const spot: Spot = { x0, x1: x0 + PLATE_W, floorY: room.bottom, topY: room.bottom - 1.3, w: PLATE_W, h: 1.3 };
+    const roll = rollAlegria(seed, i);
+    execute(
+      [
+        ...shellMarks(plan),
+        ...drawFurniture({ pieces: [{ kind: 'coatStand', plane: 4, side: lamp.location === 'innerRight' ? 'left' : 'right' }] }, opening),
+        ...lampMarks(lamp, opening, theme.isNight),
+        ...drawAlegria(spot, roll),
+        ...sill,
+      ],
+      pen,
+      ctx,
+      windowPalette(pen.seed, theme),
+      makeProjection({ x: 0, y: 0 }),
+      opening,
+    );
+  }
+
+  function mountRow(canvas: HTMLCanvasElement, label: HTMLSpanElement, button: HTMLButtonElement): void {
+    let seed = rollSeed();
+    const show = () => (label.textContent = `seed ${seed}`);
+    show();
+    createDemoLoop(
+      canvas,
+      (ctx, time, theme: Theme) => {
+        const box = cssBox(canvas);
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.fillStyle = theme.paper;
+        ctx.fillRect(0, 0, box.width * box.dpr, box.height * box.dpr);
+        const cols = 3;
+        const rows = 1;
+        const g = fit(box, cols, rows);
+        ctx.setTransform(g.scale, 0, 0, g.scale, g.cx, g.cy);
+        for (let i = 0; i < cols; i++) {
+          const { ox, oy } = plateOrigin(g, i, cols, rows);
+          ctx.save();
+          ctx.translate(ox, oy);
+          alegriaPlate(seed, i, theme, time, ctx);
+          ctx.restore();
+        }
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.fillStyle = theme.ink;
+        ctx.globalAlpha = 0.75;
+        ctx.font = `${Math.max(10, 0.16 * g.scale)}px ${labelFont}`;
+        ctx.textAlign = 'center';
+        ctx.fillText('corporate memphis / alegria — three windows, one seed', g.cx, g.cy + 0.82 * g.scale);
+        ctx.globalAlpha = 1;
+      },
+      pointerEye(),
+    );
+    button.addEventListener('click', () => {
+      seed = rollSeed();
+      show();
+    });
+  }
+
+  const el = (id: string) => document.getElementById(id)!;
+  mountRow(el('row') as HTMLCanvasElement, el('row-seed'), el('row-reseed') as HTMLButtonElement);
+</script>

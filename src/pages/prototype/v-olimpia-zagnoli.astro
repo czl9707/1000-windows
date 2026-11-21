@@ -1,0 +1,493 @@
+---
+import BaseLayout from '@/components/layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="Zagnoli tenant">
+  <main>
+    <h1>Olimpia Zagnoli tenant</h1>
+    <p>
+      Prototype, throwaway: one tenant style, three plates. The reference is
+      Olimpia Zagnoli — the figure is a flat paper silhouette cut out of an
+      op-art stripe field, the face carved by the stripes flipping direction
+      at hairline and jaw, the hair one loud graphic mass (bob with a
+      heart-notch, a scalloped cloud, a swept ponytail), and exactly one
+      giant accent per face: round sunglasses with crescent pupils, or a
+      lip dot. Daylight pinned; the button re-rolls.
+    </p>
+
+    <section>
+      <canvas id="plates" width="1500" height="620"></canvas>
+      <button id="plates-reseed" type="button">New sheet</button>
+      <span id="plates-seed"></span>
+    </section>
+  </main>
+</BaseLayout>
+
+<style>
+  main {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 1rem;
+  }
+  canvas {
+    width: 100%;
+    height: auto;
+    display: block;
+    border: var(--border);
+  }
+  section {
+    margin-bottom: 2rem;
+  }
+</style>
+
+<script>
+  // PROTOTYPE, throwaway: the Zagnoli candidate — silhouette in a patterned
+  // field — drawn into real window scenes. Dies with the milestone.
+  import { createDemoLoop, cssBox } from '@/components/demoLoop';
+  import { Pen } from '@/pen/pen';
+  import { DEFAULT_TUNING } from '@/pen/tuning';
+  import { rollSeed } from '@/components/mount';
+  import type { Theme, ColorRole } from '@/styling/roles';
+  import { WEIGHTS } from '@/styling/weights';
+  import { windowPalette } from '@/styling/colourway';
+  import { fork, windowSeed } from '@/core/randomness/rng';
+  import { execute, type Mark } from '@/core/scene';
+  import { shellMarks, expandShell } from '@/core/window-shell';
+  import { innerRect, type PaneRect } from '@/core/window-shell/shell';
+  import { sillMarks } from '@/core/sill';
+  import { pinnedLamp } from '@/core/light/light';
+  import { lampMarks } from '@/core/light/drawLamp';
+  import type { Pt3 } from '@/motion/projection';
+  import { roomOf } from '@/core/furniture/room';
+  import { drawFurniture } from '@/core/furniture/drawFurniture';
+  import { makeProjection } from '@/motion/projection';
+
+  const UNIT_PITCH_X = 2.3;
+  const UNIT_PITCH_Y = 1.8;
+  const PLATE_COLS = 3;
+
+  document.body.setAttribute('data-theme', 'light');
+
+  const TENANT_DEPTH = -0.15;
+  const TENANT_Z = -8.8;
+  const atT = () => TENANT_DEPTH;
+  const zT = () => TENANT_Z;
+
+  interface Spot {
+    x0: number;
+    x1: number;
+    floorY: number;
+    topY: number;
+    w: number;
+    h: number;
+  }
+
+  const mass = (role: ColorRole, pts: Pt3[]): Mark => ({ kind: 'fill', pts, role, z: zT() });
+  const stroke = (role: ColorRole, pts: Pt3[], name: string, widthUnits: number): Mark => ({
+    kind: 'stroke',
+    pts,
+    name,
+    widthUnits,
+    role,
+    z: zT(),
+  });
+
+  function rect(x0: number, y0: number, x1: number, y1: number): Pt3[] {
+    return [
+      { x: x0, y: y0, z: atT() },
+      { x: x1, y: y0, z: atT() },
+      { x: x1, y: y1, z: atT() },
+      { x: x0, y: y1, z: atT() },
+    ];
+  }
+
+  function ellipse(cx: number, cy: number, rx: number, ry: number, n = 18): Pt3[] {
+    const pts: Pt3[] = [];
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2;
+      pts.push({ x: cx + Math.cos(a) * rx, y: cy + Math.sin(a) * ry, z: atT() });
+    }
+    return pts;
+  }
+  const circ = (cx: number, cy: number, r: number, n = 16) => ellipse(cx, cy, r, r, n);
+
+  // The op-art field: ink bars at near-equal duty across the whole
+  // opening — thin slats on a pastel base read as blinds, the pattern is
+  // the style. The direction argument lets the caller flip the pattern; the
+  // field itself is horizontal everywhere, so the flip lives on the figure.
+  function stripeBand(
+    xL: number,
+    xR: number,
+    yTop: number,
+    yBot: number,
+    pitch: number,
+    bar: number,
+    role: ColorRole,
+    vertical: boolean,
+  ): Mark[] {
+    const bars: Mark[] = [];
+    if (vertical) {
+      for (let x = xL; x < xR; x += pitch) bars.push(mass(role, rect(x, yTop, x + bar, yBot)));
+    } else {
+      for (let y = yTop; y < yBot; y += pitch) bars.push(mass(role, rect(xL, y, xR, y + bar)));
+    }
+    return bars;
+  }
+
+  // Field down over the whole room so no flat ground shows: the pattern is
+  // the style, a plain backdrop is the style's named pitfall.
+  function field(s: Spot): Mark[] {
+    const xL = s.x0 - 1.0;
+    const xR = s.x1 + 1.0;
+    return [
+      mass('paper', rect(xL, s.floorY + 0.1, xR, s.floorY - 2.2)),
+      ...stripeBand(xL, xR, s.floorY - 2.2, s.floorY + 0.1, 0.16, 0.08, 'ink', false),
+    ];
+  }
+
+  const HEAD_R = 0.088;
+
+  interface Frame {
+    cx: number;
+    hy: number;
+    r: number;
+    d: 1 | -1;
+    sightY: number;
+  }
+
+  function frameOf(s: Spot, height: number, d: 1 | -1): Frame {
+    const cx = (s.x0 + s.x1) / 2 + 0.012 * s.h * Math.sin(s.x0 * 9.1);
+    return { cx, hy: s.floorY - height + HEAD_R * 1.05, r: HEAD_R, d, sightY: s.floorY - 0.85 };
+  }
+
+  // The tenant steps aside from the lamp: the lamp hangs at the jamb but
+  // draws near the centre, and a resident hides behind its own light.
+  function tenantCx(s: Spot, lampLocation: 'innerLeft' | 'innerRight'): number {
+    const cx = (s.x0 + s.x1) / 2 + 0.012 * s.h * Math.sin(s.x0 * 9.1);
+    return lampLocation === 'innerRight' ? cx - 0.24 : cx + 0.24;
+  }
+
+  // Chest + neck, shared by every register: one smooth solid silhouette, no
+  // interior line — Zagnoli bodies carry nothing but their edge. The cloth
+  // role keeps the body a flat colour against the paper bars of the field.
+  function chest(f: Frame, shoulderDrop: number, halfW: number): Mark[] {
+    const { cx, hy, r, sightY } = f;
+    const base = sightY + 0.15;
+    return [
+      mass('mullion', [
+        { x: cx - 0.3 * r, y: hy + 0.85 * r, z: atT() },
+        { x: cx + 0.3 * r, y: hy + 0.85 * r, z: atT() },
+        { x: cx + halfW * 0.75, y: hy + shoulderDrop * r, z: atT() },
+        { x: cx + halfW, y: hy + (shoulderDrop + 0.4) * r, z: atT() },
+        { x: cx + halfW * 0.92, y: base, z: atT() },
+        { x: cx - halfW * 0.92, y: base, z: atT() },
+        { x: cx - halfW, y: hy + (shoulderDrop + 0.4) * r, z: atT() },
+        { x: cx - halfW * 0.75, y: hy + shoulderDrop * r, z: atT() },
+      ]),
+    ];
+  }
+
+  // The heart-notch: a paper wedge bit out of the hair's crown.
+  function notch(f: Frame, topY: number, depthY: number, halfW: number): Mark[] {
+    const { cx, d, r } = f;
+    return [
+      mass('paper', [
+        { x: cx - halfW * r + 0.06 * r * d, y: topY, z: atT() },
+        { x: cx + halfW * r + 0.06 * r * d, y: topY, z: atT() },
+        { x: cx + 0.05 * r * d, y: depthY, z: atT() },
+      ]),
+    ];
+  }
+
+  // Vertical face stripes: the flip. The field runs horizontal everywhere;
+  // between hairline and jaw the pattern turns and the boundary carves the
+  // face. Bars live inside the caller's face ellipse, pre-clipped to it, in
+  // the body's own colour so the face reads as the figure turned to stripes.
+  function faceFlip(cx: number, cy: number, rx: number, ry: number): Mark[] {
+    const bars: Mark[] = [];
+    const pitch = 0.5 * HEAD_R;
+    const half = 0.14 * HEAD_R;
+    for (let u = -rx + half; u <= rx - half; u += pitch) {
+      const chord = ry * Math.sqrt(Math.max(0, 1 - (u / rx) ** 2));
+      if (chord < 0.2 * HEAD_R) continue;
+      bars.push(mass('mullion', rect(cx + u - half, cy - chord * 0.95, cx + u + half, cy + chord * 0.95)));
+    }
+    return bars;
+  }
+
+  // Bodice stripes: the three-women register's flip lives at the neckline.
+  function bodice(f: Frame): Mark[] {
+    const { cx, hy, r, sightY } = f;
+    const bars: Mark[] = [];
+    for (let x = cx - 1.04 * r; x <= cx + 1.04 * r; x += 0.52 * r) {
+      bars.push(mass('blind', rect(x - 0.16 * r, hy + 1.95 * r, x + 0.16 * r, sightY + 0.15)));
+    }
+    return bars;
+  }
+
+  // The cover's giant accent: lenses span the whole face and nearly touch,
+  // paper eyeballs held under ink rims, crescent pupils looking sideways.
+  function sunglasses(f: Frame): Mark[] {
+    const { cx, hy, r, d } = f;
+    const y = hy + 0.02 * r;
+    const rim = 0.66 * r;
+    const ex = 0.62 * r;
+    const marks: Mark[] = [
+      mass('ink', circ(cx - ex, y, rim)),
+      mass('ink', circ(cx + ex, y, rim)),
+      mass('paper', circ(cx - ex, y, 0.54 * r)),
+      mass('paper', circ(cx + ex, y, 0.54 * r)),
+      mass('ink', circ(cx - ex + 0.14 * r * d, y - 0.06 * r, 0.4 * r)),
+      mass('ink', circ(cx + ex + 0.14 * r * d, y - 0.06 * r, 0.4 * r)),
+      mass('paper', circ(cx - ex + 0.3 * r * d, y - 0.14 * r, 0.2 * r)),
+      mass('paper', circ(cx + ex + 0.3 * r * d, y - 0.14 * r, 0.2 * r)),
+      stroke(
+        'ink',
+        [
+          { x: cx - 0.1 * r, y: y - 0.02 * r, z: atT() },
+          { x: cx + 0.1 * r, y: y - 0.02 * r, z: atT() },
+        ],
+        'zag-bridge',
+        WEIGHTS.detail,
+      ),
+    ];
+    return marks;
+  }
+
+  const lipDot = (f: Frame, x: number, y: number): Mark[] => [
+    mass('light', circ(x, y, 0.3 * f.r)),
+  ];
+
+  // Register one — the New Yorker cover: frontal face under a solid bob
+  // with a heart-notch, giant round sunglasses, lip dot. The bob is the
+  // loudest mass in the opening — one bold pastel, wider than the head.
+  function coverRegister(s: Spot, d: 1 | -1): Mark[] {
+    const f = frameOf(s, 1.32, d);
+    const { cx, hy, r } = f;
+    return [
+      ...chest(f, 1.7, 1.45 * r),
+      mass('mullion', ellipse(cx, hy, 0.98 * r, 1.02 * r)),
+      mass('lampShade', ellipse(cx, hy - 0.25 * r, 1.5 * r, 1.3 * r)),
+      ...notch(f, hy - 1.5 * r, hy - 1.02 * r, 0.3),
+      mass('paper', ellipse(cx, hy + 0.3 * r, 0.75 * r, 0.8 * r)),
+      ...faceFlip(cx, hy + 0.3 * r, 0.72 * r, 0.74 * r),
+      ...sunglasses(f),
+      ...lipDot(f, cx, hy + 0.92 * r),
+    ];
+  }
+
+  // Register two — Profilo: a profile silhouette, stripe direction flipping
+  // at the hairline and jaw, swept ponytail, heart-notch crown, lip dot.
+  function profiloRegister(s: Spot, d: 1 | -1): Mark[] {
+    const f = frameOf(s, 1.4, d);
+    const { cx, hy, r, sightY } = f;
+    const p = (u: number, v: number) => ({ x: cx + u * r, y: hy + v * r, z: atT() });
+    const profile: Pt3[] = [
+      p(-0.9, 0.1),
+      p(-0.85, -0.7),
+      p(-0.2, -0.98),
+      p(0.55, -0.9),
+      p(0.95, -0.45),
+      p(0.88, -0.18),
+      p(1.32, 0.05),
+      p(0.85, 0.2),
+      p(1.0, 0.32),
+      p(0.82, 0.38),
+      p(0.98, 0.46),
+      p(0.78, 0.72),
+      p(0.3, 0.95),
+      p(0.35, 1.6),
+      { x: cx + 1.5 * r, y: hy + 1.75 * r, z: atT() },
+      { x: cx + 1.5 * r, y: sightY + 0.15, z: atT() },
+      { x: cx - 1.5 * r, y: sightY + 0.15, z: atT() },
+      { x: cx - 1.3 * r, y: hy + 1.7 * r, z: atT() },
+      p(-0.35, 1.5),
+      p(-0.55, 0.9),
+    ];
+    const mirrored = f.d === 1 ? profile : profile.map((q) => ({ ...q, x: cx - (q.x - cx) }));
+    // The face band: paper between the hairline and the jaw, front edge on
+    // the profile itself — the flip's stripes live here.
+    const band: Pt3[] = [
+      p(0.95, -0.45),
+      p(0.88, -0.18),
+      p(1.32, 0.05),
+      p(0.85, 0.2),
+      p(1.0, 0.32),
+      p(0.82, 0.38),
+      p(0.98, 0.46),
+      p(0.78, 0.72),
+      p(0.3, 0.95),
+      p(0.12, 0.8),
+      p(0.18, -0.4),
+    ];
+    const bandMirrored = f.d === 1 ? band : band.map((q) => ({ ...q, x: cx - (q.x - cx) }));
+    const tail: Pt3[] = [
+      p(-1.0, -0.85),
+      p(-2.0, -0.3),
+      p(-2.3, 1.1),
+      p(-1.3, 1.3),
+      p(-0.75, 0.55),
+    ].map((q) => ({ ...q, x: cx - (q.x - cx) * f.d }));
+    // Hand-fit bars inside the band, the last one dying into the nose
+    // bridge so the profile's bumps interrupt the stripes.
+    const stripes: [number, number, number][] = [
+      [0.3, -0.4, 0.78],
+      [0.75, -0.68, 0.55],
+      [1.05, 0.0, 0.1],
+    ];
+    const faceStripes = stripes.map(([u, v0, v1]) => {
+      const xa = cx + (u - 0.14) * r * f.d;
+      const xb = cx + (u + 0.14) * r * f.d;
+      return mass('mullion', rect(Math.min(xa, xb), hy + v0 * r, Math.max(xa, xb), hy + v1 * r));
+    });
+    const capTop = hy - 0.55 * r - 0.95 * r;
+    return [
+      mass('mullion', mirrored),
+      mass('paper', bandMirrored),
+      ...faceStripes,
+      mass('lampShade', ellipse(cx, hy - 0.55 * r, 1.05 * r, 0.95 * r)),
+      mass('lampShade', tail),
+      ...notch(f, capTop, hy - 1.05 * r, 0.26),
+      ...lipDot(f, cx + f.d * 0.85 * r, hy + 0.35 * r),
+    ];
+  }
+
+  // Register three — Three Women: eyeless frontal face under a giant
+  // scalloped hair cloud, the flip carried by the striped bodice, lip dot.
+  // The cloud is the loudest mass in the opening: lobes wider than the
+  // head and reaching the shoulders.
+  function cloudRegister(s: Spot, d: 1 | -1): Mark[] {
+    const f = frameOf(s, 1.36, d);
+    const { cx, hy, r } = f;
+    const lobes: [number, number, number][] = [
+      [-1.55, -0.5, 0.7],
+      [-1.15, -1.25, 0.75],
+      [-0.2, -1.6, 0.8],
+      [0.8, -1.45, 0.75],
+      [1.55, -0.8, 0.7],
+      [1.7, 0.1, 0.6],
+      [-1.7, 0.15, 0.6],
+      [1.35, 0.75, 0.65],
+      [-1.35, 0.8, 0.65],
+    ];
+    return [
+      ...chest(f, 1.7, 1.45 * r),
+      ...bodice(f),
+      mass('mullion', ellipse(cx, hy, 0.98 * r, 1.02 * r)),
+      mass('lampShade', ellipse(cx, hy - 0.6 * r, 1.45 * r, 1.1 * r)),
+      ...lobes.map(([u, v, lr]) => mass('lampShade', circ(cx + u * r, hy + v * r, lr * r))),
+      mass('paper', ellipse(cx, hy + 0.32 * r, 0.66 * r, 0.72 * r)),
+      ...lipDot(f, cx, hy + 0.66 * r),
+    ];
+  }
+
+  const REGISTERS = [coverRegister, profiloRegister, cloudRegister];
+
+  function fit(box: { width: number; height: number; dpr: number }, cols: number, rows: number) {
+    const scale = Math.min(box.width / (cols * UNIT_PITCH_X), box.height / (rows * UNIT_PITCH_Y));
+    return { scale: box.dpr * scale, cx: (box.width * box.dpr) / 2, cy: (box.height * box.dpr) / 2 };
+  }
+
+  function plateOrigin(g: ReturnType<typeof fit>, i: number, cols: number) {
+    return { ox: ((i % cols) - (cols - 1) / 2) * UNIT_PITCH_X, oy: 0 };
+  }
+
+  function pointerEye(): (canvas: HTMLCanvasElement) => { x: number; y: number } {
+    const pointer = { x: 0, y: 0 };
+    window.addEventListener('pointermove', (e) => {
+      pointer.x = e.clientX / window.innerWidth - 0.5;
+      pointer.y = e.clientY / window.innerHeight - 0.5;
+    });
+    return () => ({ ...pointer });
+  }
+
+  const labelFont = `${getComputedStyle(document.body).getPropertyValue('--typography-body2-fontFamily').trim() || 'sans-serif'}`;
+
+  // One window per plate: the stripe field lays down first so the coat
+  // stand and the tenant stand in front of the pattern — the pattern is the
+  // room's far wall. The coat stay pinned opposite the lamp as the size
+  // anchor.
+  function zagnoliPlate(seed: number, i: number, theme: Theme, time: number, ctx: CanvasRenderingContext2D): void {
+    const pen = new Pen({ ...DEFAULT_TUNING }, windowSeed(seed, i, 0));
+    pen.setTime(time);
+    const plan = expandShell(pen.seed);
+    const opening: PaneRect = innerRect(plan.faceWidth);
+    const rng = fork(pen.seed, 'dna');
+    const sill = sillMarks(rng, opening);
+    const lamp = pinnedLamp({ location: i % 2 === 0 ? 'innerRight' : 'innerLeft' });
+    const room = roomOf(opening);
+    const w = 0.5;
+    const h = 1.2;
+    const cx = (opening.left + opening.right) / 2;
+    const x0 = cx - w / 2;
+    const raw: Spot = { x0, x1: x0 + w, floorY: room.bottom, topY: room.bottom - h, w, h };
+    const cxT = tenantCx(raw, lamp.location);
+    const spot: Spot = { ...raw, x0: cxT - w / 2, x1: cxT + w / 2 };
+    const roll = fork(windowSeed(seed, i, 1), 'zagnoli-roll');
+    const d: 1 | -1 = roll.weighted([
+      { value: 1 as const, weight: 1 },
+      { value: -1 as const, weight: 1 },
+    ]);
+    const register = REGISTERS[i % REGISTERS.length];
+    execute(
+      [
+        ...shellMarks(plan),
+        ...field(spot),
+        ...drawFurniture({ pieces: [{ kind: 'coatStand', plane: 4, side: lamp.location === 'innerRight' ? 'left' : 'right' }] }, opening),
+        ...lampMarks(lamp, opening, theme.isNight),
+        ...register(spot, d),
+        ...sill,
+      ],
+      pen,
+      ctx,
+      windowPalette(pen.seed, theme),
+      makeProjection({ x: 0, y: 0 }),
+      opening,
+    );
+  }
+
+  function mount(canvas: HTMLCanvasElement, label: HTMLSpanElement, button: HTMLButtonElement): void {
+    let seed = rollSeed();
+    const show = () => (label.textContent = `seed ${seed}`);
+    show();
+    createDemoLoop(
+      canvas,
+      (ctx, time, theme: Theme) => {
+        const box = cssBox(canvas);
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.fillStyle = theme.paper;
+        ctx.fillRect(0, 0, box.width * box.dpr, box.height * box.dpr);
+        // ?plate=<i> collapses the row to one huge plate — the close look.
+        const only = new URLSearchParams(window.location.search).get('plate');
+        const shown = only === null ? [0, 1, 2] : [Number(only)];
+        const cols = only === null ? PLATE_COLS : 1;
+        const g = fit(box, cols, 1);
+        ctx.setTransform(g.scale, 0, 0, g.scale, g.cx, g.cy);
+        for (const i of shown) {
+          const { ox, oy } = plateOrigin(g, i, cols);
+          ctx.save();
+          ctx.translate(ox, oy);
+          zagnoliPlate(seed, i, theme, time, ctx);
+          ctx.restore();
+        }
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.fillStyle = theme.ink;
+        ctx.globalAlpha = 0.75;
+        ctx.font = `${Math.max(10, 0.14 * g.scale)}px ${labelFont}`;
+        ctx.textAlign = 'center';
+        if (only === null) {
+          ctx.fillText('olimpia zagnoli — cover / profilo / three women', g.cx, g.cy + 0.92 * g.scale);
+        }
+        ctx.globalAlpha = 1;
+      },
+      pointerEye(),
+    );
+    button.addEventListener('click', () => {
+      seed = rollSeed();
+      show();
+    });
+  }
+
+  const el = (id: string) => document.getElementById(id)!;
+  mount(el('plates') as HTMLCanvasElement, el('plates-seed'), el('plates-reseed') as HTMLButtonElement);
+</script>
