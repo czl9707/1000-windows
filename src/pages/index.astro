@@ -312,7 +312,7 @@ import BaseLayout from '@/components/layouts/BaseLayout.astro';
           drawWindow(ctx, pen, windowPalette(pen.seed, theme, lampLit(pen.seed)), {
             x: eye.x + wx - wall.camera.x,
             y: eye.y + y - wall.camera.y,
-          }, theme.isNight);
+          }, theme.night);
           ctx.restore();
         };
         const first = Math.floor(active.strip);

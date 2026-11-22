@@ -42,11 +42,15 @@ export type ColorRole =
 // The theme's colours and its night flag, read off the page (demoLoop reads
 // the CSS tokens and the theme attribute, and hands them down with every
 // frame; the painter builds the palette). Night is declared by the page's
-// own theme switch, never guessed from the colours.
+// own theme switch, never guessed from the colours: night 1, day 0.
 export interface Theme {
   ink: string;
   paper: string;
-  isNight: boolean;
+  night: number;
+  // The page's theme-switch fade window in milliseconds; 0 keeps the
+  // palette a pure function of the theme. demoLoop reads the token, so the
+  // number lives in one place — the stylesheet.
+  transitionMs: number;
 }
 
 // One resolved fill: the finish styling decided, ready to draw in one pass.

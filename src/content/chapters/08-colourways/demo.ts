@@ -26,8 +26,8 @@ const STREET_SEED = 1335613256;
 const STREET_COUNT = 6;
 const COMPARE_COUNT = 3;
 
-const DAY = { ink: 'rgb(33 37 41)', paper: 'rgb(229 222 214)', isNight: false } as const;
-const DARK = { ink: 'rgb(233 236 239)', paper: 'rgb(0 0 0)', isNight: true } as const;
+const DAY = { ink: 'rgb(33 37 41)', paper: 'rgb(229 222 214)', night: 0, transitionMs: 0 } as const;
+const DARK = { ink: 'rgb(233 236 239)', paper: 'rgb(0 0 0)', night: 1, transitionMs: 0 } as const;
 
 function buildStreet(seed: number, count: number = STREET_COUNT): Pen[] {
   return Array.from(
@@ -54,7 +54,7 @@ function drawStreet(
       ((i % cols) - (cols - 1) / 2) * UNIT_PITCH_X,
       (Math.floor(i / cols) - (rows - 1) / 2) * UNIT_PITCH_Y,
     );
-    drawWindow(ctx, pen, paletteFor(pen, theme), CENTRE_EYE, theme.isNight);
+    drawWindow(ctx, pen, paletteFor(pen, theme), CENTRE_EYE, theme.night);
     ctx.restore();
   });
 }
@@ -108,8 +108,8 @@ function mountCompare(canvas: HTMLCanvasElement): TuningHandle {
     pens.forEach((pen, i) => {
       pen.setTime(time);
       const columns = [
-        { x: -colX, palette: windowPalette(pen.seed, day), night: day.isNight },
-        { x: colX, palette: tunedWindowPalette(pen.seed, dark, nightTuning, lampLit(pen.seed)), night: dark.isNight },
+        { x: -colX, palette: windowPalette(pen.seed, day), night: day.night },
+        { x: colX, palette: tunedWindowPalette(pen.seed, dark, nightTuning, lampLit(pen.seed)), night: dark.night },
       ];
       for (const { x, palette, night } of columns) {
         ctx.save();

@@ -10,7 +10,7 @@ import { FOLD_BANDS, HEM_CLEARANCE } from './drawCurtain';
 import type { FillMark, StrokeMark } from '@/core/scene';
 
 const OPENING = innerRect(0.07);
-const PALETTE = windowPalette(0, { ink: '#000000', paper: '#ffffff', isNight: false });
+const PALETTE = windowPalette(0, { ink: '#000000', paper: '#ffffff', night: 0, transitionMs: 0 });
 const CLOTH_ROLES = ['fabric', 'shade', 'blind'] as const;
 type ClothRole = (typeof CLOTH_ROLES)[number];
 

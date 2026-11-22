@@ -28,7 +28,7 @@ const KIND_COUNT = LAMP_KINDS.length;
 
 // The benches pin the theme: the lamps draw at night, so both paint the
 // dark pair regardless of the page.
-const DARK = { ink: 'rgb(233 236 239)', paper: 'rgb(0 0 0)', isNight: true } as const;
+const DARK = { ink: 'rgb(233 236 239)', paper: 'rgb(0 0 0)', night: 1, transitionMs: 0 } as const;
 
 function buildStreet(seed: number, count: number): Pen[] {
   return Array.from(
@@ -53,7 +53,7 @@ function mountKinds(canvas: HTMLCanvasElement): TuningHandle {
 
   const loop = createDemoLoop(canvas, (ctx, _time, pageTheme: Theme) => {
     const box = cssBox(canvas);
-    const night = pinned.night >= 0.5;
+    const night = pinned.night >= 0.5 ? 1 : 0;
     const theme = night ? DARK : pageTheme;
     if (night) paintNight(ctx, box);
     const cols = plateCols(KIND_COUNT);
@@ -137,7 +137,7 @@ function mountStreet(canvas: HTMLCanvasElement): TuningHandle {
         ((i % cols) - (cols - 1) / 2) * UNIT_PITCH_X,
         (Math.floor(i / cols) - (rows - 1) / 2) * UNIT_PITCH_Y,
       );
-      drawWindow(ctx, pen, tunedWindowPalette(pen.seed, DARK, tuning, lampLit(pen.seed)), CENTRE_EYE, DARK.isNight);
+      drawWindow(ctx, pen, tunedWindowPalette(pen.seed, DARK, tuning, lampLit(pen.seed)), CENTRE_EYE, DARK.night);
       ctx.restore();
     });
   });

@@ -140,7 +140,7 @@ export const DEFAULT_COLOURWAY_TUNING: ColourwayTuning = {
 
 interface RoleContext {
   theme: Theme;
-  night: boolean;
+  night: number;
   // The window's own lamp gene: whether its room burns. Only the backlit
   // cloth reads it — a lit room's warmth shows through its curtain.
   lit: boolean;
@@ -307,7 +307,13 @@ const ROLE_RESOLVERS: Record<ColorRole, (ctx: RoleContext) => ResolvedColor> = {
   light: warmthResolver(() => OCCLUDE),
   ambient: warmthResolver((tuning) => tuning.ambientAlpha),
   aura: warmthResolver((tuning) => tuning.auraAlpha),
-  veil: ({ theme, tuning }) => ({ color: theme.paper, alpha: tuning.veilAlpha }),
+  // The veil never flips in as a mark: by day it resolves at alpha 0, so
+  // the theme crossfade carries the wash in with the same clock as every
+  // other role, and an unlit room's interior dims instead of snapping.
+  veil: ({ theme, night, tuning }) => ({
+    color: theme.paper,
+    alpha: night !== 0 ? tuning.veilAlpha : 0,
+  }),
   furniture2: furnitureAt(FURNITURE_INK_MIX[2]),
   furniture3: furnitureAt(FURNITURE_INK_MIX[3]),
   furniture4: furnitureAt(FURNITURE_INK_MIX[4]),
@@ -330,7 +336,92 @@ export function windowPalette(
   seed: number,
   theme: Theme,
   lit = false,
+  now: number = performance.now(),
 ): Palette {
+  const resolved = cachedPalette(seed, theme, lit);
+  const ms = theme.transitionMs;
+  if (!(ms > 0)) return resolved;
+  const key = `${seed}|${lit ? 1 : 0}`;
+  const identity = `${theme.ink}|${theme.paper}|${theme.night}`;
+  const to = resolveAll(resolved);
+  let entry = fades.get(key);
+  if (!entry) {
+    entry = { identity, start: now, from: to, to };
+    fades.set(key, entry);
+    if (fades.size > FADES_MAX) fades.clear();
+    return paletteOf(to);
+  }
+  if (entry.identity !== identity) {
+    // A theme change mid-fade starts the return from the blend on screen,
+    // so the colour never jumps back to where the previous fade began.
+    entry = { identity, start: now, from: blend(entry.from, entry.to, ease((now - entry.start) / ms)), to };
+    fades.set(key, entry);
+  }
+  const e = ease((now - entry.start) / ms);
+  if (e >= 1) {
+    entry.to = to;
+    return resolved;
+  }
+  if (e <= 0) return paletteOf(entry.from);
+  return paletteOf(blend(entry.from, to, e));
+}
+
+// The fade state per window seed: the identity of the theme it fades to,
+// when it began, and the two fully resolved palettes it blends between.
+// Bounded like the palette cache — a dropped entry only costs a snap to the
+// current target.
+interface FadeEntry {
+  identity: string;
+  start: number;
+  from: Record<ColorRole, ResolvedColor>;
+  to: Record<ColorRole, ResolvedColor>;
+}
+const fades = new Map<string, FadeEntry>();
+const FADES_MAX = 512;
+
+function resolveAll(palette: Palette): Record<ColorRole, ResolvedColor> {
+  const all = {} as Record<ColorRole, ResolvedColor>;
+  for (const role of Object.keys(ROLE_RESOLVERS) as ColorRole[]) {
+    all[role] = palette(role);
+  }
+  return all;
+}
+
+function blend(
+  a: Record<ColorRole, ResolvedColor>,
+  b: Record<ColorRole, ResolvedColor>,
+  e: number,
+): Record<ColorRole, ResolvedColor> {
+  const out = {} as Record<ColorRole, ResolvedColor>;
+  for (const role of Object.keys(ROLE_RESOLVERS) as ColorRole[]) {
+    out[role] = {
+      color: mixCss(a[role].color, b[role].color, e),
+      alpha: a[role].alpha + (b[role].alpha - a[role].alpha) * e,
+    };
+  }
+  return out;
+}
+
+// The CSS 'ease' curve — the fade's clock matches the page's token
+// transition exactly.
+function ease(x: number): number {
+  if (x <= 0) return 0;
+  if (x >= 1) return 1;
+  const at = (t: number, p1: number, p2: number) => {
+    const omt = 1 - t;
+    return 3 * omt * omt * t * p1 + 3 * omt * t * t * p2 + t ** 3;
+  };
+  let lo = 0;
+  let hi = 1;
+  for (let i = 0; i < 24; i++) {
+    const mid = (lo + hi) / 2;
+    if (at(mid, 0.25, 0.25) < x) lo = mid;
+    else hi = mid;
+  }
+  return at((lo + hi) / 2, 0.1, 1);
+}
+
+function cachedPalette(seed: number, theme: Theme, lit: boolean): Palette {
   const key = `${seed}|${theme.ink}|${theme.paper}|${lit ? 1 : 0}`;
   let palette = paletteCache.get(key);
   if (!palette) {
@@ -344,6 +435,17 @@ export function windowPalette(
     paletteCache.set(key, palette);
   }
   return palette;
+}
+
+function paletteOf(resolved: Record<ColorRole, ResolvedColor>): Palette {
+  return (role) => {
+    const dress = resolved[role];
+    if (!dress)
+      throw new Error(
+        `no registered resolution for colour role: ${String(role)}`,
+      );
+    return dress;
+  };
 }
 
 // The tuning bench's entry: the same resolution, unmemoized and wearing
@@ -370,7 +472,7 @@ function buildPalette(
 ): Palette {
   const ctx: RoleContext = {
     theme,
-    night: theme.isNight,
+    night: theme.night,
     lit,
     wayFor,
     tuning,
@@ -381,12 +483,5 @@ function buildPalette(
   for (const [role, resolve] of Object.entries(ROLE_RESOLVERS)) {
     resolved[role as ColorRole] = resolve(ctx);
   }
-  return (role) => {
-    const dress = resolved[role];
-    if (!dress)
-      throw new Error(
-        `no registered resolution for colour role: ${String(role)}`,
-      );
-    return dress;
-  };
+  return paletteOf(resolved);
 }

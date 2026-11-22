@@ -27,7 +27,7 @@ export function createDemoLoop(
   paint: (
     ctx: CanvasRenderingContext2D,
     time: number,
-    theme: { ink: string; paper: string; isNight: boolean },
+    theme: { ink: string; paper: string; night: number; transitionMs: number },
     eye: EyeOffset,
   ) => void,
   // A demo maps its own input to the eye — the motion strip its pointer,
@@ -38,16 +38,23 @@ export function createDemoLoop(
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('demo canvas: 2d context unavailable');
 
-  let theme = { ink: '', paper: '', isNight: false };
+  let theme = { ink: '', paper: '', night: 0, transitionMs: 0 };
   const readTheme = () => {
     const style = getComputedStyle(document.body);
-    const bg = style.getPropertyValue('--color-primary-background').trim();
-    const fg = style.getPropertyValue('--color-primary-foreground').trim();
-    if (!bg || !fg) throw new Error('demo canvas: background/foreground tokens missing');
+    const channel = (name: string) => {
+      const value = style.getPropertyValue(name).trim();
+      if (!value) throw new Error(`demo canvas: theme channel ${name} missing`);
+      return value;
+    };
+    const triplet = (base: string) =>
+      `rgb(${channel(`${base}-r`)} ${channel(`${base}-g`)} ${channel(`${base}-b`)})`;
+    const seconds = parseFloat(channel('--transition-theme'));
+    if (!Number.isFinite(seconds)) throw new Error('demo canvas: --transition-theme token missing');
     theme = {
-      ink: `rgb(${fg})`,
-      paper: `rgb(${bg})`,
-      isNight: document.body.getAttribute('data-theme') === 'dark',
+      ink: triplet('--theme-ink'),
+      paper: triplet('--theme-paper'),
+      night: document.body.getAttribute('data-theme') === 'dark' ? 1 : 0,
+      transitionMs: seconds * 1000,
     };
   };
 

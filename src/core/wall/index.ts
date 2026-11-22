@@ -96,6 +96,7 @@ export class Wall {
     frame: WallFrame,
     time: number,
     theme: Theme,
+    now: number = performance.now(),
   ): void {
     const extentW = box.width / frame.unit;
     const extentH = box.height / frame.unit;
@@ -104,6 +105,18 @@ export class Wall {
     ctx.translate(
       box.width / (2 * frame.unit) - this.camera.x,
       box.height / (2 * frame.unit) - this.camera.y,
+    );
+
+    // The wall surface rides the same palette pipe as its tenants: the
+    // paper base and the ink texture resolve through the wall's own seed,
+    // so a theme switch fades them on the clock the windows fade on.
+    const palette = windowPalette(this.metaSeed, theme, false, now);
+    ctx.fillStyle = palette('paper').color;
+    ctx.fillRect(
+      this.camera.x - extentW / 2,
+      this.camera.y - extentH / 2,
+      extentW,
+      extentH,
     );
 
     drawStipple(ctx, this.camera, extentW, extentH);
@@ -118,7 +131,7 @@ export class Wall {
     for (const { si, ti } of slots) {
       const pen = this.slotPens.get(pairKey(si, ti));
       pen.setTime(time);
-      drawPatchSlot(ctx, pen, this.metaSeed, si, ti, theme.ink);
+      drawPatchSlot(ctx, pen, this.metaSeed, si, ti, palette('ink').color);
     }
 
     this.cellPens.sync(frame.cells.map((c) => pairKey(c.col, c.row)));
@@ -136,7 +149,7 @@ export class Wall {
       drawWindow(ctx, pen, windowPalette(pen.seed, theme, lampLit(pen.seed)), {
         x: frame.eye.x + col * PITCH_X - this.camera.x,
         y: frame.eye.y + row * PITCH_Y - this.camera.y,
-      }, theme.isNight);
+      }, theme.night);
       ctx.restore();
     }
     ctx.restore();

@@ -12,6 +12,7 @@ import { registerDemo, type ReseedHandle } from '@/components/mount';
 import { Pen } from '@/pen/pen';
 import { DEFAULT_TUNING } from '@/pen/tuning';
 import type { Theme } from '@/styling/roles';
+import { windowPalette } from '@/styling/colourway';
 import { mockPalette } from '@/content/chapters/mock/palette';
 import { windowSeed } from '@/core/randomness/rng';
 import { execute } from '@/core/scene';
@@ -63,12 +64,24 @@ function mountWallStrip(canvas: HTMLCanvasElement): ReseedHandle {
       ctx.scale(box.dpr * unit, box.dpr * unit);
       ctx.translate(box.width / (2 * unit) - REST_CAMERA.x, box.height / (2 * unit) - REST_CAMERA.y);
 
+      // The wall surface rides the engine's palette pipe: paper base and
+      // ink texture resolve through the wall's own seed, so a theme switch
+      // fades the surface on the same clock the windows fade on.
+      const palette = windowPalette(metaSeed, theme);
+      ctx.fillStyle = palette('paper').color;
+      ctx.fillRect(
+        REST_CAMERA.x - extentW / 2,
+        REST_CAMERA.y - extentH / 2,
+        extentW,
+        extentH,
+      );
+
       drawStipple(ctx, REST_CAMERA, extentW, extentH);
 
       for (const { si, ti } of slots) {
         const pen = slotPens.get(pairKey(si, ti));
         pen.setTime(time);
-        drawPatchSlot(ctx, pen, metaSeed, si, ti, theme.ink);
+        drawPatchSlot(ctx, pen, metaSeed, si, ti, palette('ink').color);
       }
 
       for (const { col, row } of cells) {

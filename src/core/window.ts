@@ -24,9 +24,9 @@ import { makeProjection, type Eye } from '@/motion/projection';
 // under the light block: the lamp always stands in front of every piece.
 // The seed and the plan are one window's — the plan must come from
 // expandShell(seed) (or a pinned variant of the same window), never another
-// window's shell. `night` is the theme's own night flag, declared by the
-// page and carried on the theme.
-export function windowSceneMarks(seed: number, plan: ShellPlan, night: boolean): Mark[] {
+// window's shell. `night` is the theme's own night flag (1 night, 0 day),
+// declared by the page and carried on the theme.
+export function windowSceneMarks(seed: number, plan: ShellPlan, night: number): Mark[] {
   const rng = fork(seed, 'dna');
   const opening = innerRect(plan.faceWidth);
   // The rolls consume the stream in append order; the draw order lives on
@@ -46,7 +46,7 @@ export function drawWindow(
   pen: Pen,
   palette: Palette,
   eye: Eye,
-  night: boolean,
+  night: number,
 ): void {
   const plan = expandShell(pen.seed);
   execute(
