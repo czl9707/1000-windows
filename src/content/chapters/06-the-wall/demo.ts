@@ -73,6 +73,7 @@ function mountWallStrip(canvas: HTMLCanvasElement): ReseedHandle {
         slotPens,
         time,
         windowPalette(metaSeed, theme),
+        0,
       );
 
       for (const { col, row } of cells) {

@@ -54,7 +54,7 @@ function mountKinds(canvas: HTMLCanvasElement): TuningHandle {
   const loop = createDemoLoop(canvas, (ctx, _time, pageTheme: Theme) => {
     const box = cssBox(canvas);
     const night = pinned.night >= 0.5 ? 1 : 0;
-    const theme = night ? DARK : pageTheme;
+    const theme = night !== 0 ? DARK : pageTheme;
     if (night) paintNight(ctx, box);
     const cols = plateCols(KIND_COUNT);
     const rows = Math.ceil(KIND_COUNT / cols);

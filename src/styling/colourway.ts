@@ -179,7 +179,7 @@ function nightPass(
   kind: NightKind,
 ): ResolvedColor {
   const { theme, night, lit, wayFor, tuning } = ctx;
-  if (!night || kind === "keep") return dress;
+  if (night === 0 || kind === "keep") return dress;
   const sunk = {
     color: mixCss(dress.color, theme.paper, tuning.nightMix),
     alpha: dress.alpha,
@@ -422,7 +422,7 @@ function ease(x: number): number {
 }
 
 function cachedPalette(seed: number, theme: Theme, lit: boolean): Palette {
-  const key = `${seed}|${theme.ink}|${theme.paper}|${lit ? 1 : 0}`;
+  const key = `${seed}|${theme.ink}|${theme.paper}|${theme.night}|${lit ? 1 : 0}`;
   let palette = paletteCache.get(key);
   if (!palette) {
     palette = buildPalette(

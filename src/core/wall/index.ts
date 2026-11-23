@@ -134,7 +134,7 @@ export class Wall {
       // nearer layers drift by depth while the camera pans.
       // Each tenant resolves its own colourway; the theme-bound roles come
       // along inside the same palette.
-      drawWindow(ctx, pen, windowPalette(pen.seed, theme, lampLit(pen.seed)), {
+      drawWindow(ctx, pen, windowPalette(pen.seed, theme, lampLit(pen.seed), now), {
         x: frame.eye.x + col * PITCH_X - this.camera.x,
         y: frame.eye.y + row * PITCH_Y - this.camera.y,
       }, theme.night);

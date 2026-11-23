@@ -29,7 +29,7 @@ interface Slot {
 
 // `margin` widens the extent so a slot's pen is alive before its patch
 // first scrolls into view.
-export function textureSlots(camera: Camera, extentW: number, extentH: number, margin = 0): Slot[] {
+function textureSlots(camera: Camera, extentW: number, extentH: number, margin: number): Slot[] {
   const si0 = Math.floor((camera.x - extentW / 2 - margin) / SLOT_W);
   const si1 = Math.floor((camera.x + extentW / 2 + margin) / SLOT_W);
   const ti0 = Math.floor((camera.y - extentH / 2 - margin) / SLOT_H);
@@ -62,7 +62,7 @@ export function drawWallSurface(
   slotPens: PenLedger,
   time: number,
   palette: Palette,
-  margin = 0,
+  margin: number,
 ): void {
   ctx.fillStyle = palette('paper').color;
   ctx.fillRect(
@@ -90,7 +90,7 @@ const STIPPLE_SRC =
 const STIPPLE_UNITS = 3.4;
 let stipple: HTMLImageElement | null = null;
 
-export function drawStipple(ctx: CanvasRenderingContext2D, camera: Camera, extentW: number, extentH: number): void {
+function drawStipple(ctx: CanvasRenderingContext2D, camera: Camera, extentW: number, extentH: number): void {
   if (!stipple) {
     stipple = new Image();
     stipple.src = STIPPLE_SRC;
@@ -117,7 +117,7 @@ export function drawStipple(ctx: CanvasRenderingContext2D, camera: Camera, exten
 // rolls separately. Every stroke is `ruhig`: mortar does not tremble.
 const BRICK_HEIGHT = 0.055;
 
-export function drawPatchSlot(
+function drawPatchSlot(
   ctx: CanvasRenderingContext2D,
   pen: Pen,
   metaSeed: number,

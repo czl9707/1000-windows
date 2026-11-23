@@ -167,18 +167,18 @@ body[data-theme='dark'] {
 
 body {
     transition:
-        --ch-primary-background-r var(--transition-theme) ease,
-        --ch-primary-background-g var(--transition-theme) ease,
-        --ch-primary-background-b var(--transition-theme) ease,
-        --ch-primary-foreground-r var(--transition-theme) ease,
-        --ch-primary-foreground-g var(--transition-theme) ease,
-        --ch-primary-foreground-b var(--transition-theme) ease,
-        --ch-secondary-background-r var(--transition-theme) ease,
-        --ch-secondary-background-g var(--transition-theme) ease,
-        --ch-secondary-background-b var(--transition-theme) ease,
-        --ch-secondary-foreground-r var(--transition-theme) ease,
-        --ch-secondary-foreground-g var(--transition-theme) ease,
-        --ch-secondary-foreground-b var(--transition-theme) ease;
+        --ch-primary-background-r var(--transition-theme) cubic-bezier(0.25, 0.1, 0.25, 1),
+        --ch-primary-background-g var(--transition-theme) cubic-bezier(0.25, 0.1, 0.25, 1),
+        --ch-primary-background-b var(--transition-theme) cubic-bezier(0.25, 0.1, 0.25, 1),
+        --ch-primary-foreground-r var(--transition-theme) cubic-bezier(0.25, 0.1, 0.25, 1),
+        --ch-primary-foreground-g var(--transition-theme) cubic-bezier(0.25, 0.1, 0.25, 1),
+        --ch-primary-foreground-b var(--transition-theme) cubic-bezier(0.25, 0.1, 0.25, 1),
+        --ch-secondary-background-r var(--transition-theme) cubic-bezier(0.25, 0.1, 0.25, 1),
+        --ch-secondary-background-g var(--transition-theme) cubic-bezier(0.25, 0.1, 0.25, 1),
+        --ch-secondary-background-b var(--transition-theme) cubic-bezier(0.25, 0.1, 0.25, 1),
+        --ch-secondary-foreground-r var(--transition-theme) cubic-bezier(0.25, 0.1, 0.25, 1),
+        --ch-secondary-foreground-g var(--transition-theme) cubic-bezier(0.25, 0.1, 0.25, 1),
+        --ch-secondary-foreground-b var(--transition-theme) cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 
 @media (prefers-reduced-motion: reduce) {

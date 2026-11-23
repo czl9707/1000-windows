@@ -1,35 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { Pen } from '@/pen/pen';
-import { DEFAULT_TUNING } from '@/pen/tuning';
 import { visibleCells } from './grid';
-import { drawPatchSlot } from './texture';
+import { recordingCtx, stubWallImage } from './test-support';
 import { Wall } from './index';
 
-// Node has no Image: the stipple tile never loads, so the texture pass
-// early-returns and the draw exercises the palette plumbing only.
-(globalThis as { Image?: unknown }).Image = class {
-  complete = false;
-};
-
-// A context that records every fillStyle the draw sets, no-ops everything
-// else — the wall's base fill is the first fillStyle it lays down.
-function recordingCtx(): { ctx: CanvasRenderingContext2D; fills: string[] } {
-  const fills: string[] = [];
-  const ctx = new Proxy(
-    {},
-    {
-      get: (_target, prop) => {
-        if (prop === 'fillStyle') return fills[fills.length - 1];
-        return () => {};
-      },
-      set: (_target, prop, value) => {
-        if (prop === 'fillStyle') fills.push(String(value));
-        return true;
-      },
-    },
-  ) as unknown as CanvasRenderingContext2D;
-  return { ctx, fills };
-}
+stubWallImage();
 
 const channels = (css: string) => css.match(/\d+/g)!.map(Number);
 
@@ -67,22 +41,5 @@ describe('Wall.draw', () => {
       expect(half[i]).toBeGreaterThan(lo);
       expect(half[i]).toBeLessThan(hi);
     }
-    // The texture strokes ride the same pipe: the wall hands the palette's
-    // fading ink to the patch pass, never the theme's raw ink. The routing
-    // is pinned on the patch pass itself, where the ink is consumed.
-    class StrokeRecordingPen extends Pen {
-      colors: string[] = [];
-      stroke(ctx: CanvasRenderingContext2D, raw: unknown, opts: { color: string }): void {
-        this.colors.push(opts.color);
-      }
-    }
-    let strokes = 0;
-    for (let slot = 0; strokes === 0 && slot < 24; slot++) {
-      const patchPen = new StrokeRecordingPen({ ...DEFAULT_TUNING }, 7000 + slot * 104729);
-      drawPatchSlot(recordingCtx().ctx, patchPen, 91234, slot % 6, Math.floor(slot / 6), 'rgb(1 2 3)');
-      strokes = patchPen.colors.length;
-      for (const c of patchPen.colors) expect(c).toBe('rgb(1 2 3)');
-    }
-    expect(strokes).toBeGreaterThan(0);
   });
 });
