@@ -80,6 +80,7 @@ body {
 
     --transition-short: .3s;
     --transition-long: .9s;
+    --transition-theme: .6s;
 
     --size-border-radius: .25rem;
     --size-header-height: 4.5rem;
@@ -90,28 +91,101 @@ body {
     }
 }
 
+/* The theme's colour channels as registered properties: registration is
+   what makes the theme switch interpolable, so every consumer reading the
+   composite tokens re-resolves each frame of the fade. The channels alias
+   the instant ground truth below, so a theme flip swaps the targets at
+   once and the transition carries the values over. */
+@property --ch-primary-background-r { syntax: '<number>'; inherits: true; initial-value: 229; }
+@property --ch-primary-background-g { syntax: '<number>'; inherits: true; initial-value: 222; }
+@property --ch-primary-background-b { syntax: '<number>'; inherits: true; initial-value: 214; }
+@property --ch-primary-foreground-r { syntax: '<number>'; inherits: true; initial-value: 33; }
+@property --ch-primary-foreground-g { syntax: '<number>'; inherits: true; initial-value: 37; }
+@property --ch-primary-foreground-b { syntax: '<number>'; inherits: true; initial-value: 41; }
+@property --ch-secondary-background-r { syntax: '<number>'; inherits: true; initial-value: 180; }
+@property --ch-secondary-background-g { syntax: '<number>'; inherits: true; initial-value: 180; }
+@property --ch-secondary-background-b { syntax: '<number>'; inherits: true; initial-value: 180; }
+@property --ch-secondary-foreground-r { syntax: '<number>'; inherits: true; initial-value: 75; }
+@property --ch-secondary-foreground-g { syntax: '<number>'; inherits: true; initial-value: 75; }
+@property --ch-secondary-foreground-b { syntax: '<number>'; inherits: true; initial-value: 75; }
+
 body {
-    --color-primary-background: 229 222 214;
-    --color-secondary-background: 180 180 180;
-    --color-primary-foreground: 33 37 41;
-    --color-secondary-foreground: 75 75 75;
+    --theme-ink-r: 33;
+    --theme-ink-g: 37;
+    --theme-ink-b: 41;
+    --theme-paper-r: 229;
+    --theme-paper-g: 222;
+    --theme-paper-b: 214;
+    --theme-dim-r: 75;
+    --theme-dim-g: 75;
+    --theme-dim-b: 75;
+    --theme-dim-paper-r: 180;
+    --theme-dim-paper-g: 180;
+    --theme-dim-paper-b: 180;
+
+    --ch-primary-foreground-r: var(--theme-ink-r);
+    --ch-primary-foreground-g: var(--theme-ink-g);
+    --ch-primary-foreground-b: var(--theme-ink-b);
+    --ch-primary-background-r: var(--theme-paper-r);
+    --ch-primary-background-g: var(--theme-paper-g);
+    --ch-primary-background-b: var(--theme-paper-b);
+    --ch-secondary-foreground-r: var(--theme-dim-r);
+    --ch-secondary-foreground-g: var(--theme-dim-g);
+    --ch-secondary-foreground-b: var(--theme-dim-b);
+    --ch-secondary-background-r: var(--theme-dim-paper-r);
+    --ch-secondary-background-g: var(--theme-dim-paper-g);
+    --ch-secondary-background-b: var(--theme-dim-paper-b);
+
+    --color-primary-background: var(--ch-primary-background-r) var(--ch-primary-background-g) var(--ch-primary-background-b);
+    --color-secondary-background: var(--ch-secondary-background-r) var(--ch-secondary-background-g) var(--ch-secondary-background-b);
+    --color-primary-foreground: var(--ch-primary-foreground-r) var(--ch-primary-foreground-g) var(--ch-primary-foreground-b);
+    --color-secondary-foreground: var(--ch-secondary-foreground-r) var(--ch-secondary-foreground-g) var(--ch-secondary-foreground-b);
     --color-accent-foreground: 255 140 66;
-    --color-accent-background: 229 222 214;
+    --color-accent-background: var(--ch-primary-background-r) var(--ch-primary-background-g) var(--ch-primary-background-b);
 
     --border: 1px solid rgb(var(--color-primary-foreground) / 0.5);
     --border-secondary: 1px solid rgb(var(--color-primary-foreground) / 0.25);
 }
 
 body[data-theme='dark'] {
-    --color-primary-background: 0 0 0;
-    --color-secondary-background: 75 75 75;
-    --color-primary-foreground: 255 255 255;
-    --color-secondary-foreground: 180 180 180;
-    --color-accent-foreground: 255 140 66;
-    --color-accent-background: 0 0 0;
+    --theme-ink-r: 255;
+    --theme-ink-g: 255;
+    --theme-ink-b: 255;
+    --theme-paper-r: 0;
+    --theme-paper-g: 0;
+    --theme-paper-b: 0;
+    --theme-dim-r: 180;
+    --theme-dim-g: 180;
+    --theme-dim-b: 180;
+    --theme-dim-paper-r: 75;
+    --theme-dim-paper-g: 75;
+    --theme-dim-paper-b: 75;
 
     --border: 1px solid rgb(var(--color-primary-foreground) / 0.75);
     --border-secondary: 1px solid rgb(var(--color-primary-foreground) / 0.5);
+}
+
+body {
+    transition:
+        --ch-primary-background-r var(--transition-theme) cubic-bezier(0.25, 0.1, 0.25, 1),
+        --ch-primary-background-g var(--transition-theme) cubic-bezier(0.25, 0.1, 0.25, 1),
+        --ch-primary-background-b var(--transition-theme) cubic-bezier(0.25, 0.1, 0.25, 1),
+        --ch-primary-foreground-r var(--transition-theme) cubic-bezier(0.25, 0.1, 0.25, 1),
+        --ch-primary-foreground-g var(--transition-theme) cubic-bezier(0.25, 0.1, 0.25, 1),
+        --ch-primary-foreground-b var(--transition-theme) cubic-bezier(0.25, 0.1, 0.25, 1),
+        --ch-secondary-background-r var(--transition-theme) cubic-bezier(0.25, 0.1, 0.25, 1),
+        --ch-secondary-background-g var(--transition-theme) cubic-bezier(0.25, 0.1, 0.25, 1),
+        --ch-secondary-background-b var(--transition-theme) cubic-bezier(0.25, 0.1, 0.25, 1),
+        --ch-secondary-foreground-r var(--transition-theme) cubic-bezier(0.25, 0.1, 0.25, 1),
+        --ch-secondary-foreground-g var(--transition-theme) cubic-bezier(0.25, 0.1, 0.25, 1),
+        --ch-secondary-foreground-b var(--transition-theme) cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    body {
+        --transition-theme: 0s;
+        transition: none;
+    }
 }
 
 @custom-media --smaller-than-xs (max-width:450px);

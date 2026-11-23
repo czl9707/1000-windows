@@ -47,6 +47,10 @@ export interface Theme {
   ink: string;
   paper: string;
   isNight: boolean;
+  // The page's theme-switch fade window in milliseconds; 0 keeps the
+  // palette a pure function of the theme. demoLoop reads the token, so the
+  // number lives in one place — the stylesheet.
+  transitionMs: number;
 }
 
 // One resolved fill: the finish styling decided, ready to draw in one pass.

@@ -26,8 +26,8 @@ const STREET_SEED = 1335613256;
 const STREET_COUNT = 6;
 const COMPARE_COUNT = 3;
 
-const DAY = { ink: 'rgb(33 37 41)', paper: 'rgb(229 222 214)', isNight: false } as const;
-const DARK = { ink: 'rgb(233 236 239)', paper: 'rgb(0 0 0)', isNight: true } as const;
+const DAY = { ink: 'rgb(33 37 41)', paper: 'rgb(229 222 214)', isNight: false, transitionMs: 0 } as const;
+const DARK = { ink: 'rgb(233 236 239)', paper: 'rgb(0 0 0)', isNight: true, transitionMs: 0 } as const;
 
 function buildStreet(seed: number, count: number = STREET_COUNT): Pen[] {
   return Array.from(

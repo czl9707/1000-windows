@@ -28,7 +28,7 @@ const KIND_COUNT = LAMP_KINDS.length;
 
 // The benches pin the theme: the lamps draw at night, so both paint the
 // dark pair regardless of the page.
-const DARK = { ink: 'rgb(233 236 239)', paper: 'rgb(0 0 0)', isNight: true } as const;
+const DARK = { ink: 'rgb(233 236 239)', paper: 'rgb(0 0 0)', isNight: true, transitionMs: 0 } as const;
 
 function buildStreet(seed: number, count: number): Pen[] {
   return Array.from(

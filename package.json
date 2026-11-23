@@ -26,6 +26,7 @@
   "devDependencies": {
     "@astrojs/check": "^0.9.12",
     "@csstools/postcss-global-data": "^4.0.0",
+    "@types/node": "^26.6.6",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "github-slugger": "^2.0.0",

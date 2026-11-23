@@ -67,9 +67,10 @@ describe('the light roll', () => {
 describe('lampMarks', () => {
   const plan: OwnedLamp = { present: true, on: true, kind: 'floorLamp', location: 'innerLeft', facing: 'right' };
 
-  it('draws nothing for a lampless room by day, and only the veil at night', () => {
+  it('keeps the veil in the lampless room at every state — its alpha fades, not its mark', () => {
     const day = lampMarks({ present: false }, OPENING, false);
-    expect(day).toEqual([]);
+    expect(day.length).toBe(1);
+    expect(day[0].role).toBe('veil');
     const night = lampMarks({ present: false }, OPENING, true);
     expect(night.length).toBe(1);
     expect(night[0].role).toBe('veil');
@@ -94,9 +95,10 @@ describe('lampMarks', () => {
     expect(lit.some((m) => m.role === 'lampShade')).toBe(false);
   });
 
-  it('gates the light on the night theme: day emits no veil, ambient, aura, or warm emitter', () => {
+  it('gates the light layer on the night theme: day emits no ambient, aura, or warm emitter — the veil mark stays, its alpha is styling\'s', () => {
     const marks = lampMarks(plan, OPENING, false);
-    for (const role of ['veil', 'ambient', 'aura', 'light'] as const) {
+    expect(marks.some((m) => m.role === 'veil')).toBe(true);
+    for (const role of ['ambient', 'aura', 'light'] as const) {
       expect(marks.some((m) => m.role === role)).toBe(false);
     }
   });

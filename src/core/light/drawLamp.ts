@@ -5,8 +5,9 @@
 // furniture paint whenever unlit, the emitter's warmth when lit at night),
 // and the aura the construction casts, laid — with the room's ambient —
 // directly over the interior, ink lines included. The state gate lives
-// here: day draws the furniture alone, an unlit night adds the veil, a lit
-// night swaps the emitter in and lays ambient and aura. Every mark is
+// here: the veil is always in the mark list — styling resolves its alpha,
+// zero by day, the wash at night — and a lit night swaps the emitter in
+// and lays ambient and aura. Every mark is
 // clipped to the opening before it leaves the drawer — the standing lamps
 // reach lines below the sightline, and only what the glass shows is drawn.
 // No mark names a colour or a strength — styling resolves the roles. Trace
@@ -217,7 +218,7 @@ function emit(kind: LampKind, f: Frame, lit: boolean): { marks: Mark[]; auras: {
 
 export function lampMarks(plan: LampPlan, o: PaneRect, night: boolean): Mark[] {
   const veil = () => fill('veil', rect(o.left, o.top, o.right, o.bottom));
-  if (!plan.present) return night ? [veil()] : [];
+  if (!plan.present) return [veil()];
   const w = o.right - o.left;
   const h = o.bottom - o.top;
   const x = o.left + ANCHOR_X[plan.location] * w;
@@ -235,6 +236,6 @@ export function lampMarks(plan: LampPlan, o: PaneRect, night: boolean): Mark[] {
     drawn.push(fill('ambient', rect(o.left, o.top, o.right, o.bottom)));
     for (const { pts, anchor } of auras) drawn.push(...aura(pts, anchor, o));
   }
-  if (night && !plan.on) drawn.push(veil());
+  if (!lit) drawn.push(veil());
   return drawn;
 }

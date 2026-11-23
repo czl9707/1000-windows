@@ -16,10 +16,8 @@ import { PITCH_X, PITCH_Y, WINDOW_SCALE, type Camera, type Cell } from "./grid";
 import { pairFrom, pairKey } from "./pens";
 import { PenLedger } from "./ledger";
 import {
-  drawPatchSlot,
-  drawStipple,
+  drawWallSurface,
   slotPenSeed,
-  textureSlots,
 } from "./texture";
 
 export { PITCH_X, PITCH_Y, WINDOW_SCALE, wallUnits, visibleCells } from "./grid";
@@ -96,6 +94,7 @@ export class Wall {
     frame: WallFrame,
     time: number,
     theme: Theme,
+    now: number = performance.now(),
   ): void {
     const extentW = box.width / frame.unit;
     const extentH = box.height / frame.unit;
@@ -106,20 +105,22 @@ export class Wall {
       box.height / (2 * frame.unit) - this.camera.y,
     );
 
-    drawStipple(ctx, this.camera, extentW, extentH);
-
-    const slots = textureSlots(
+    // The wall surface rides the same palette pipe as its tenants: the
+    // caller resolves the palette, the surface dresses itself from it, so
+    // a theme switch fades paper and texture on the clock the windows
+    // fade on.
+    const palette = windowPalette(this.metaSeed, theme, false, now);
+    drawWallSurface(
+      ctx,
       this.camera,
       extentW,
       extentH,
+      this.metaSeed,
+      this.slotPens,
+      time,
+      palette,
       frame.margin ?? 0,
     );
-    this.slotPens.sync(slots.map((s) => pairKey(s.si, s.ti)));
-    for (const { si, ti } of slots) {
-      const pen = this.slotPens.get(pairKey(si, ti));
-      pen.setTime(time);
-      drawPatchSlot(ctx, pen, this.metaSeed, si, ti, theme.ink);
-    }
 
     this.cellPens.sync(frame.cells.map((c) => pairKey(c.col, c.row)));
     for (const { col, row } of frame.cells) {
@@ -133,7 +134,7 @@ export class Wall {
       // nearer layers drift by depth while the camera pans.
       // Each tenant resolves its own colourway; the theme-bound roles come
       // along inside the same palette.
-      drawWindow(ctx, pen, windowPalette(pen.seed, theme, lampLit(pen.seed)), {
+      drawWindow(ctx, pen, windowPalette(pen.seed, theme, lampLit(pen.seed), now), {
         x: frame.eye.x + col * PITCH_X - this.camera.x,
         y: frame.eye.y + row * PITCH_Y - this.camera.y,
       }, theme.isNight);

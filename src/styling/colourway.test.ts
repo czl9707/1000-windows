@@ -18,8 +18,8 @@ import { cssToOklch, type Oklch } from './oklch';
 // The grounds match the page's two themes, night declared as the themes
 // declare it; the ink values are whatever the tokens hold — tinted roles
 // must not depend on them.
-const LIGHT = { ink: 'rgb(33 37 41)', paper: 'rgb(229 222 214)', isNight: false };
-const DARK = { ink: 'rgb(233 236 239)', paper: 'rgb(0 0 0)', isNight: true };
+const LIGHT = { ink: 'rgb(33 37 41)', paper: 'rgb(229 222 214)', isNight: false, transitionMs: 0 };
+const DARK = { ink: 'rgb(233 236 239)', paper: 'rgb(0 0 0)', isNight: true, transitionMs: 0 };
 const TINTED = ['mullion', 'fabric', 'shade', 'blind', 'awning', 'sill', 'box'] as const;
 // The cloth washes land at their tint alpha compounded with the half-strength
 // pooling echo. Every painted surface goes down opaque — its fill exists to
@@ -177,12 +177,13 @@ describe('the interior roles', () => {
     expect(matching).toBeLessThan(100);
   });
 
-  it('veils in the ground colour', () => {
+  it('veils in the ground colour, riding the fade: no wash by day, the full wash at night', () => {
     const palette = windowPalette(42, LIGHT);
-    const veil = palette('veil');
-    expect(veil.color).toBe(LIGHT.paper);
-    expect(veil.alpha).toBeGreaterThan(0);
-    expect(veil.alpha).toBeLessThan(1);
+    expect(palette('veil').color).toBe(LIGHT.paper);
+    expect(palette('veil').alpha).toBe(0);
+    const night = windowPalette(42, DARK);
+    expect(night('veil').color).toBe(DARK.paper);
+    expect(night('veil').alpha).toBe(DEFAULT_COLOURWAY_TUNING.veilAlpha);
   });
 
   it('keeps the interior off the night mix — the veil darkens instead', () => {
@@ -346,6 +347,88 @@ describe('windowPalette', () => {
   it('throws on a role with no registered resolution', () => {
     const palette = windowPalette(42, LIGHT) as unknown as (role: string) => ResolvedColor;
     expect(() => palette('nonsense')).toThrow();
+  });
+});
+
+// The theme crossfade: windowPalette with a transitionMs window on the
+// theme blends each role from where it was into the new theme's resolved
+// palette, on a clock the caller injects. Every keyframe is a fully
+// resolved palette — day or night, whichever the theme declares — never a
+// half-night resolve.
+describe('the theme crossfade', () => {
+  const FADE_MS = 600;
+  const DAY = { ...LIGHT, transitionMs: FADE_MS };
+  const NIGHT = { ...DARK, transitionMs: FADE_MS };
+  const channels = (css: string) => css.match(/\d+/g)!.map(Number);
+
+  it('blends a role from the settled palette into the new theme and lands exactly on it', () => {
+    const seed = 42;
+    const before = channels(windowPalette(seed, DAY, false, 0)('mullion').color);
+    windowPalette(seed, NIGHT, false, 0);
+    const mid = channels(windowPalette(seed, NIGHT, false, FADE_MS / 2)('mullion').color);
+    const done = windowPalette(seed, NIGHT, false, FADE_MS)('mullion');
+    const target = windowPalette(seed, { ...DARK })('mullion');
+    expect(done).toEqual(target);
+    // The eased clock at half time has moved most of the way: every channel
+    // strictly between the endpoints, and past the midpoint.
+    const after = channels(target.color);
+    for (let i = 0; i < 3; i++) {
+      const lo = Math.min(before[i], after[i]);
+      const hi = Math.max(before[i], after[i]);
+      expect(mid[i]).toBeGreaterThan(lo);
+      expect(mid[i]).toBeLessThan(hi);
+      expect(Math.abs(mid[i] - after[i])).toBeLessThan(Math.abs(mid[i] - before[i]));
+    }
+  });
+
+  it('runs the fade on the CSS ease clock', () => {
+    const seed = 47;
+    windowPalette(seed, DAY, false, 0);
+    windowPalette(seed, NIGHT, false, 0);
+    const half = channels(windowPalette(seed, NIGHT, false, FADE_MS / 2)('paper').color);
+    // The page's token transition uses the CSS ease curve; this fade must
+    // ride the same clock. Ease at half time is 0.8024 of the way — the
+    // reference value of cubic-bezier(0.25, 0.1, 0.25, 1) — pinned here so
+    // an edit to either side breaks the pairing instead of drifting.
+    const f = 0.8024;
+    const from = channels(LIGHT.paper);
+    const to = channels(DARK.paper);
+    const expected = from.map((v, i) => Math.round(v * (1 - f) + to[i] * f));
+    for (let i = 0; i < 3; i++) {
+      expect(Math.abs(half[i] - expected[i])).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it('carries an interrupted fade from where the screen was', () => {
+    const seed = 43;
+    windowPalette(seed, DAY, false, 0);
+    windowPalette(seed, NIGHT, false, 0);
+    const preFlip = windowPalette(seed, NIGHT, false, FADE_MS / 2)('sill');
+    // Flip back at the same instant: the return fade starts from the blend
+    // on screen, so no channel jumps.
+    windowPalette(seed, DAY, false, FADE_MS / 2);
+    const postFlip = windowPalette(seed, DAY, false, FADE_MS / 2)('sill');
+    const back = windowPalette(seed, DAY, false, FADE_MS * 2)('sill');
+    expect(channels(postFlip.color)).toEqual(channels(preFlip.color));
+    expect(back).toEqual(windowPalette(seed, { ...LIGHT })('sill'));
+  });
+
+  it('dresses a seed with no settled palette in the target at once', () => {
+    const seed = 44;
+    windowPalette(seed, DAY, false, 0);
+    windowPalette(seed, NIGHT, false, 0);
+    const fresh = windowPalette(45, NIGHT, false, FADE_MS / 2)('mullion');
+    expect(fresh).toEqual(windowPalette(45, { ...DARK })('mullion'));
+  });
+
+  it('stays resolved without a fade window — crossfade state never leaks into plain calls', () => {
+    const seed = 46;
+    windowPalette(seed, DAY, false, 0);
+    windowPalette(seed, NIGHT, false, 0);
+    windowPalette(seed, NIGHT, false, FADE_MS / 2);
+    const plain = windowPalette(seed, LIGHT)('fabric');
+    expect(plain).toEqual(windowPalette(seed, { ...LIGHT, transitionMs: 0 }, false, FADE_MS / 2)('fabric'));
+    expect(plain).toEqual(windowPalette(seed, LIGHT)('fabric'));
   });
 });
 

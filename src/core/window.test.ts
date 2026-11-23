@@ -62,7 +62,7 @@ class RecordingPen extends Pen {
 }
 
 const NOOP_CTX = {} as CanvasRenderingContext2D;
-const PALETTE = windowPalette(0, { ink: '#000000', paper: '#ffffff', isNight: false });
+const PALETTE = windowPalette(0, { ink: '#000000', paper: '#ffffff', isNight: false, transitionMs: 0 });
 const CLOTH_ALPHAS = (['fabric', 'shade'] as const).map((role) => PALETTE(role).alpha);
 const isCloth = (alpha: number) => CLOTH_ALPHAS.some((a) => Math.abs(alpha - a) < 1e-9);
 
