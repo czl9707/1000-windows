@@ -140,7 +140,7 @@ export const DEFAULT_COLOURWAY_TUNING: ColourwayTuning = {
 
 interface RoleContext {
   theme: Theme;
-  night: number;
+  night: boolean;
   // The window's own lamp gene: whether its room burns. Only the backlit
   // cloth reads it — a lit room's warmth shows through its curtain.
   lit: boolean;
@@ -179,7 +179,7 @@ function nightPass(
   kind: NightKind,
 ): ResolvedColor {
   const { theme, night, lit, wayFor, tuning } = ctx;
-  if (night === 0 || kind === "keep") return dress;
+  if (!night || kind === "keep") return dress;
   const sunk = {
     color: mixCss(dress.color, theme.paper, tuning.nightMix),
     alpha: dress.alpha,
@@ -312,7 +312,7 @@ const ROLE_RESOLVERS: Record<ColorRole, (ctx: RoleContext) => ResolvedColor> = {
   // other role, and an unlit room's interior dims instead of snapping.
   veil: ({ theme, night, tuning }) => ({
     color: theme.paper,
-    alpha: night !== 0 ? tuning.veilAlpha : 0,
+    alpha: night ? tuning.veilAlpha : 0,
   }),
   furniture2: furnitureAt(FURNITURE_INK_MIX[2]),
   furniture3: furnitureAt(FURNITURE_INK_MIX[3]),
@@ -342,7 +342,7 @@ export function windowPalette(
   const ms = theme.transitionMs;
   if (!(ms > 0)) return resolved;
   const key = `${seed}|${lit ? 1 : 0}`;
-  const identity = `${theme.ink}|${theme.paper}|${theme.night}`;
+  const identity = `${theme.ink}|${theme.paper}|${theme.isNight}`;
   const to = resolveAll(resolved);
   let entry = fades.get(key);
   if (!entry) {
@@ -422,7 +422,7 @@ function ease(x: number): number {
 }
 
 function cachedPalette(seed: number, theme: Theme, lit: boolean): Palette {
-  const key = `${seed}|${theme.ink}|${theme.paper}|${theme.night}|${lit ? 1 : 0}`;
+  const key = `${seed}|${theme.ink}|${theme.paper}|${theme.isNight}|${lit ? 1 : 0}`;
   let palette = paletteCache.get(key);
   if (!palette) {
     palette = buildPalette(
@@ -472,7 +472,7 @@ function buildPalette(
 ): Palette {
   const ctx: RoleContext = {
     theme,
-    night: theme.night,
+    night: theme.isNight,
     lit,
     wayFor,
     tuning,

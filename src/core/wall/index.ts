@@ -137,7 +137,7 @@ export class Wall {
       drawWindow(ctx, pen, windowPalette(pen.seed, theme, lampLit(pen.seed), now), {
         x: frame.eye.x + col * PITCH_X - this.camera.x,
         y: frame.eye.y + row * PITCH_Y - this.camera.y,
-      }, theme.night);
+      }, theme.isNight);
       ctx.restore();
     }
     ctx.restore();

@@ -18,8 +18,8 @@ import { cssToOklch, type Oklch } from './oklch';
 // The grounds match the page's two themes, night declared as the themes
 // declare it; the ink values are whatever the tokens hold — tinted roles
 // must not depend on them.
-const LIGHT = { ink: 'rgb(33 37 41)', paper: 'rgb(229 222 214)', night: 0, transitionMs: 0 };
-const DARK = { ink: 'rgb(233 236 239)', paper: 'rgb(0 0 0)', night: 1, transitionMs: 0 };
+const LIGHT = { ink: 'rgb(33 37 41)', paper: 'rgb(229 222 214)', isNight: false, transitionMs: 0 };
+const DARK = { ink: 'rgb(233 236 239)', paper: 'rgb(0 0 0)', isNight: true, transitionMs: 0 };
 const TINTED = ['mullion', 'fabric', 'shade', 'blind', 'awning', 'sill', 'box'] as const;
 // The cloth washes land at their tint alpha compounded with the half-strength
 // pooling echo. Every painted surface goes down opaque — its fill exists to

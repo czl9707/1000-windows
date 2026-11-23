@@ -216,7 +216,7 @@ function emit(kind: LampKind, f: Frame, lit: boolean): { marks: Mark[]; auras: {
   }
 }
 
-export function lampMarks(plan: LampPlan, o: PaneRect, night: number): Mark[] {
+export function lampMarks(plan: LampPlan, o: PaneRect, night: boolean): Mark[] {
   const veil = () => fill('veil', rect(o.left, o.top, o.right, o.bottom));
   if (!plan.present) return [veil()];
   const w = o.right - o.left;
@@ -224,7 +224,7 @@ export function lampMarks(plan: LampPlan, o: PaneRect, night: number): Mark[] {
   const x = o.left + ANCHOR_X[plan.location] * w;
   const skew = plan.facing === 'left' ? -LEAN : LEAN;
   const frame: Frame = { o, x, w, h, skew };
-  const lit = night !== 0 && plan.on;
+  const lit = night && plan.on;
   const { marks, auras } = emit(plan.kind, frame, lit);
   const drawn: Mark[] = [];
   for (const mark of marks) {

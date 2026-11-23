@@ -27,7 +27,7 @@ export function createDemoLoop(
   paint: (
     ctx: CanvasRenderingContext2D,
     time: number,
-    theme: { ink: string; paper: string; night: number; transitionMs: number },
+    theme: { ink: string; paper: string; isNight: boolean; transitionMs: number },
     eye: EyeOffset,
   ) => void,
   // A demo maps its own input to the eye — the motion strip its pointer,
@@ -38,7 +38,7 @@ export function createDemoLoop(
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('demo canvas: 2d context unavailable');
 
-  let theme = { ink: '', paper: '', night: 0, transitionMs: 0 };
+  let theme = { ink: '', paper: '', isNight: false, transitionMs: 0 };
   const readTheme = () => {
     const style = getComputedStyle(document.body);
     const channel = (name: string) => {
@@ -53,7 +53,7 @@ export function createDemoLoop(
     theme = {
       ink: triplet('--theme-ink'),
       paper: triplet('--theme-paper'),
-      night: document.body.getAttribute('data-theme') === 'dark' ? 1 : 0,
+      isNight: document.body.getAttribute('data-theme') === 'dark',
       transitionMs: seconds * 1000,
     };
   };

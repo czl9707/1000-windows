@@ -8,8 +8,8 @@ stubWallImage();
 const channels = (css: string) => css.match(/\d+/g)!.map(Number);
 
 describe('Wall.draw', () => {
-  const DAY = { ink: 'rgb(33 37 41)', paper: 'rgb(229 222 214)', night: 0, transitionMs: 600 };
-  const NIGHT = { ink: 'rgb(255 255 255)', paper: 'rgb(10 10 10)', night: 1, transitionMs: 600 };
+  const DAY = { ink: 'rgb(33 37 41)', paper: 'rgb(229 222 214)', isNight: false, transitionMs: 600 };
+  const NIGHT = { ink: 'rgb(255 255 255)', paper: 'rgb(10 10 10)', isNight: true, transitionMs: 600 };
 
   it('paints the wall surface through the fading palette', () => {
     const wall = new Wall(91234);

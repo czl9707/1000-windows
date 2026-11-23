@@ -68,16 +68,16 @@ describe('lampMarks', () => {
   const plan: OwnedLamp = { present: true, on: true, kind: 'floorLamp', location: 'innerLeft', facing: 'right' };
 
   it('keeps the veil in the lampless room at every state — its alpha fades, not its mark', () => {
-    const day = lampMarks({ present: false }, OPENING, 0);
+    const day = lampMarks({ present: false }, OPENING, false);
     expect(day.length).toBe(1);
     expect(day[0].role).toBe('veil');
-    const night = lampMarks({ present: false }, OPENING, 1);
+    const night = lampMarks({ present: false }, OPENING, true);
     expect(night.length).toBe(1);
     expect(night[0].role).toBe('veil');
   });
 
   it('draws the furniture in every owned room at every state', () => {
-    for (const night of [0, 1]) {
+    for (const night of [false, true]) {
       for (const on of [false, true]) {
         const marks = lampMarks({ ...plan, on }, OPENING, night);
         expect(marks.some((m) => m.role === 'lamp')).toBe(true);
@@ -86,17 +86,17 @@ describe('lampMarks', () => {
   });
 
   it('dresses the unlit emitter in its own colour, not the dark structure paint', () => {
-    for (const night of [0, 1]) {
+    for (const night of [false, true]) {
       const marks = lampMarks({ ...plan, on: false }, OPENING, night);
       expect(marks.some((m) => m.role === 'lampShade')).toBe(true);
     }
-    const lit = lampMarks(plan, OPENING, 1);
+    const lit = lampMarks(plan, OPENING, true);
     expect(lit.some((m) => m.role === 'light')).toBe(true);
     expect(lit.some((m) => m.role === 'lampShade')).toBe(false);
   });
 
   it('gates the light layer on the night theme: day emits no ambient, aura, or warm emitter — the veil mark stays, its alpha is styling\'s', () => {
-    const marks = lampMarks(plan, OPENING, 0);
+    const marks = lampMarks(plan, OPENING, false);
     expect(marks.some((m) => m.role === 'veil')).toBe(true);
     for (const role of ['ambient', 'aura', 'light'] as const) {
       expect(marks.some((m) => m.role === role)).toBe(false);
@@ -104,7 +104,7 @@ describe('lampMarks', () => {
   });
 
   it('veils an unlit room at night and lights nothing', () => {
-    const marks = lampMarks({ ...plan, on: false }, OPENING, 1);
+    const marks = lampMarks({ ...plan, on: false }, OPENING, true);
     expect(marks.some((m) => m.role === 'veil')).toBe(true);
     for (const role of ['ambient', 'aura', 'light'] as const) {
       expect(marks.some((m) => m.role === role)).toBe(false);
@@ -112,7 +112,7 @@ describe('lampMarks', () => {
   });
 
   it('lays the ambient beneath the aura, both over the emitter, and fades the shade auras from the lamp: one cone to the floor, one to the ceiling', () => {
-    const marks = lampMarks(plan, OPENING, 1);
+    const marks = lampMarks(plan, OPENING, true);
     const ambientAt = marks.findIndex((m) => m.role === 'ambient');
     const firstAuraAt = marks.findIndex((m) => m.role === 'aura');
     const emitterAt = marks.findIndex((m) => m.role === 'light');
@@ -143,7 +143,7 @@ describe('lampMarks', () => {
         const marks = lampMarks(
           { present: true, on: true, kind: kind.value, location: location.value, facing: 'right' },
           OPENING,
-          1,
+          true,
         );
         for (const mark of marks) {
           for (const p of mark.pts) {
@@ -159,7 +159,7 @@ describe('lampMarks', () => {
 
   it('keeps every arc aura pass centred on the dome', () => {
     const arc: OwnedLamp = { present: true, on: true, kind: 'arcLamp', location: 'innerLeft', facing: 'right' };
-    const marks = lampMarks(arc, OPENING, 1);
+    const marks = lampMarks(arc, OPENING, true);
     const emitters = marks.filter((m) => m.role === 'light');
     expect(emitters.length).toBe(1);
     const emitter = emitters[0];
@@ -180,8 +180,8 @@ describe('lampMarks', () => {
       return aura.reduce((sum, m) => sum + m.pts.reduce((s, p) => s + p.x, 0) / m.pts.length, 0) / aura.length;
     };
     const anchor = OPENING.left + ANCHOR_X.innerLeft * (OPENING.right - OPENING.left);
-    expect(centreX(lampMarks({ ...arc, facing: 'left' }, OPENING, 1))).toBeLessThan(anchor);
-    expect(centreX(lampMarks({ ...arc, facing: 'right' }, OPENING, 1))).toBeGreaterThan(anchor);
+    expect(centreX(lampMarks({ ...arc, facing: 'left' }, OPENING, true))).toBeLessThan(anchor);
+    expect(centreX(lampMarks({ ...arc, facing: 'right' }, OPENING, true))).toBeGreaterThan(anchor);
   });
 
   it('centres the symmetric auras on the lamp axis, facing or not', () => {
@@ -193,10 +193,10 @@ describe('lampMarks', () => {
     for (const kind of LAMP_KINDS) {
       if (kind.value === 'arcLamp') continue;
       const left = centreX(
-        lampMarks({ present: true, on: true, kind: kind.value, location: 'innerLeft', facing: 'left' }, OPENING, 1),
+        lampMarks({ present: true, on: true, kind: kind.value, location: 'innerLeft', facing: 'left' }, OPENING, true),
       );
       const right = centreX(
-        lampMarks({ present: true, on: true, kind: kind.value, location: 'innerLeft', facing: 'right' }, OPENING, 1),
+        lampMarks({ present: true, on: true, kind: kind.value, location: 'innerLeft', facing: 'right' }, OPENING, true),
       );
       expect(Math.abs(left - axis)).toBeLessThan(1e-9);
       expect(Math.abs(right - axis)).toBeLessThan(1e-9);
@@ -205,7 +205,7 @@ describe('lampMarks', () => {
 
   it('constructs every kind at every state without throwing', () => {
     for (const kind of LAMP_KINDS) {
-      for (const night of [0, 1]) {
+      for (const night of [false, true]) {
         for (const on of [false, true]) {
           expect(() =>
             lampMarks({ present: true, on, kind: kind.value, location: 'left', facing: 'left' }, OPENING, night),
@@ -222,7 +222,7 @@ describe('the light block in the assembled scene', () => {
   it('sorts the whole block under the curtain cloth', () => {
     for (let i = 0; i < 50; i++) {
       const seed = 50000 + i * 104729;
-      const marks = windowSceneMarks(seed, planFor(seed), 1);
+      const marks = windowSceneMarks(seed, planFor(seed), true);
       const curtainTop = Math.min(
         ...marks.filter((m) => m.role === 'fabric').map((m) => m.z),
       );
@@ -239,7 +239,7 @@ describe('the light block in the assembled scene', () => {
     for (let i = 0; i < 200; i++) {
       const seed = 60000 + i * 104729;
       const plan = rollLightAfterWalk(seed);
-      const marks = windowSceneMarks(seed, planFor(seed), 1);
+      const marks = windowSceneMarks(seed, planFor(seed), true);
       const roles = new Set(marks.map((m) => m.role));
       if (!plan.present) {
         sawVeiled ||= roles.has('veil');
@@ -259,7 +259,7 @@ describe('the light block in the assembled scene', () => {
   it('keeps every lamp stroke name unique within the window', () => {
     for (let i = 0; i < 100; i++) {
       const seed = 70000 + i * 104729;
-      const marks = windowSceneMarks(seed, planFor(seed), 1);
+      const marks = windowSceneMarks(seed, planFor(seed), true);
       const strokes = marks.filter((m) => m.kind === 'stroke' && m.name.startsWith('lamp-'));
       const names = strokes.map((m) => (m as { name: string }).name);
       expect(new Set(names).size).toBe(names.length);
@@ -267,7 +267,7 @@ describe('the light block in the assembled scene', () => {
   });
 
   it('sits the whole block at the interior depth sort key', () => {
-    const marks = windowSceneMarks(80001, planFor(80001), 1);
+    const marks = windowSceneMarks(80001, planFor(80001), true);
     const light = marks.filter((m) => (INTERIOR_ROLES as readonly string[]).includes(m.role));
     expect(light.length).toBeGreaterThan(0);
     for (const mark of light) expect(mark.z).toBe(LIGHT_Z);
@@ -280,7 +280,7 @@ describe('the light block in the assembled scene', () => {
       // The furniture and light blocks sort between the backing and
       // LIGHT_Z; this walk pins the backing and the two blocks in front of
       // them.
-      const assembled = windowSceneMarks(seed, plan, 1).filter(
+      const assembled = windowSceneMarks(seed, plan, true).filter(
         (m) => m.z > LIGHT_Z || m.z === SHELL_Z.backing,
       );
       // The walk without the later blocks: the same fork consumed by the

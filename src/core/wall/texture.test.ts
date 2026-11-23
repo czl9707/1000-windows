@@ -7,7 +7,7 @@ stubWallImage();
 
 describe('drawWallSurface', () => {
   it('fills the paper base with the palette and strokes every patch in the palette ink', () => {
-    const theme = { ink: 'rgb(33 37 41)', paper: 'rgb(229 222 214)', night: 0, transitionMs: 0 };
+    const theme = { ink: 'rgb(33 37 41)', paper: 'rgb(229 222 214)', isNight: false, transitionMs: 0 };
     const palette = windowPalette(424242, theme);
     const { pens, colors } = recordingSlotPens((key) =>
       3100 + [...key].reduce((sum, ch) => sum + ch.charCodeAt(0), 0),
