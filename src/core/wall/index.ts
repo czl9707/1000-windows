@@ -16,10 +16,8 @@ import { PITCH_X, PITCH_Y, WINDOW_SCALE, type Camera, type Cell } from "./grid";
 import { pairFrom, pairKey } from "./pens";
 import { PenLedger } from "./ledger";
 import {
-  drawPatchSlot,
-  drawStipple,
+  drawWallSurface,
   slotPenSeed,
-  textureSlots,
 } from "./texture";
 
 export { PITCH_X, PITCH_Y, WINDOW_SCALE, wallUnits, visibleCells } from "./grid";
@@ -108,31 +106,21 @@ export class Wall {
     );
 
     // The wall surface rides the same palette pipe as its tenants: the
-    // paper base and the ink texture resolve through the wall's own seed,
-    // so a theme switch fades them on the clock the windows fade on.
+    // caller resolves the palette, the surface dresses itself from it, so
+    // a theme switch fades paper and texture on the clock the windows
+    // fade on.
     const palette = windowPalette(this.metaSeed, theme, false, now);
-    ctx.fillStyle = palette('paper').color;
-    ctx.fillRect(
-      this.camera.x - extentW / 2,
-      this.camera.y - extentH / 2,
-      extentW,
-      extentH,
-    );
-
-    drawStipple(ctx, this.camera, extentW, extentH);
-
-    const slots = textureSlots(
+    drawWallSurface(
+      ctx,
       this.camera,
       extentW,
       extentH,
+      this.metaSeed,
+      this.slotPens,
+      time,
+      palette,
       frame.margin ?? 0,
     );
-    this.slotPens.sync(slots.map((s) => pairKey(s.si, s.ti)));
-    for (const { si, ti } of slots) {
-      const pen = this.slotPens.get(pairKey(si, ti));
-      pen.setTime(time);
-      drawPatchSlot(ctx, pen, this.metaSeed, si, ti, palette('ink').color);
-    }
 
     this.cellPens.sync(frame.cells.map((c) => pairKey(c.col, c.row)));
     for (const { col, row } of frame.cells) {

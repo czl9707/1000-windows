@@ -10,7 +10,9 @@
 import { fnv1a, mulberry32 } from '@/core/randomness/rng';
 import type { Pen } from '@/pen/pen';
 import { WEIGHTS } from '@/styling/weights';
+import type { Palette } from '@/styling/roles';
 import type { Camera } from './grid';
+import { PenLedger } from './ledger';
 import { pairKey } from './pens';
 
 // The texture's washes: the stipple grain, and the brick-patch islands
@@ -43,6 +45,42 @@ export function textureSlots(camera: Camera, extentW: number, extentH: number, m
 
 export function slotPenSeed(metaSeed: number, si: number, ti: number): number {
   return fnv1a(`wall:${metaSeed}:${si}:${ti}`);
+}
+
+// The wall surface's one entry — the paper base, the stipple grain, and
+// the brick-patch islands, all dressed from one palette the caller
+// resolved (the per-window entry's shape: the caller owns the theme, the
+// surface owns the drawing). `margin` widens the slot pass so a slot's pen
+// warms before its patch scrolls into view. Draws on the wall plane inside
+// the caller's scale/translate.
+export function drawWallSurface(
+  ctx: CanvasRenderingContext2D,
+  camera: Camera,
+  extentW: number,
+  extentH: number,
+  metaSeed: number,
+  slotPens: PenLedger,
+  time: number,
+  palette: Palette,
+  margin = 0,
+): void {
+  ctx.fillStyle = palette('paper').color;
+  ctx.fillRect(
+    camera.x - extentW / 2,
+    camera.y - extentH / 2,
+    extentW,
+    extentH,
+  );
+
+  drawStipple(ctx, camera, extentW, extentH);
+
+  const slots = textureSlots(camera, extentW, extentH, margin);
+  slotPens.sync(slots.map((s) => pairKey(s.si, s.ti)));
+  for (const { si, ti } of slots) {
+    const pen = slotPens.get(pairKey(si, ti));
+    pen.setTime(time);
+    drawPatchSlot(ctx, pen, metaSeed, si, ti, palette('ink').color);
+  }
 }
 
 // Stipple tile recovered verbatim from the nolli landing hero: drawn at

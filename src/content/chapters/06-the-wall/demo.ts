@@ -21,7 +21,7 @@ import { expandShell, shellMarks } from '@/core/window-shell';
 import { PITCH_X, PITCH_Y, visibleCells, type Camera } from '@/core/wall';
 import { pairFrom, pairKey } from '@/core/wall/pens';
 import { PenLedger } from '@/core/wall/ledger';
-import { drawPatchSlot, drawStipple, slotPenSeed, textureSlots } from '@/core/wall/texture';
+import { drawWallSurface, slotPenSeed } from '@/core/wall/texture';
 
 const STRIP_COLS = 3;
 const STRIP_ROWS = 2;
@@ -57,32 +57,23 @@ function mountWallStrip(canvas: HTMLCanvasElement): ReseedHandle {
       const cells = visibleCells(REST_CAMERA, extentW, extentH);
       cellPens.sync(cells.map((c) => pairKey(c.col, c.row)));
 
-      const slots = textureSlots(REST_CAMERA, extentW, extentH);
-      slotPens.sync(slots.map((s) => pairKey(s.si, s.ti)));
-
       ctx.save();
       ctx.scale(box.dpr * unit, box.dpr * unit);
       ctx.translate(box.width / (2 * unit) - REST_CAMERA.x, box.height / (2 * unit) - REST_CAMERA.y);
 
-      // The wall surface rides the engine's palette pipe: paper base and
-      // ink texture resolve through the wall's own seed, so a theme switch
-      // fades the surface on the same clock the windows fade on.
-      const palette = windowPalette(metaSeed, theme);
-      ctx.fillStyle = palette('paper').color;
-      ctx.fillRect(
-        REST_CAMERA.x - extentW / 2,
-        REST_CAMERA.y - extentH / 2,
+      // The wall surface rides the engine's palette pipe: the strip
+      // resolves the palette, the surface dresses itself from it, so a
+      // theme switch fades paper and texture with the windows.
+      drawWallSurface(
+        ctx,
+        REST_CAMERA,
         extentW,
         extentH,
+        metaSeed,
+        slotPens,
+        time,
+        windowPalette(metaSeed, theme),
       );
-
-      drawStipple(ctx, REST_CAMERA, extentW, extentH);
-
-      for (const { si, ti } of slots) {
-        const pen = slotPens.get(pairKey(si, ti));
-        pen.setTime(time);
-        drawPatchSlot(ctx, pen, metaSeed, si, ti, palette('ink').color);
-      }
 
       for (const { col, row } of cells) {
         const pen = cellPens.get(pairKey(col, row));
